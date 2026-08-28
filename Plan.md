@@ -1,10 +1,11 @@
-# PAP Optimization Companion — Unified Plan
+# PAP Pilot — Unified Plan
 
 **Status:** Living product and implementation plan
 **Created:** August 27, 2026
 **Updated:** August 28, 2026
 **Governs:** The personal prototype; deferred future-product requirements are retained in Part II
-**Working name:** To be selected before development begins; PAP Optimization Companion is a placeholder until that decision is recorded.
+**Working name:** PAP Pilot
+**Technical identifiers:** `pap-pilot` command/slug, `pap_pilot` Python package, and `pap_pilot.sqlite3` local database
 
 This is the single authoritative plan. Part I governs current work. Part II
 preserves future distribution requirements and possibilities; it does not
@@ -611,7 +612,7 @@ Scientific algorithms may be prototyped in Python, but accepted production behav
 ### F7.3 Suggested repository structure
 
 ```text
-pap-companion/
+pap-pilot/
 ├── engine/
 │   ├── model/
 │   ├── signals/
@@ -708,7 +709,7 @@ Rejected fallbacks:
 ### F9.1 Workspace contents
 
 ```text
-PAP-Companion/
+pap-pilot/
 ├── workspace.json
 ├── events/
 ├── sources/

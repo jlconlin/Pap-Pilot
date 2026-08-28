@@ -1,4 +1,4 @@
-# PAP Optimization Companion repository instructions
+# PAP Pilot repository instructions
 
 ## Governing documents
 
@@ -20,14 +20,16 @@
 8. At the end of every sprint:
    - update its status in `SPRINTS.md`;
    - update `STATUS.md` with changes, validation, decisions, blockers, and the next sprint;
-   - leave the repository in a resumable state.
+   - commit all in-scope changes after the completion check passes;
+   - verify the working tree is clean and leave the repository in a resumable state.
 
 ## Sprint statuses
 
 - `queued`: not started.
 - `active`: the only sprint currently in progress.
 - `blocked`: cannot proceed without a named input or decision.
-- `done`: its stated completion check has passed.
+- `done`: its stated completion check has passed, its changes are committed,
+  and the working tree is clean.
 
 ## Safety boundaries
 

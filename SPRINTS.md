@@ -1,8 +1,8 @@
-# PAP Optimization Companion — short sprint queue
+# PAP Pilot — short sprint queue
 
 **Governing plan:** `Plan.md`
 **Sprint size:** one narrow, independently verifiable development session  
-**Rule:** activate and complete only one sprint at a time
+**Rule:** activate and complete only one sprint at a time; commit its changes before stopping
 
 ## How to run a sprint
 
@@ -12,7 +12,8 @@ Start a new Codex goal with:
 /goal Complete sprint SXX from SPRINTS.md. Read AGENTS.md, Plan.md,
 and STATUS.md first. Stay within the sprint's
 scope and exclusions. Run its completion check, update SPRINTS.md and
-STATUS.md, and stop without starting the next sprint.
+STATUS.md, commit the completed sprint, verify the working tree is clean,
+and stop without starting the next sprint.
 ```
 
 If a sprint uncovers substantial extra work, add a new queued sprint rather than enlarging the active one.
@@ -25,7 +26,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Application implementation and OSCAR-data inspection.
 - Done when: `AGENTS.md`, `SPRINTS.md`, and `STATUS.md` agree on the next sprint and contain no broken local file references.
 
-### S01 — Select the working name and identifiers — blocked
+### S01 — Select the working name and identifiers — done
 
 - Objective: Select the working product name, technical slug, Python package name, and local database filename, and record the rationale.
 - Excludes: Trademark opinions, legal clearance, domains, app-store availability, social handles, logos, and final visual branding.

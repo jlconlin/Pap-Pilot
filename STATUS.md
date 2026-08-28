@@ -2,12 +2,12 @@
 
 **Updated:** August 28, 2026  
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S01 completed; stopped before S02
-**Next sprint:** S02 — Initialize version-control checkpoints
+**Current sprint:** None — S02 completed; stopped before S03
+**Next sprint:** S03 — Record OSCAR source-material provenance
 
 ## Current state
 
-- The repository contains planning documents only; application implementation has not begun.
+- The repository contains planning, decision, and exploratory branding documents; application implementation has not begun.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
 - The former prototype and product-plan files have been consolidated into `Plan.md` and removed from the working tree.
 - The large milestones have been decomposed into short, dependency-ordered sprints in `SPRINTS.md`.
@@ -17,26 +17,25 @@
 - Approved identifiers are `pap-pilot` for the technical slug and command, `pap_pilot` for the Python package, and `pap_pilot.sqlite3` for the local database.
 - `docs/decisions/0001-working-name.md` records the accepted decision and its advisory-use rationale.
 - Exploratory image sheets and their generation prompts are preserved in `docs/branding/concepts/`; no final logo or visual identity has been selected.
-- A Git repository and initial commit now exist. S02 will audit the checkpoint, ignore rules, and sensitive-file exclusions rather than recreate them.
+- The local Git repository has clean, resumable planning checkpoints on `main`.
+- `.gitignore` excludes operating-system/editor state, Python environments and generated files, local credentials, SQLite databases, raw EDF files, and OSCAR data directories while allowing `.env.example` to be tracked.
+- No OSCAR database, raw therapy file, local credential file, or other sensitive/local data is tracked or appears by a sensitive-data filename pattern in reachable Git history.
 - Every completed sprint must end with its validated in-scope changes committed and a clean working tree.
 
 ## Last completed sprint
 
-S01 — Select the working name and identifiers.
+S02 — Initialize version-control checkpoints.
 
 ## Validation performed
 
-- Confirmed the three tracking documents reference the single governing plan.
-- Confirmed `Plan.md` contains the complete prototype plan and deferred future-product sections F2–F19, with no stale references to the removed plan filenames.
-- Confirmed the duplicate immediate-action list was removed from `Plan.md` and replaced with pointers to `SPRINTS.md` and `STATUS.md`.
-- Confirmed S00 and S01 are done, with no sprint active and S02 still queued.
-- Confirmed the current tree is clean on `main` at the initial commit before S01 documentation changes.
-- No application tests exist yet.
-- Confirmed the user explicitly approved **PAP Pilot** and the complete identifier set.
-- Confirmed `AGENTS.md`, `Plan.md`, `SPRINTS.md`, `STATUS.md`, and the working-name decision consistently use the approved working identity.
-- Confirmed the superseded proposed identity no longer appears in governing or tracking documents.
-- Verified the four saved concept sheets are readable PNG files and byte-for-byte copies of their generated sources; verified their prompt record has balanced code fences.
-- Confirmed the sprint workflow and continuation prompt require a commit and clean working tree before a sprint is done.
+- Audited the existing three-commit history, tracked-file list, repository objects, and worktree before changing the checkpoint.
+- `git fsck --no-dangling` passed.
+- Confirmed tracked content consists only of governing/tracking documents, the working-name decision, and four intentional branding concept PNGs.
+- Searched tracked text for common credential markers, private-key headers, and absolute user paths; no matches were found.
+- Confirmed no SQLite/DB, EDF, `.env`, or OSCAR-data filename pattern is tracked or appears in reachable Git history.
+- Exercised every sensitive/local-data ignore rule with `git check-ignore --no-index`; all sample private files were ignored and `.env.example` remained trackable.
+- `git diff --check` passed.
+- No application tests exist yet; S02 changes only repository configuration and handoff documents.
 
 ## Decisions and assumptions
 
@@ -52,17 +51,19 @@ S01 — Select the working name and identifiers.
 - Final branding, external name clearance, trademark review, domains, and app-store availability remain deferred.
 - A sprint is not complete until its completion check passes, its in-scope changes are committed, and the working tree is clean.
 - Metric-implementation sprints S22–S24 are placeholders until S21 selects the actual initial metric set.
+- Private OSCAR/PAP data and local application databases must remain outside version control; later retained fixtures must follow their sprint's explicit de-identification and validation requirements.
 
 ## Blockers
 
-- No blocker prevents starting S02.
-- Later OSCAR work depends on access to the official SQL Notes, official Python demonstration, and a safe disposable database copy.
+- No blocker prevents starting S03.
+- S03 must locate the official SQL Notes and Python demonstration or precisely record what remains unavailable; later database work also requires a safe disposable database copy.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S02.
-Audit the existing Git checkpoint, ignore rules, and sensitive-file exclusions;
-update SPRINTS.md and STATUS.md, commit the completed sprint, verify the working
-tree is clean, then stop without starting S03.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S03.
+Locate the OSCAR 2 SQL Notes and official Python demonstration and record their
+exact source, version, and retrieval date; do not access any OSCAR database.
+Update SPRINTS.md and STATUS.md, commit the completed sprint, verify the working
+tree is clean, then stop without starting S04.
 ```

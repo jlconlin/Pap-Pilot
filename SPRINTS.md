@@ -32,7 +32,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Trademark opinions, legal clearance, domains, app-store availability, social handles, logos, and final visual branding.
 - Done when: The user explicitly approves one working name and its identifiers, the decision is recorded, and the governing/tracking documents consistently use them.
 
-### S02 — Initialize version-control checkpoints — queued
+### S02 — Initialize version-control checkpoints — done
 
 - Objective: Initialize a local Git repository, add a project-appropriate ignore file, and create the first planning checkpoint.
 - Excludes: Remote hosting, application implementation, and rewriting the planning documents.

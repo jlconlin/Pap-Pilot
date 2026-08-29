@@ -2,8 +2,8 @@
 
 **Updated:** August 28, 2026  
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S02 completed; stopped before S03
-**Next sprint:** S03 — Record OSCAR source-material provenance
+**Current sprint:** None — S03 completed; stopped before S04
+**Next sprint:** S04 — Inventory the local OSCAR database
 
 ## Current state
 
@@ -20,22 +20,24 @@
 - The local Git repository has clean, resumable planning checkpoints on `main`.
 - `.gitignore` excludes operating-system/editor state, Python environments and generated files, local credentials, SQLite databases, raw EDF files, and OSCAR data directories while allowing `.env.example` to be tracked.
 - No OSCAR database, raw therapy file, local credential file, or other sensitive/local data is tracked or appears by a sensitive-data filename pattern in reachable Git history.
+- `docs/research/oscar-2-source-materials.md` records the official OSCAR 2.0.1 SQL Notes bundle and Python waveform demonstrator with source URLs, retrieval metadata, exact archive paths, and SHA-256 checksums.
+- The official 2.0.1 Notes bundle's SQL documents identify schema v16, while its Python demonstrator asserts schema v13; compatibility must be confirmed before the later demonstration sprint.
 - Every completed sprint must end with its validated in-scope changes committed and a clean working tree.
 
 ## Last completed sprint
 
-S02 — Initialize version-control checkpoints.
+S03 — Record OSCAR source-material provenance.
 
 ## Validation performed
 
-- Audited the existing three-commit history, tracked-file list, repository objects, and worktree before changing the checkpoint.
-- `git fsck --no-dangling` passed.
-- Confirmed tracked content consists only of governing/tracking documents, the working-name decision, and four intentional branding concept PNGs.
-- Searched tracked text for common credential markers, private-key headers, and absolute user paths; no matches were found.
-- Confirmed no SQLite/DB, EDF, `.env`, or OSCAR-data filename pattern is tracked or appears in reachable Git history.
-- Exercised every sensitive/local-data ignore rule with `git check-ignore --no-index`; all sample private files were ignored and `.env.example` remained trackable.
+- Verified the official OSCAR download page identifies release 2.0.1, dated June 23, 2026, and links `https://www.sleepfiles.com/OSCAR/2.0.1/Notes.zip` as **OSCAR 2.0 SQL Notes**.
+- Verified the archive returned HTTP 200 with `Last-Modified: Tue, 23 Jun 2026 16:42:55 GMT` and a content length of 847,895 bytes.
+- `unzip -t` passed for all 188 archive entries.
+- Verified the archive SHA-256 is `b5ef2878d73175b62e29a9fce8373de0e697c234130528005c3d32e3d6399ef8`.
+- Located `Notes/Waveform Demo/oscar_waveform_demo.py` and `python_waveform_demo_spec.md`; verified their hashes and confirmed the copies under `Notes/Accessing OSCAR Data/` are byte-identical.
+- Confirmed the SQL schema documents identify schema v16 and the demonstrator/specification target schema v13; the specification is marked `Draft` and dated April 14, 2026.
+- No OSCAR database was located or opened, no schema was reverse engineered, no bundled code was run, and no external artifact or health data was added to the repository.
 - `git diff --check` passed.
-- No application tests exist yet; S02 changes only repository configuration and handoff documents.
 
 ## Decisions and assumptions
 
@@ -52,18 +54,23 @@ S02 — Initialize version-control checkpoints.
 - A sprint is not complete until its completion check passes, its in-scope changes are committed, and the working tree is clean.
 - Metric-implementation sprints S22–S24 are placeholders until S21 selects the actual initial metric set.
 - Private OSCAR/PAP data and local application databases must remain outside version control; later retained fixtures must follow their sprint's explicit de-identification and validation requirements.
+- The exact SQL Notes artifact inspected is the OSCAR 2.0.1 `Notes.zip` identified by its recorded SHA-256; the stable release label and the internal schema-document versions are recorded separately rather than conflated.
+- The Python demo has no internal semantic release number. Treat it as a member of the 2.0.1 Notes distribution that explicitly supports schema v13, not as proof of compatibility with schema v16.
+- The upstream archive is not vendored; the repository retains its exact provenance and verification hashes only.
 
 ## Blockers
 
-- No blocker prevents starting S03.
-- S03 must locate the official SQL Notes and Python demonstration or precisely record what remains unavailable; later database work also requires a safe disposable database copy.
+- No blocker is established for starting S04.
+- S04 must locate the active local database, record OSCAR/schema versions without exposing therapy data, and verify a protected disposable-copy procedure.
+- Before S05 runs the official demonstrator, its schema-v13 assertion must be checked against the schema version established in S04; the bundled SQL documentation currently identifies schema v16.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S03.
-Locate the OSCAR 2 SQL Notes and official Python demonstration and record their
-exact source, version, and retrieval date; do not access any OSCAR database.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S04.
+Locate the active OSCAR database, record OSCAR and schema versions without
+exposing therapy rows, and document and verify a protected disposable-copy
+procedure. Do not run the Python demonstration against the live database.
 Update SPRINTS.md and STATUS.md, commit the completed sprint, verify the working
-tree is clean, then stop without starting S04.
+tree is clean, then stop without starting S05.
 ```

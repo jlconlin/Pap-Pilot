@@ -40,7 +40,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 
 ## 1 — OSCAR read feasibility
 
-### S03 — Record OSCAR source-material provenance — queued
+### S03 — Record OSCAR source-material provenance — done
 
 - Objective: Locate the OSCAR 2 SQL Notes and official Python demonstration and record their exact source, version, and retrieval date.
 - Excludes: Database access, schema reverse engineering, and adapter code.

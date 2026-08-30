@@ -76,7 +76,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Signals not tied to an initial metric or evidence view.
 - Done when: Each selected signal has source location, units, sample timing, encoding, and quality caveats.
 
-### S09 — Scaffold the Python project — queued
+### S09 — Scaffold the Python project — done
 
 - Objective: Create the smallest installable/testable Python project structure for adapter and engine work.
 - Excludes: Web UI, AI dependencies, and database extraction logic.

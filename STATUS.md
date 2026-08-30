@@ -2,12 +2,14 @@
 
 **Updated:** August 30, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S08 completed; stopped before S09
-**Next sprint:** S09 — Scaffold the Python project
+**Current sprint:** None — S09 completed; stopped before S10
+**Next sprint:** S10 — Implement guarded read-only connection
 
 ## Current state
 
-- The repository contains planning, decision, and exploratory branding documents; application implementation has not begun.
+- The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
+- `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
+- The adapter and deterministic engine are separate package namespaces; no database extraction, web UI, or AI implementation has begun.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
 - The former prototype and product-plan files have been consolidated into `Plan.md` and removed from the working tree.
 - The large milestones have been decomposed into short, dependency-ordered sprints in `SPRINTS.md`.
@@ -36,22 +38,15 @@
 
 ## Last completed sprint
 
-S08 — Map required signals.
+S09 — Scaffold the Python project.
 
 ## Validation performed
 
-- Re-downloaded the official OSCAR 2.0.1 Notes archive and verified its SHA-256 against the S03 provenance record; used the matching waveform specification/script plus the official ResMed guide and bundled OSCAR channel documentation.
-- Confirmed OSCAR was closed and source WAL/SHM files were absent before making a fresh database copy outside the repository; byte- and hash-verified it, then protected it as file mode `0400` inside a mode-`0500` directory.
-- Inspected only the scoped schema-17 `channels`, `event_lists`, `event_data`, and `session_channels` metadata and sanitized AirCurve 10 ASV signal invariants through SQLite 3.51.0 using `mode=ro&immutable=1`.
-- Selected only `FlowRate`, `MaskPressureHi`, and `Leak`: the first two support PAP Pilot's own synchronized breath/pressure analysis and evidence, while Leak is a quality/confounder input.
-- Confirmed Flow Rate and high-resolution Mask Pressure are uniform 40 ms/sample (25 Hz) waveforms, exactly paired by session/list index/bounds/count/rate whenever present, with end-exclusive EventList `last_time` behavior.
-- Confirmed Leak is an irregular step trace with `rate=0`, little-endian unsigned 32-bit millisecond deltas, a zero first delta, nondecreasing timestamps, and a final timestamp equal to the EventList `last_time`.
-- Confirmed primary arrays use little-endian signed 16-bit values scaled by per-list gain and offset; data/time lengths match counts, selected lists have no second field, and a shortest-list sample for each selected channel matched the official CRC-16 implementation.
-- Confirmed multiple zero-based contiguous EventLists and positive inter-list gaps occur, and otherwise enabled positive-duration non-summary sessions may lack one or more selected signals.
-- Found that schema-17 `compressed_size` remains populated and equals `data_size` on observed uncompressed rows, contrary to the published null-when-uncompressed description; storage selection must use `compression_method` and populated BLOB fields.
-- Mechanically checked all three selected signal rows contain a source location, canonical unit, sample timing, value encoding, and quality caveats; required storage fields are present and excluded derived/unrelated signals remain outside the selected set.
-- Reconfirmed OSCAR remained closed, live sidecars remained absent, source and copy remained byte- and hash-identical, and no copy sidecar was created.
-- Removed the archive, extracted notes, and disposable database; confirmed the exact temporary workspace is absent and no OSCAR data entered the repository.
+- Created a Python 3.13 virtual environment using the documented development workflow.
+- Installed PAP Pilot 0.1.0 as an editable package from `pyproject.toml`; the build completed successfully with no runtime dependencies.
+- Ran `.venv/bin/python -m unittest discover --start-directory tests --verbose`; the single package-boundary smoke test passed.
+- Imported `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` from `/tmp` using the isolated interpreter, confirming that the installed package is importable outside the repository working directory.
+- Ran `.venv/bin/python -m pip check`; no broken requirements were found.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
@@ -96,10 +91,13 @@ S08 — Map required signals.
 - EventLists remain separate segments. Missing signals and inter-list gaps are explicit quality state; the adapter never interpolates across them, carries a sparse value across a gap, or substitutes `session_channels` summaries for samples.
 - `compressed_size` cannot determine whether a row is compressed in schema 17. Decode selection uses `compression_method` plus the mutually exclusive raw/compressed BLOBs, followed by length and checksum validation.
 - Flow sign convention and whether the scoped ResMed `Leak` trace is excess versus total leak remain unproven by the inspected database contract; S14 must cross-check them against OSCAR before breath-phase or leak-threshold results become authoritative.
+- The initial Python scaffold uses a `src` layout, setuptools as its build backend, Python 3.11 or newer, and no runtime dependencies.
+- The `pap_pilot.adapter` namespace owns external data access, while `pap_pilot.engine` owns deterministic companion analysis; OSCAR-derived results must not cross that boundary as if they were PAP Pilot calculations.
+- The smoke test uses Python's standard-library `unittest` so the scaffold does not introduce a test-framework dependency before one is needed.
 
 ## Blockers
 
-- No blocker prevents starting S09.
+- No blocker prevents starting S10.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans require explicit S12 extraction behavior and S14 OSCAR cross-checks.
 - Signal gaps/missing lists, the `compressed_size` discrepancy, unresolved Flow Rate sign convention, and unresolved Leak subtype require explicit S13/S14 and later quality-rule handling; they do not block project scaffolding.
@@ -108,10 +106,11 @@ S08 — Map required signals.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S09.
-Create the smallest installable and testable Python project structure for the
-adapter and deterministic engine. Do not add web UI, AI dependencies, OSCAR
-database extraction, or implementation work assigned to later sprints.
-Update SPRINTS.md and STATUS.md, commit the completed sprint, verify the working
-tree is clean, then stop without starting S10.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S10.
+Implement the connection wrapper that opens an OSCAR database explicitly
+read-only, validates the supported schema version, and rejects writable or
+unsupported access. Use only a disposable database or synthetic fixture; never
+write to the live OSCAR database. Do not add profile/session extraction or work
+assigned to later sprints. Update SPRINTS.md and STATUS.md, commit the completed
+sprint, verify the working tree is clean, then stop without starting S11.
 ```

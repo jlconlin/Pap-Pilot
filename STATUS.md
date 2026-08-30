@@ -2,8 +2,8 @@
 
 **Updated:** August 30, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S07 completed; stopped before S08
-**Next sprint:** S08 — Map required signals
+**Current sprint:** None — S08 completed; stopped before S09
+**Next sprint:** S09 — Scaffold the Python project
 
 ## Current state
 
@@ -21,35 +21,37 @@
 - `.gitignore` excludes operating-system/editor state, Python environments and generated files, local credentials, SQLite databases, raw EDF files, and OSCAR data directories while allowing `.env.example` to be tracked.
 - No OSCAR database, raw therapy file, local credential file, or other sensitive/local data is tracked or appears by a sensitive-data filename pattern in reachable Git history.
 - `docs/research/oscar-2-source-materials.md` records the official OSCAR 2.0.1 SQL Notes bundle and Python waveform demonstrator with source URLs, retrieval metadata, exact archive paths, and SHA-256 checksums.
-- The official 2.0.1 Notes bundle's SQL documents identify schema v16, while its Python demonstrator asserts schema v13; compatibility must be confirmed before the later demonstration sprint.
+- The official 2.0.1 Notes bundle's SQL documents identify schema v16, its Python demonstrator asserts schema v13, and the local database reports schema v17; these artifacts are not interchangeable and all adapter behavior must be version-gated.
 - S04 identified `/Applications/OSCAR20.app` as version 2.0.0 and the active database at the sanitized path `$HOME/Documents/OSCAR20_Data/oscar.db`; a protected disposable copy reported schema version 17.
 - `docs/research/oscar-local-database-inventory.md` documents the sanitized inventory, closed-state copy procedure, verification evidence, and cleanup.
 - `docs/research/oscar-official-demo-result.md` records the exact environment, sanitized command, repeatable failure, and cleanup for the unmodified official Python demonstrator.
 - The official demo exits 1 at its first schema query with `sqlite3.OperationalError: attempt to write a readonly database` against the protected copy; it never reaches schema mismatch, profile lookup, or therapy rows.
 - `docs/research/oscar-identity-session-schema-map.md` maps the minimum schema-17 fields for schema identity, profile selection, machine provenance, sessions, OSCAR-day context, and device-time corrections, with units and caveats.
 - `docs/research/oscar-aircurve-asv-settings-events-map.md` maps the six fixed-EPAP ASV setting channels and six normalized respiratory-event kinds needed by the first PS Min experiment, including units, encodings, join rules, and missing-data behavior.
+- `docs/research/oscar-aircurve-asv-signal-map.md` maps the three minimum signal inputs for independent analysis: 25 Hz Flow Rate, synchronized 25 Hz high-resolution Mask Pressure, and sparse Leak Rate, including binary decoding, timing, units, gaps, and quality behavior.
 - The published schema documents stop at v16; the protected local schema-v17 copy adds `device_time_corrections`, while the earlier proposed `machine_time_offsets` table is absent.
 - Schema-17 respiratory-event identity must come from the profile-scoped channel registry: the observed `respiratory_events.event_type` values contradict the schema-16 published enum, and `sessions.events_loaded` is not a reliable completeness gate in the scoped database.
+- OSCAR/device-derived summary channels and event labels are reference inputs, not PAP Pilot's analytical result; companion metrics must be calculated independently from the mapped signals and retain their own provenance.
 - Every completed sprint must end with its validated in-scope changes committed and a clean working tree.
 
 ## Last completed sprint
 
-S07 — Map settings and events.
+S08 — Map required signals.
 
 ## Validation performed
 
-- Re-downloaded the official OSCAR 2.0.1 Notes archive and verified its SHA-256 against the S03 provenance record; used the official ResMed AirCurve 10 CS PaceWave guide for device pressure units.
-- Confirmed OSCAR was closed and source WAL/SHM files were absent before making a fresh database copy outside the repository; byte-verified and protected it as file mode `0400` inside a mode-`0500` directory.
-- Inspected only the scoped AirCurve 10 ASV setting/channel/event schema and sanitized invariants through SQLite 3.51.0 using `mode=ro&immutable=1`.
-- Confirmed the six required setting channels (`PAPMode`, `RMS9_Mode`, `EPAP`, `PSMin`, `PSMax`, and `IPAPHi`) resolve through the profile-scoped channel registry and occur exactly once on every scoped enabled positive-duration session.
-- Confirmed the relevant mode values are integral lookup codes for fixed-EPAP ASV, pressure values are scalar numeric rows without JSON payloads, and observed setting rows pass PS ordering and fixed-EPAP envelope consistency checks.
-- Confirmed the six required event definitions (`Obstructive`, `ClearAirway`, `Apnea`, `Hypopnea`, `RERA`, and `LeakSpan`) exist and are enabled in the scoped channel registry.
-- Confirmed observed event times have Unix-millisecond magnitude, durations are nonnegative integer seconds satisfying `end-start = duration*1000`, denormalized profiles agree, and every observed channel resolves.
-- Demonstrated that the published `respiratory_events.event_type` enum is unsafe for schema 17: one raw value occurs on both Hypopnea and Unclassified Apnea, while another occurs on Large Leak spans.
-- Demonstrated that `sessions.events_loaded` remains zero despite normalized event rows, and found Large Leak spans that cross or begin at the associated session end; both conditions are now explicit S12/S14 validation requirements rather than silently interpreted data.
-- Reconfirmed OSCAR remained closed, live sidecars remained absent, source and copy remained byte-identical, and no copy sidecar was created.
+- Re-downloaded the official OSCAR 2.0.1 Notes archive and verified its SHA-256 against the S03 provenance record; used the matching waveform specification/script plus the official ResMed guide and bundled OSCAR channel documentation.
+- Confirmed OSCAR was closed and source WAL/SHM files were absent before making a fresh database copy outside the repository; byte- and hash-verified it, then protected it as file mode `0400` inside a mode-`0500` directory.
+- Inspected only the scoped schema-17 `channels`, `event_lists`, `event_data`, and `session_channels` metadata and sanitized AirCurve 10 ASV signal invariants through SQLite 3.51.0 using `mode=ro&immutable=1`.
+- Selected only `FlowRate`, `MaskPressureHi`, and `Leak`: the first two support PAP Pilot's own synchronized breath/pressure analysis and evidence, while Leak is a quality/confounder input.
+- Confirmed Flow Rate and high-resolution Mask Pressure are uniform 40 ms/sample (25 Hz) waveforms, exactly paired by session/list index/bounds/count/rate whenever present, with end-exclusive EventList `last_time` behavior.
+- Confirmed Leak is an irregular step trace with `rate=0`, little-endian unsigned 32-bit millisecond deltas, a zero first delta, nondecreasing timestamps, and a final timestamp equal to the EventList `last_time`.
+- Confirmed primary arrays use little-endian signed 16-bit values scaled by per-list gain and offset; data/time lengths match counts, selected lists have no second field, and a shortest-list sample for each selected channel matched the official CRC-16 implementation.
+- Confirmed multiple zero-based contiguous EventLists and positive inter-list gaps occur, and otherwise enabled positive-duration non-summary sessions may lack one or more selected signals.
+- Found that schema-17 `compressed_size` remains populated and equals `data_size` on observed uncompressed rows, contrary to the published null-when-uncompressed description; storage selection must use `compression_method` and populated BLOB fields.
+- Mechanically checked all three selected signal rows contain a source location, canonical unit, sample timing, value encoding, and quality caveats; required storage fields are present and excluded derived/unrelated signals remain outside the selected set.
+- Reconfirmed OSCAR remained closed, live sidecars remained absent, source and copy remained byte- and hash-identical, and no copy sidecar was created.
 - Removed the archive, extracted notes, and disposable database; confirmed the exact temporary workspace is absent and no OSCAR data entered the repository.
-- Mechanically checked all setting, event-kind, and event-row mapping tables have complete source, encoding/unit, and behavior columns and remain inside S07's exclusions.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
@@ -87,22 +89,29 @@ S07 — Map settings and events.
 - The first experiment's event allowlist is OA, CA, UA, H, RERA, and Large Leak. `AllApnea` is excluded to prevent aggregate/component double-counting, and CSR, periodic breathing, user flags, and signal data remain out of scope.
 - Event-row absence remains unknown rather than zero because the observed `events_loaded` flag is inconsistent with row presence. S12 must preserve incompleteness and S14 must establish zero-count behavior against OSCAR.
 - Non-contained Large Leak spans remain raw and flagged; no clipping, counting, or session reassignment is allowed before the OSCAR cross-check establishes intended behavior.
+- The user reaffirmed that PAP Pilot must provide additional deterministic analysis rather than merely reproduce OSCAR outputs. Machine/OSCAR events and derived channels are comparison/reference inputs, not authoritative companion metrics.
+- The minimum S08 input set is `FlowRate`, `MaskPressureHi`, and `Leak`. OSCAR/device-derived AHI, flow limitation, respiratory rate, tidal volume, minute ventilation, target ventilation, Ti, and Te are excluded from the required set and cannot silently substitute for PAP Pilot calculations.
+- `MaskPressureHi` is the required pressure input because it is a 25 Hz waveform synchronized with flow. Sparse `Pressure`, low-resolution `MaskPressure`, and `EPAP` traces are not silent fallbacks.
+- Flow and mask-pressure waveform timestamps derive from `first_time + i*rate`; their observed schema-17 `last_time` is end-exclusive. Leak timestamps derive only from the stored unsigned millisecond-delta array.
+- EventLists remain separate segments. Missing signals and inter-list gaps are explicit quality state; the adapter never interpolates across them, carries a sparse value across a gap, or substitutes `session_channels` summaries for samples.
+- `compressed_size` cannot determine whether a row is compressed in schema 17. Decode selection uses `compression_method` plus the mutually exclusive raw/compressed BLOBs, followed by length and checksum validation.
+- Flow sign convention and whether the scoped ResMed `Leak` trace is excess versus total leak remain unproven by the inspected database contract; S14 must cross-check them against OSCAR before breath-phase or leak-threshold results become authoritative.
 
 ## Blockers
 
-- No blocker prevents starting S08.
+- No blocker prevents starting S09.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
-- The contradictory event-type enum, unreliable `events_loaded` flag, and non-contained Large Leak spans do not block S08, but they require explicit S12 extraction behavior and S14 OSCAR cross-checks.
+- The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans require explicit S12 extraction behavior and S14 OSCAR cross-checks.
+- Signal gaps/missing lists, the `compressed_size` discrepancy, unresolved Flow Rate sign convention, and unresolved Leak subtype require explicit S13/S14 and later quality-rule handling; they do not block project scaffolding.
 - The empty local correction table and invalid raw session boundaries remain explicit inputs to later guarded-connection, session-extraction, and structural-quality work.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S08.
-Using only official documentation and a protected disposable copy with OSCAR
-closed, map the minimum signal/waveform fields tied to an initial metric or
-evidence view for the PS Min retrospective experiment. Do not expand into
-unrelated signals, extraction implementation, derived metrics, or UI work.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S09.
+Create the smallest installable and testable Python project structure for the
+adapter and deterministic engine. Do not add web UI, AI dependencies, OSCAR
+database extraction, or implementation work assigned to later sprints.
 Update SPRINTS.md and STATUS.md, commit the completed sprint, verify the working
-tree is clean, then stop without starting S09.
+tree is clean, then stop without starting S10.
 ```

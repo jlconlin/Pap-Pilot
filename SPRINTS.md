@@ -70,7 +70,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Signals/waveforms and unused device modes.
 - Done when: Required settings/events have source fields, encodings, units, and missing-data behavior.
 
-### S08 — Map required signals — queued
+### S08 — Map required signals — done
 
 - Objective: Document the minimum signal/waveform fields needed for the PS Min retrospective experiment.
 - Excludes: Signals not tied to an initial metric or evidence view.

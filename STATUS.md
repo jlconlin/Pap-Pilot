@@ -1,9 +1,9 @@
 # PAP Pilot — session handoff
 
-**Updated:** August 28, 2026  
+**Updated:** August 29, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S03 completed; stopped before S04
-**Next sprint:** S04 — Inventory the local OSCAR database
+**Current sprint:** None — S04 completed; stopped before S05
+**Next sprint:** S05 — Run the official demonstration
 
 ## Current state
 
@@ -22,21 +22,25 @@
 - No OSCAR database, raw therapy file, local credential file, or other sensitive/local data is tracked or appears by a sensitive-data filename pattern in reachable Git history.
 - `docs/research/oscar-2-source-materials.md` records the official OSCAR 2.0.1 SQL Notes bundle and Python waveform demonstrator with source URLs, retrieval metadata, exact archive paths, and SHA-256 checksums.
 - The official 2.0.1 Notes bundle's SQL documents identify schema v16, while its Python demonstrator asserts schema v13; compatibility must be confirmed before the later demonstration sprint.
+- S04 identified `/Applications/OSCAR20.app` as version 2.0.0 and the active database at the sanitized path `$HOME/Documents/OSCAR20_Data/oscar.db`; a protected disposable copy reported schema version 17.
+- `docs/research/oscar-local-database-inventory.md` documents the sanitized inventory, closed-state copy procedure, verification evidence, and cleanup.
 - Every completed sprint must end with its validated in-scope changes committed and a clean working tree.
 
 ## Last completed sprint
 
-S03 — Record OSCAR source-material provenance.
+S04 — Inventory the local OSCAR database.
 
 ## Validation performed
 
-- Verified the official OSCAR download page identifies release 2.0.1, dated June 23, 2026, and links `https://www.sleepfiles.com/OSCAR/2.0.1/Notes.zip` as **OSCAR 2.0 SQL Notes**.
-- Verified the archive returned HTTP 200 with `Last-Modified: Tue, 23 Jun 2026 16:42:55 GMT` and a content length of 847,895 bytes.
-- `unzip -t` passed for all 188 archive entries.
-- Verified the archive SHA-256 is `b5ef2878d73175b62e29a9fce8373de0e697c234130528005c3d32e3d6399ef8`.
-- Located `Notes/Waveform Demo/oscar_waveform_demo.py` and `python_waveform_demo_spec.md`; verified their hashes and confirmed the copies under `Notes/Accessing OSCAR Data/` are byte-identical.
-- Confirmed the SQL schema documents identify schema v16 and the demonstrator/specification target schema v13; the specification is marked `Draft` and dated April 14, 2026.
-- No OSCAR database was located or opened, no schema was reverse engineered, no bundled code was run, and no external artifact or health data was added to the repository.
+- Read the installed OSCAR20 app bundle metadata and recorded version 2.0.0 without launching or changing the application.
+- Located the sole `oscar.db` in the OSCAR 2 data directory and confirmed it was the active database from the files held open by OSCAR20; no database content was used for discovery.
+- Refused to copy while OSCAR held the database, WAL, and SHM files open. Resumed only after a process check confirmed OSCAR was closed normally.
+- Confirmed shutdown removed the source WAL and SHM files, then copied the closed `oscar.db` to a unique mode-`0700` directory outside the repository.
+- Verified source/copy byte counts and SHA-256 digests matched. Exact size and digest were deliberately not retained in project documents.
+- Queried only `MAX(version)` from `schema_version` on the disposable copy through SQLite read-only immutable mode; it returned schema version 17.
+- Protected the copy as file mode `0400` and directory mode `0500`; both tested non-writable, the schema query remained readable, the digest stayed unchanged, and no SQLite sidecar was created.
+- Confirmed OSCAR remained closed and the live source digest remained unchanged throughout verification.
+- Removed the disposable copy after verification and confirmed no database or health-data artifact was added to the repository.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
@@ -57,20 +61,23 @@ S03 — Record OSCAR source-material provenance.
 - The exact SQL Notes artifact inspected is the OSCAR 2.0.1 `Notes.zip` identified by its recorded SHA-256; the stable release label and the internal schema-document versions are recorded separately rather than conflated.
 - The Python demo has no internal semantic release number. Treat it as a member of the 2.0.1 Notes distribution that explicitly supports schema v13, not as proof of compatibility with schema v16.
 - The upstream archive is not vendored; the repository retains its exact provenance and verification hashes only.
+- A filesystem copy is made only after OSCAR closes and only with all existing `oscar.db` SQLite sidecars copied as one closed-state set.
+- SQLite `immutable=1` may be used only on a trusted, fixed disposable copy, never on OSCAR's live database. It was required here after plain read-only access returned SQLite error 14 on the closed copy with no remaining WAL/SHM sidecars.
+- S05 must create a fresh disposable copy rather than depend on S04's removed verification copy.
 
 ## Blockers
 
-- No blocker is established for starting S04.
-- S04 must locate the active local database, record OSCAR/schema versions without exposing therapy data, and verify a protected disposable-copy procedure.
-- Before S05 runs the official demonstrator, its schema-v13 assertion must be checked against the schema version established in S04; the bundled SQL documentation currently identifies schema v16.
+- No blocker prevents starting S05.
+- The installed application is 2.0.0 and its database is schema v17, while the published SQL Notes identify schema v16 and the official demonstrator asserts schema v13. S05 must preserve the demo unchanged and record this expected compatibility result.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S04.
-Locate the active OSCAR database, record OSCAR and schema versions without
-exposing therapy rows, and document and verify a protected disposable-copy
-procedure. Do not run the Python demonstration against the live database.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S05.
+With OSCAR closed, make a fresh protected disposable database copy using the
+S04 procedure. Run the unmodified official Python demonstration only against
+that copy and capture a sanitized, reproducible result, including an expected
+schema-version failure if that is what occurs.
 Update SPRINTS.md and STATUS.md, commit the completed sprint, verify the working
-tree is clean, then stop without starting S05.
+tree is clean, then stop without starting S06.
 ```

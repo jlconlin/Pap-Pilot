@@ -46,7 +46,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Database access, schema reverse engineering, and adapter code.
 - Done when: A short research note identifies both artifacts or precisely documents what remains unavailable.
 
-### S04 — Inventory the local OSCAR database — queued
+### S04 — Inventory the local OSCAR database — done
 
 - Objective: Locate the active OSCAR database, record OSCAR/schema versions, and document a safe backup/disposable-copy procedure.
 - Excludes: Reading therapy rows or running the demonstration against the live database.

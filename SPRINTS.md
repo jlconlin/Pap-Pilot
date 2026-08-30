@@ -52,7 +52,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Reading therapy rows or running the demonstration against the live database.
 - Done when: Paths and versions are documented without exposing sensitive data, and a protected test-copy procedure is verified.
 
-### S05 — Run the official demonstration — queued
+### S05 — Run the official demonstration — done
 
 - Objective: Run the official OSCAR Python demonstration against only the disposable database copy and capture a sanitized result.
 - Excludes: Modifying the demonstration or designing the companion adapter.

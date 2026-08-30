@@ -58,7 +58,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Modifying the demonstration or designing the companion adapter.
 - Done when: The command, environment, result, and any failure are reproducibly documented.
 
-### S06 — Map identity and session tables — queued
+### S06 — Map identity and session tables — done
 
 - Objective: Document only the schema fields needed for profiles, machines, sessions, time corrections, and schema identification.
 - Excludes: Settings, events, waveforms, and broad schema documentation.

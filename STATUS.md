@@ -2,8 +2,8 @@
 
 **Updated:** August 30, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S05 completed; stopped before S06
-**Next sprint:** S06 — Map identity and session tables
+**Current sprint:** None — S06 completed; stopped before S07
+**Next sprint:** S07 — Map settings and events
 
 ## Current state
 
@@ -26,24 +26,27 @@
 - `docs/research/oscar-local-database-inventory.md` documents the sanitized inventory, closed-state copy procedure, verification evidence, and cleanup.
 - `docs/research/oscar-official-demo-result.md` records the exact environment, sanitized command, repeatable failure, and cleanup for the unmodified official Python demonstrator.
 - The official demo exits 1 at its first schema query with `sqlite3.OperationalError: attempt to write a readonly database` against the protected copy; it never reaches schema mismatch, profile lookup, or therapy rows.
+- `docs/research/oscar-identity-session-schema-map.md` maps the minimum schema-17 fields for schema identity, profile selection, machine provenance, sessions, OSCAR-day context, and device-time corrections, with units and caveats.
+- The published schema documents stop at v16; the protected local schema-v17 copy adds `device_time_corrections`, while the earlier proposed `machine_time_offsets` table is absent.
 - Every completed sprint must end with its validated in-scope changes committed and a clean working tree.
 
 ## Last completed sprint
 
-S05 — Run the official demonstration.
+S06 — Map identity and session tables.
 
 ## Validation performed
 
-- Re-downloaded the OSCAR 2.0.1 Notes archive and verified its SHA-256 and the extracted demo/specification hashes match the S03 provenance record.
-- Created an isolated temporary Python 3.13.1 environment with NumPy 2.5.2 and Matplotlib 3.11.1; recorded the OS, architecture, SQLite runtime, pip version, and resolved dependencies.
+- Re-downloaded the official OSCAR 2.0.1 Notes archive and verified its SHA-256 against the S03 provenance record.
 - Confirmed OSCAR was closed and source WAL/SHM files were absent before making a fresh database copy outside the repository.
-- Verified source/copy byte counts and SHA-256 digests matched, then protected the copy as file mode `0400` inside a mode-`0500` directory.
-- Ran the official `oscar_waveform_demo.py` unchanged with a non-identifying sentinel profile argument and an isolated Matplotlib cache.
-- Repeated the exact command; both runs exited 1 at the first `schema_version` query with `sqlite3.OperationalError: attempt to write a readonly database`.
-- Confirmed the demo never reached its schema-v13 mismatch handling, profile lookup, therapy queries, or plotting.
-- Verified the demo and copy hashes remained unchanged and no WAL, SHM, or journal sidecar was created.
-- Reconfirmed OSCAR remained closed and the live source still matched the disposable copy after both runs.
-- Removed the archive, extracted files, virtual environment, cache, and disposable database copy; confirmed no OSCAR or health-data artifact was added to the repository.
+- Byte- and hash-verified the copy against the source, then protected it as file mode `0400` inside a mode-`0500` directory.
+- Inspected only scoped schema metadata and sanitized profile/machine/session/time-correction invariants through SQLite 3.51.0 using `mode=ro&immutable=1`.
+- Confirmed the local schema-v17 DDL for `schema_version`, `profiles`, `machines`, `sessions`, `user_info`, `profile_preferences`, and `device_time_corrections` and the required join relationships.
+- Confirmed profile/machine/session foreign-key relationships have no observed orphans, scoped identifiers satisfy their documented compound uniqueness, session times have Unix-millisecond magnitude, and flags use 0/1.
+- Confirmed every observed session duration equals `end_time - start_time`, while also finding enabled, non-summary rows with zero or negative duration; exact identifiers and therapy dates were not retained.
+- Confirmed the active profile's two stored timezone sources agree, the scoped OSCAR-day preferences are present with expected type hints, legacy `ClockDrift` is zero or absent, and `device_time_corrections` currently has no rows.
+- Reconfirmed OSCAR remained closed, live sidecars remained absent, source and copy remained byte-identical, and no copy sidecar was created.
+- Removed the archive, extracted notes, and disposable database; confirmed the exact temporary workspace is absent and no OSCAR data entered the repository.
+- Mechanically checked all 47 mapping rows have a nonempty internal value, source, type/unit, and caveat; excluded settings/event/signal tables are not mapped.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
@@ -69,20 +72,27 @@ S05 — Run the official demonstration.
 - Each demonstration run uses a fresh disposable copy; the S04 verification copy and S05 execution copy were both removed after their scoped checks.
 - A failed official demo is a valid S05 result when its exact artifact, environment, command, exit status, error, and cleanup are reproducibly documented.
 - S05 does not weaken copy protection or modify the official demo to bypass its read-only failure. S10 owns implementation and tests for the guarded connection behavior.
+- For schema v17, profile ownership of sessions and time corrections is derived through `machines`; neither scoped child table contains `profile_id`.
+- `schema_version` is treated as a current-state marker selected with `MAX(version)`, not as a required contiguous migration ledger; the observed database contains one row with value 17.
+- Database row IDs, OSCAR's machine/session IDs, application version, schema version, and loader data version are distinct identities and must remain distinct in the adapter.
+- Raw session boundaries are Unix epoch milliseconds. Raw and display-corrected times must remain separate, and OSCAR-day derivation requires the profile timezone/day-split context plus later cross-checking against OSCAR.
+- The v17 correction mapping is version-specific and documentation-derived because the local correction table is empty. Range endpoints, open-ended sentinels, drift encoding, and sign behavior require focused synthetic tests before corrected time becomes authoritative.
+- Enabled and non-summary flags do not prove a session has valid boundaries; later extraction must reject or flag zero and negative durations.
 
 ## Blockers
 
-- No blocker prevents starting S06.
-- The local database is schema v17, published SQL Notes identify schema v16, and the demo targets schema v13. S06 must map the observed schema deliberately rather than assume those versions are interchangeable.
+- No blocker prevents starting S07.
+- The local database is schema v17 while the published data dictionary stops at v16. S07 must continue to compare official documentation with only the scoped observed DDL and must not assume version equivalence.
+- The empty local correction table and invalid raw session boundaries do not block S07, but they remain explicit inputs to later guarded-connection, session-extraction, and structural-quality work.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S06.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S07.
 Using only official documentation and a protected disposable copy with OSCAR
-closed, map the schema fields needed for profiles, machines, sessions, time
-corrections, and schema identification. Do not map settings, events, waveforms,
-or unrelated tables.
+closed, map only the AirCurve 10 ASV settings and event fields needed by the
+first experiment. Do not map signals/waveforms, unused device modes, identity
+fields already completed in S06, or unrelated tables.
 Update SPRINTS.md and STATUS.md, commit the completed sprint, verify the working
-tree is clean, then stop without starting S07.
+tree is clean, then stop without starting S08.
 ```

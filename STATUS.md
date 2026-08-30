@@ -2,8 +2,8 @@
 
 **Updated:** August 30, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S06 completed; stopped before S07
-**Next sprint:** S07 — Map settings and events
+**Current sprint:** None — S07 completed; stopped before S08
+**Next sprint:** S08 — Map required signals
 
 ## Current state
 
@@ -27,26 +27,29 @@
 - `docs/research/oscar-official-demo-result.md` records the exact environment, sanitized command, repeatable failure, and cleanup for the unmodified official Python demonstrator.
 - The official demo exits 1 at its first schema query with `sqlite3.OperationalError: attempt to write a readonly database` against the protected copy; it never reaches schema mismatch, profile lookup, or therapy rows.
 - `docs/research/oscar-identity-session-schema-map.md` maps the minimum schema-17 fields for schema identity, profile selection, machine provenance, sessions, OSCAR-day context, and device-time corrections, with units and caveats.
+- `docs/research/oscar-aircurve-asv-settings-events-map.md` maps the six fixed-EPAP ASV setting channels and six normalized respiratory-event kinds needed by the first PS Min experiment, including units, encodings, join rules, and missing-data behavior.
 - The published schema documents stop at v16; the protected local schema-v17 copy adds `device_time_corrections`, while the earlier proposed `machine_time_offsets` table is absent.
+- Schema-17 respiratory-event identity must come from the profile-scoped channel registry: the observed `respiratory_events.event_type` values contradict the schema-16 published enum, and `sessions.events_loaded` is not a reliable completeness gate in the scoped database.
 - Every completed sprint must end with its validated in-scope changes committed and a clean working tree.
 
 ## Last completed sprint
 
-S06 — Map identity and session tables.
+S07 — Map settings and events.
 
 ## Validation performed
 
-- Re-downloaded the official OSCAR 2.0.1 Notes archive and verified its SHA-256 against the S03 provenance record.
-- Confirmed OSCAR was closed and source WAL/SHM files were absent before making a fresh database copy outside the repository.
-- Byte- and hash-verified the copy against the source, then protected it as file mode `0400` inside a mode-`0500` directory.
-- Inspected only scoped schema metadata and sanitized profile/machine/session/time-correction invariants through SQLite 3.51.0 using `mode=ro&immutable=1`.
-- Confirmed the local schema-v17 DDL for `schema_version`, `profiles`, `machines`, `sessions`, `user_info`, `profile_preferences`, and `device_time_corrections` and the required join relationships.
-- Confirmed profile/machine/session foreign-key relationships have no observed orphans, scoped identifiers satisfy their documented compound uniqueness, session times have Unix-millisecond magnitude, and flags use 0/1.
-- Confirmed every observed session duration equals `end_time - start_time`, while also finding enabled, non-summary rows with zero or negative duration; exact identifiers and therapy dates were not retained.
-- Confirmed the active profile's two stored timezone sources agree, the scoped OSCAR-day preferences are present with expected type hints, legacy `ClockDrift` is zero or absent, and `device_time_corrections` currently has no rows.
+- Re-downloaded the official OSCAR 2.0.1 Notes archive and verified its SHA-256 against the S03 provenance record; used the official ResMed AirCurve 10 CS PaceWave guide for device pressure units.
+- Confirmed OSCAR was closed and source WAL/SHM files were absent before making a fresh database copy outside the repository; byte-verified and protected it as file mode `0400` inside a mode-`0500` directory.
+- Inspected only the scoped AirCurve 10 ASV setting/channel/event schema and sanitized invariants through SQLite 3.51.0 using `mode=ro&immutable=1`.
+- Confirmed the six required setting channels (`PAPMode`, `RMS9_Mode`, `EPAP`, `PSMin`, `PSMax`, and `IPAPHi`) resolve through the profile-scoped channel registry and occur exactly once on every scoped enabled positive-duration session.
+- Confirmed the relevant mode values are integral lookup codes for fixed-EPAP ASV, pressure values are scalar numeric rows without JSON payloads, and observed setting rows pass PS ordering and fixed-EPAP envelope consistency checks.
+- Confirmed the six required event definitions (`Obstructive`, `ClearAirway`, `Apnea`, `Hypopnea`, `RERA`, and `LeakSpan`) exist and are enabled in the scoped channel registry.
+- Confirmed observed event times have Unix-millisecond magnitude, durations are nonnegative integer seconds satisfying `end-start = duration*1000`, denormalized profiles agree, and every observed channel resolves.
+- Demonstrated that the published `respiratory_events.event_type` enum is unsafe for schema 17: one raw value occurs on both Hypopnea and Unclassified Apnea, while another occurs on Large Leak spans.
+- Demonstrated that `sessions.events_loaded` remains zero despite normalized event rows, and found Large Leak spans that cross or begin at the associated session end; both conditions are now explicit S12/S14 validation requirements rather than silently interpreted data.
 - Reconfirmed OSCAR remained closed, live sidecars remained absent, source and copy remained byte-identical, and no copy sidecar was created.
 - Removed the archive, extracted notes, and disposable database; confirmed the exact temporary workspace is absent and no OSCAR data entered the repository.
-- Mechanically checked all 47 mapping rows have a nonempty internal value, source, type/unit, and caveat; excluded settings/event/signal tables are not mapped.
+- Mechanically checked all setting, event-kind, and event-row mapping tables have complete source, encoding/unit, and behavior columns and remain inside S07's exclusions.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
@@ -78,21 +81,28 @@ S06 — Map identity and session tables.
 - Raw session boundaries are Unix epoch milliseconds. Raw and display-corrected times must remain separate, and OSCAR-day derivation requires the profile timezone/day-split context plus later cross-checking against OSCAR.
 - The v17 correction mapping is version-specific and documentation-derived because the local correction table is empty. Range endpoints, open-ended sentinels, drift encoding, and sign behavior require focused synthetic tests before corrected time becomes authoritative.
 - Enabled and non-summary flags do not prove a session has valid boundaries; later extraction must reject or flag zero and negative durations.
+- For the first PS Min experiment, the required fixed-EPAP ASV setting context is `PAPMode`, `RMS9_Mode`, `EPAP`, `PSMin`, `PSMax`, and `IPAPHi`; settings are never carried forward across sessions.
+- Pressure settings normalize to cm H₂O and retain decimal precision. The absence of a database unit column requires the planned OSCAR reference-night cross-check before fixture expectations become authoritative.
+- Schema-17 respiratory-event identity is derived only from `(profile_id, channel_id) → channels.channel_code`; the raw `respiratory_events.event_type` is retained as opaque provenance and never decoded with the schema-16 enum.
+- The first experiment's event allowlist is OA, CA, UA, H, RERA, and Large Leak. `AllApnea` is excluded to prevent aggregate/component double-counting, and CSR, periodic breathing, user flags, and signal data remain out of scope.
+- Event-row absence remains unknown rather than zero because the observed `events_loaded` flag is inconsistent with row presence. S12 must preserve incompleteness and S14 must establish zero-count behavior against OSCAR.
+- Non-contained Large Leak spans remain raw and flagged; no clipping, counting, or session reassignment is allowed before the OSCAR cross-check establishes intended behavior.
 
 ## Blockers
 
-- No blocker prevents starting S07.
-- The local database is schema v17 while the published data dictionary stops at v16. S07 must continue to compare official documentation with only the scoped observed DDL and must not assume version equivalence.
-- The empty local correction table and invalid raw session boundaries do not block S07, but they remain explicit inputs to later guarded-connection, session-extraction, and structural-quality work.
+- No blocker prevents starting S08.
+- The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
+- The contradictory event-type enum, unreliable `events_loaded` flag, and non-contained Large Leak spans do not block S08, but they require explicit S12 extraction behavior and S14 OSCAR cross-checks.
+- The empty local correction table and invalid raw session boundaries remain explicit inputs to later guarded-connection, session-extraction, and structural-quality work.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S07.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S08.
 Using only official documentation and a protected disposable copy with OSCAR
-closed, map only the AirCurve 10 ASV settings and event fields needed by the
-first experiment. Do not map signals/waveforms, unused device modes, identity
-fields already completed in S06, or unrelated tables.
+closed, map the minimum signal/waveform fields tied to an initial metric or
+evidence view for the PS Min retrospective experiment. Do not expand into
+unrelated signals, extraction implementation, derived metrics, or UI work.
 Update SPRINTS.md and STATUS.md, commit the completed sprint, verify the working
-tree is clean, then stop without starting S08.
+tree is clean, then stop without starting S09.
 ```

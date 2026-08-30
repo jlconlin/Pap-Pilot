@@ -64,7 +64,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Settings, events, waveforms, and broad schema documentation.
 - Done when: Each required internal identity/session value maps to a source field, unit, and caveat.
 
-### S07 — Map settings and events — queued
+### S07 — Map settings and events — done
 
 - Objective: Document only the AirCurve 10 ASV settings and event fields needed by the first experiment.
 - Excludes: Signals/waveforms and unused device modes.

@@ -94,7 +94,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Events, waveforms, metrics, and multiple-night queries.
 - Done when: A deterministic test or sanitized artifact shows the selected session summary with provenance.
 
-### S12 — Extract events for one night — queued
+### S12 — Extract events for one night — done
 
 - Objective: Add the minimum event extraction needed for the selected reference night.
 - Excludes: Waveforms, derived metrics, and broad event coverage.

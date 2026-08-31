@@ -7,15 +7,22 @@ import tempfile
 import unittest
 
 from pap_pilot.adapter import (
+    InvalidSessionEventError,
     InvalidSessionSummaryError,
+    OscarEventCompleteness,
+    OscarEventKind,
+    OscarEventSourceClass,
     OscarMachineProvenance,
     OscarProfileProvenance,
     OscarSchemaProvenance,
     OscarSessionBoundaries,
+    OscarSessionEvent,
     OscarSessionSettings,
     OscarSessionSummary,
     OscarSettingSource,
+    OscarObservedEventCount,
     SessionNotFoundError,
+    extract_session_events,
     extract_session_summary,
 )
 
@@ -93,6 +100,16 @@ class SessionSummaryTests(unittest.TestCase):
                     data_type TEXT NOT NULL,
                     json_value TEXT
                 );
+                CREATE TABLE respiratory_events (
+                    id INTEGER PRIMARY KEY,
+                    session_id INTEGER NOT NULL,
+                    profile_id INTEGER NOT NULL,
+                    channel_id INTEGER,
+                    event_type INTEGER NOT NULL,
+                    start_time INTEGER NOT NULL,
+                    end_time INTEGER NOT NULL,
+                    duration INTEGER NOT NULL
+                );
                 """
             )
             connection.execute(
@@ -169,6 +186,32 @@ class SessionSummaryTests(unittest.TestCase):
                 (
                     (100, 1, channel_id, value, "numeric", None)
                     for channel_id, _, value in setting_rows
+                ),
+            )
+            event_channel_rows = (
+                (201, "Obstructive"),
+                (202, "ClearAirway"),
+                (203, "Apnea"),
+                (204, "Hypopnea"),
+                (205, "RERA"),
+                (206, "LeakSpan"),
+                (207, "AllApnea"),
+            )
+            connection.executemany(
+                "INSERT INTO channels VALUES (?, ?, ?)",
+                ((1, channel_id, code) for channel_id, code in event_channel_rows),
+            )
+            connection.executemany(
+                "INSERT INTO respiratory_events VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    (1, 100, 1, 201, 42, 1_800_000_060_000, 1_800_000_070_000, 10),
+                    (2, 100, 1, 202, 42, 1_800_000_120_000, 1_800_000_130_000, 10),
+                    (3, 100, 1, 203, 1, 1_800_000_180_000, 1_800_000_190_000, 10),
+                    (4, 100, 1, 204, 1, 1_800_000_240_000, 1_800_000_250_000, 10),
+                    (5, 100, 1, 205, 42, 1_800_000_300_000, 1_800_000_310_000, 10),
+                    (6, 100, 1, 206, 0, 1_800_028_795_000, 1_800_028_805_000, 10),
+                    (7, 100, 1, 207, 42, 1_800_000_360_000, 1_800_000_370_000, 10),
+                    (8, 100, 1, 204, 1, 1_800_000_420_000, 1_800_000_430_000, 10),
                 ),
             )
             connection.commit()
@@ -280,6 +323,119 @@ class SessionSummaryTests(unittest.TestCase):
 
         with self.assertRaises(InvalidSessionSummaryError):
             extract_session_summary(self.database_path, 100)
+
+    def test_extracts_allowlisted_events_with_raw_provenance(self) -> None:
+        original_database = self.database_path.read_bytes()
+        session_summary = extract_session_summary(self.database_path, 100)
+
+        result = extract_session_events(self.database_path, 100)
+
+        self.assertEqual(result.session_summary, session_summary)
+        expected_event_data = (
+            (1, 201, "Obstructive", OscarEventKind.OBSTRUCTIVE_APNEA, "OA", 42,
+             1_800_000_060_000, 1_800_000_070_000, True),
+            (2, 202, "ClearAirway", OscarEventKind.CLEAR_AIRWAY_APNEA, "CA", 42,
+             1_800_000_120_000, 1_800_000_130_000, True),
+            (3, 203, "Apnea", OscarEventKind.UNCLASSIFIED_APNEA, "UA", 1,
+             1_800_000_180_000, 1_800_000_190_000, True),
+            (4, 204, "Hypopnea", OscarEventKind.HYPOPNEA, "H", 1,
+             1_800_000_240_000, 1_800_000_250_000, True),
+            (5, 205, "RERA", OscarEventKind.RERA, "RE", 42,
+             1_800_000_300_000, 1_800_000_310_000, True),
+            (8, 204, "Hypopnea", OscarEventKind.HYPOPNEA, "H", 1,
+             1_800_000_420_000, 1_800_000_430_000, True),
+            (6, 206, "LeakSpan", OscarEventKind.LARGE_LEAK, "LL", 0,
+             1_800_028_795_000, 1_800_028_805_000, False),
+        )
+        expected_events = tuple(
+            OscarSessionEvent(
+                source_event_id=event_id,
+                session_database_id=100,
+                profile_database_id=1,
+                source_channel_id=channel_id,
+                channel_code=channel_code,
+                event_kind=event_kind,
+                oscar_label=label,
+                source_event_type=event_type,
+                raw_start_ms=start_ms,
+                raw_end_ms=end_ms,
+                duration_s=10,
+                contained_within_session=contained,
+                source_class=(
+                    OscarEventSourceClass.MACHINE_LABELED_OSCAR_NORMALIZED
+                ),
+            )
+            for (
+                event_id,
+                channel_id,
+                channel_code,
+                event_kind,
+                label,
+                event_type,
+                start_ms,
+                end_ms,
+                contained,
+            ) in expected_event_data
+        )
+        self.assertEqual(result.events, expected_events)
+        self.assertEqual(
+            result.observed_row_counts,
+            tuple(
+                OscarObservedEventCount(
+                    event_kind=event_kind,
+                    oscar_label=label,
+                    observed_rows=observed_rows,
+                    completeness=OscarEventCompleteness.UNKNOWN,
+                )
+                for event_kind, label, observed_rows in (
+                    (OscarEventKind.OBSTRUCTIVE_APNEA, "OA", 1),
+                    (OscarEventKind.CLEAR_AIRWAY_APNEA, "CA", 1),
+                    (OscarEventKind.UNCLASSIFIED_APNEA, "UA", 1),
+                    (OscarEventKind.HYPOPNEA, "H", 2),
+                    (OscarEventKind.RERA, "RE", 1),
+                    (OscarEventKind.LARGE_LEAK, "LL", 1),
+                )
+            ),
+        )
+        self.assertEqual(result.completeness, OscarEventCompleteness.UNKNOWN)
+        self.assertNotIn("AllApnea", {event.channel_code for event in result.events})
+        self.assertEqual(self.database_path.read_bytes(), original_database)
+
+    def test_empty_event_rows_preserve_unknown_completeness(self) -> None:
+        self._update("DELETE FROM respiratory_events", ())
+
+        result = extract_session_events(self.database_path, 100)
+
+        self.assertEqual(result.events, ())
+        self.assertEqual(result.completeness, OscarEventCompleteness.UNKNOWN)
+        self.assertEqual(
+            [count.observed_rows for count in result.observed_row_counts],
+            [0, 0, 0, 0, 0, 0],
+        )
+        self.assertTrue(
+            all(
+                count.completeness is OscarEventCompleteness.UNKNOWN
+                for count in result.observed_row_counts
+            )
+        )
+
+    def test_event_duration_mismatch_fails_safely(self) -> None:
+        self._update(
+            "UPDATE respiratory_events SET duration = ? WHERE id = ?",
+            (9, 3),
+        )
+
+        with self.assertRaises(InvalidSessionEventError):
+            extract_session_events(self.database_path, 100)
+
+    def test_event_profile_mismatch_fails_safely(self) -> None:
+        self._update(
+            "UPDATE respiratory_events SET profile_id = ? WHERE id = ?",
+            (2, 4),
+        )
+
+        with self.assertRaises(InvalidSessionEventError):
+            extract_session_events(self.database_path, 100)
 
 
 if __name__ == "__main__":

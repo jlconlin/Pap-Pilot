@@ -1,15 +1,17 @@
 # PAP Pilot — session handoff
 
-**Updated:** August 30, 2026
+**Updated:** August 31, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S09 completed; stopped before S10
-**Next sprint:** S10 — Implement guarded read-only connection
+**Current sprint:** None — S10 completed; stopped before S11
+**Next sprint:** S11 — Extract one session summary
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
 - The adapter and deterministic engine are separate package namespaces; no database extraction, web UI, or AI implementation has begun.
+- `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
+- Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
 - The former prototype and product-plan files have been consolidated into `Plan.md` and removed from the working tree.
 - The large milestones have been decomposed into short, dependency-ordered sprints in `SPRINTS.md`.
@@ -38,15 +40,16 @@
 
 ## Last completed sprint
 
-S09 — Scaffold the Python project.
+S10 — Implement guarded read-only connection.
 
 ## Validation performed
 
-- Created a Python 3.13 virtual environment using the documented development workflow.
-- Installed PAP Pilot 0.1.0 as an editable package from `pyproject.toml`; the build completed successfully with no runtime dependencies.
-- Ran `.venv/bin/python -m unittest discover --start-directory tests --verbose`; the single package-boundary smoke test passed.
-- Imported `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` from `/tmp` using the isolated interpreter, confirming that the installed package is importable outside the repository working directory.
-- Ran `.venv/bin/python -m pip check`; no broken requirements were found.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all six tests passed without resource warnings.
+- A supported synthetic schema-17 database returned its sentinel row through the guarded connection and held an explicit read transaction.
+- `query_only` rejected a temporary-table write; after the test deliberately disabled `query_only`, SQLite `mode=ro` still rejected a main-database insert.
+- The supported test database remained byte-for-byte unchanged, retained exactly one sentinel row, and produced no journal, WAL, or SHM sidecar.
+- A nonexistent database was not created, absent/empty schema metadata raised `MissingSchemaVersionError`, and schema versions 16 and 18 raised `UnsupportedSchemaVersionError` before a connection was exposed; every rejection fixture remained byte-for-byte unchanged.
+- Tests created only synthetic SQLite files in system temporary directories. No live or copied OSCAR database and no therapy row was accessed.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
@@ -94,10 +97,13 @@ S09 — Scaffold the Python project.
 - The initial Python scaffold uses a `src` layout, setuptools as its build backend, Python 3.11 or newer, and no runtime dependencies.
 - The `pap_pilot.adapter` namespace owns external data access, while `pap_pilot.engine` owns deterministic companion analysis; OSCAR-derived results must not cross that boundary as if they were PAP Pilot calculations.
 - The smoke test uses Python's standard-library `unittest` so the scaffold does not introduce a test-framework dependency before one is needed.
+- Guarded OSCAR access uses two independent controls: SQLite URI `mode=ro` protects the main database, while `PRAGMA query_only=ON` also prevents writes to temporary tables during normal adapter use.
+- The wrapper begins a read transaction before selecting `MAX(schema_version.version)`, accepts only integer version 17, and closes the connection on success or failure.
+- The wrapper does not silently add `immutable=1`; that flag remains restricted to a trusted, fixed disposable copy and must never be used against the live OSCAR database.
 
 ## Blockers
 
-- No blocker prevents starting S10.
+- No blocker prevents starting S11.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans require explicit S12 extraction behavior and S14 OSCAR cross-checks.
 - Signal gaps/missing lists, the `compressed_size` discrepancy, unresolved Flow Rate sign convention, and unresolved Leak subtype require explicit S13/S14 and later quality-rule handling; they do not block project scaffolding.
@@ -106,11 +112,10 @@ S09 — Scaffold the Python project.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S10.
-Implement the connection wrapper that opens an OSCAR database explicitly
-read-only, validates the supported schema version, and rejects writable or
-unsupported access. Use only a disposable database or synthetic fixture; never
-write to the live OSCAR database. Do not add profile/session extraction or work
-assigned to later sprints. Update SPRINTS.md and STATUS.md, commit the completed
-sprint, verify the working tree is clean, then stop without starting S11.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S11.
+Using the guarded connection and only a fresh disposable OSCAR database copy,
+extract machine/profile provenance, session boundaries, and the six mapped ASV
+settings for one selected night. Do not add events, waveforms, metrics, or
+multiple-night queries. Update SPRINTS.md and STATUS.md, commit the completed
+sprint, verify the working tree is clean, then stop without starting S12.
 ```

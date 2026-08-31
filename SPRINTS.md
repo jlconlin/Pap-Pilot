@@ -82,7 +82,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Web UI, AI dependencies, and database extraction logic.
 - Done when: The package imports and one smoke test passes using the documented development command.
 
-### S10 — Implement guarded read-only connection — queued
+### S10 — Implement guarded read-only connection — done
 
 - Objective: Open a disposable OSCAR database explicitly read-only and reject missing or unsupported schema versions.
 - Excludes: Therapy-data extraction and live-database testing.

@@ -39,15 +39,22 @@ class UnsupportedSchemaVersionError(OscarDatabaseError):
 @contextmanager
 def open_oscar_database(
     database_path: str | Path,
+    *,
+    trusted_immutable_copy: bool = False,
 ) -> Iterator[sqlite3.Connection]:
     """Open and validate an OSCAR database without permitting writes.
 
     The caller must keep OSCAR closed and use a backup or disposable database
-    until concurrent-read safety is separately verified.
+    until concurrent-read safety is separately verified. Set
+    ``trusted_immutable_copy`` only for a fixed copy made while OSCAR was
+    closed; SQLite's immutable mode must never be used on the live database.
     """
 
     resolved_path = Path(database_path).expanduser().resolve()
-    database_uri = f"{resolved_path.as_uri()}?mode=ro"
+    uri_options = "mode=ro"
+    if trusted_immutable_copy:
+        uri_options += "&immutable=1"
+    database_uri = f"{resolved_path.as_uri()}?{uri_options}"
 
     try:
         connection = sqlite3.connect(database_uri, uri=True)

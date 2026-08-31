@@ -88,7 +88,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Therapy-data extraction and live-database testing.
 - Done when: Tests prove reads succeed, writes fail, and unsupported schemas fail safely.
 
-### S11 — Extract one session summary — queued
+### S11 — Extract one session summary — done
 
 - Objective: Extract machine/profile provenance, session boundaries, and settings for one selected night.
 - Excludes: Events, waveforms, metrics, and multiple-night queries.

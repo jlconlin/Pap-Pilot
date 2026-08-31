@@ -98,6 +98,24 @@ class OscarConnectionTests(unittest.TestCase):
 
         self.assertFalse(self.database_path.exists())
 
+    def test_trusted_immutable_copy_is_read_only(self) -> None:
+        original_database = self._create_database()
+
+        with open_oscar_database(
+            self.database_path,
+            trusted_immutable_copy=True,
+        ) as connection:
+            self.assertEqual(
+                connection.execute("SELECT value FROM sentinel").fetchone(),
+                ("unchanged",),
+            )
+            with self.assertRaises(sqlite3.OperationalError):
+                connection.execute(
+                    "INSERT INTO sentinel (value) VALUES ('changed')"
+                )
+
+        self.assertEqual(self.database_path.read_bytes(), original_database)
+
     def test_unsupported_schema_versions_fail_without_changes(self) -> None:
         for schema_version in (16, 18):
             with self.subTest(schema_version=schema_version):

@@ -2,16 +2,17 @@
 
 **Updated:** August 31, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S10 completed; stopped before S11
-**Next sprint:** S11 — Extract one session summary
+**Current sprint:** None — S11 completed; stopped before S12
+**Next sprint:** S12 — Extract events for one night
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; no database extraction, web UI, or AI implementation has begun.
+- The adapter and deterministic engine are separate package namespaces; one-session OSCAR extraction has begun, while event, signal, metric, web UI, and AI implementation have not.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
+- `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
 - The former prototype and product-plan files have been consolidated into `Plan.md` and removed from the working tree.
 - The large milestones have been decomposed into short, dependency-ordered sprints in `SPRINTS.md`.
@@ -40,16 +41,17 @@
 
 ## Last completed sprint
 
-S10 — Implement guarded read-only connection.
+S11 — Extract one session summary.
 
 ## Validation performed
 
-- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all six tests passed without resource warnings.
-- A supported synthetic schema-17 database returned its sentinel row through the guarded connection and held an explicit read transaction.
-- `query_only` rejected a temporary-table write; after the test deliberately disabled `query_only`, SQLite `mode=ro` still rejected a main-database insert.
-- The supported test database remained byte-for-byte unchanged, retained exactly one sentinel row, and produced no journal, WAL, or SHM sidecar.
-- A nonexistent database was not created, absent/empty schema metadata raised `MissingSchemaVersionError`, and schema versions 16 and 18 raised `UnsupportedSchemaVersionError` before a connection was exposed; every rejection fixture remained byte-for-byte unchanged.
-- Tests created only synthetic SQLite files in system temporary directories. No live or copied OSCAR database and no therapy row was accessed.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all twelve tests passed without resource warnings.
+- The deterministic schema-17 fixture produced the exact expected immutable summary: schema identity; active-profile calendar context; machine/loader provenance; raw millisecond session boundaries and flags; fixed-EPAP ASV mode codes; four pressure settings; and six ordered source channel identifiers.
+- Focused tests confirmed missing sessions, missing required settings, invalid session duration, conflicting profile timezones, and attempts to write through trusted immutable-copy access all fail safely; extraction left each source fixture unchanged.
+- Confirmed OSCAR was closed and the live database had no WAL/SHM sidecars before making a fresh copy outside the repository. Source and copy matched byte-for-byte and by SHA-256 before access, then the copy was protected as file mode `0400` inside a mode-`0500` directory.
+- Used the guarded `mode=ro&immutable=1` opt-in only on that trusted fixed copy. A single locally selected compatible session passed schema, profile, machine, raw-boundary, and six-setting checks; only field names and boolean validation results were emitted.
+- Reconfirmed OSCAR remained closed, live and copy sidecars remained absent, and source/copy bytes and SHA-256 still matched. The private disposable copy was then removed and its absence verified.
+- Application SQL is limited to schema provenance, one `sessions.id`, its joined profile/machine context, three profile preferences, and that session's six profile-scoped setting channels; no event, waveform, metric, or multiple-session result query was added.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
@@ -100,22 +102,30 @@ S10 — Implement guarded read-only connection.
 - Guarded OSCAR access uses two independent controls: SQLite URI `mode=ro` protects the main database, while `PRAGMA query_only=ON` also prevents writes to temporary tables during normal adapter use.
 - The wrapper begins a read transaction before selecting `MAX(schema_version.version)`, accepts only integer version 17, and closes the connection on success or failure.
 - The wrapper does not silently add `immutable=1`; that flag remains restricted to a trusted, fixed disposable copy and must never be used against the live OSCAR database.
+- `trusted_immutable_copy=True` is an explicit caller assertion used only for a fixed copy made with OSCAR closed; ordinary guarded access remains `mode=ro` without silently bypassing SQLite change detection.
+- S11 output is a raw, OSCAR-specific adapter record. It does not preempt the versioned normalized records assigned to S15.
+- Session selection is by exactly one `sessions.id`. The extractor does not list nights, carry settings from another session, derive an OSCAR day, apply device-time corrections, or combine split sessions.
+- A usable S11 session must belong to an active profile with agreeing timezone sources, have valid positive raw boundaries, be enabled and non-summary, report settings present, and contain all six required profile-scoped setting rows.
+- Only fixed-EPAP ASV mode codes `PAPMode=6` and `RMS9_Mode=7` are accepted. PS Min must not exceed PS Max, and stored Max IPAP must agree with EPAP plus PS Max; pressure units remain subject to the S14 OSCAR cross-check.
+- Profile name and machine serial are retained only in the local raw result for provenance and are never included in ordinary diagnostics, committed fixtures, or sanitized validation output.
+- The real validation session was selected locally without printing or retaining its identifier, therapy date, profile name, serial number, or setting values. Later reference-night work must reselect locally until S17 defines a safe retained fixture.
 
 ## Blockers
 
-- No blocker prevents starting S11.
+- No blocker prevents starting S12.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans require explicit S12 extraction behavior and S14 OSCAR cross-checks.
-- Signal gaps/missing lists, the `compressed_size` discrepancy, unresolved Flow Rate sign convention, and unresolved Leak subtype require explicit S13/S14 and later quality-rule handling; they do not block project scaffolding.
+- Signal gaps/missing lists, the `compressed_size` discrepancy, unresolved Flow Rate sign convention, and unresolved Leak subtype require explicit S13/S14 and later quality-rule handling; they do not block S12.
 - The empty local correction table and invalid raw session boundaries remain explicit inputs to later guarded-connection, session-extraction, and structural-quality work.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S11.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S12.
 Using the guarded connection and only a fresh disposable OSCAR database copy,
-extract machine/profile provenance, session boundaries, and the six mapped ASV
-settings for one selected night. Do not add events, waveforms, metrics, or
+extract the six allowlisted machine/OSCAR event kinds for one locally selected
+session, preserving raw times, durations, source identifiers, and unknown
+completeness. Do not add waveforms, derived metrics, broad event coverage, or
 multiple-night queries. Update SPRINTS.md and STATUS.md, commit the completed
-sprint, verify the working tree is clean, then stop without starting S12.
+sprint, verify the working tree is clean, then stop without starting S13.
 ```

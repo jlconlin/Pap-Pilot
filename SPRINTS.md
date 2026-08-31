@@ -100,7 +100,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Waveforms, derived metrics, and broad event coverage.
 - Done when: Event types, times, counts, and units can be reproduced for that night.
 
-### S13 — Extract one required signal — queued
+### S13 — Extract one required signal — done
 
 - Objective: Add extraction for one signal selected in S08, including timestamps and units.
 - Excludes: Other signals and derived calculations.

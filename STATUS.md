@@ -2,18 +2,19 @@
 
 **Updated:** August 31, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S12 completed; stopped before S13
-**Next sprint:** S13 — Extract one required signal
+**Current sprint:** None — S13 completed; stopped before S14
+**Next sprint:** S14 — Cross-check the reference night
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session summary and machine/OSCAR event extraction have begun, while signal, metric, web UI, and AI implementation have not.
+- The adapter and deterministic engine are separate package namespaces; one-session summary, machine/OSCAR event, and one-signal extraction have begun, while other signals, metrics, web UI, and AI implementation have not.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
 - `pap_pilot.adapter.extract_session_events` returns only the six allowlisted machine-labeled/OSCAR-normalized event kinds for one validated session, with raw provenance and explicitly unknown completeness.
+- `pap_pilot.adapter.extract_flow_rate_signal` returns the selected session's raw 25 Hz `FlowRate` EventLists as separate immutable segments with raw timestamps, L/min values, gaps, storage/checksum provenance, and explicit missing-data state.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
 - The former prototype and product-plan files have been consolidated into `Plan.md` and removed from the working tree.
 - The large milestones have been decomposed into short, dependency-ordered sprints in `SPRINTS.md`.
@@ -42,19 +43,19 @@
 
 ## Last completed sprint
 
-S12 — Extract events for one night.
+S13 — Extract one required signal.
 
 ## Validation performed
 
-- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all sixteen tests passed without resource warnings.
-- The deterministic schema-17 fixture reproduced all six allowlisted kinds and labels, ordered raw millisecond boundaries, integer-second durations, source event/session/profile/channel identifiers, opaque source event types, and observed row counts including two rows of one kind.
-- The fixture proves `Apnea` and `Hypopnea` resolve to different event kinds despite sharing the same opaque `event_type`, excludes the `AllApnea` aggregate, retains and flags a Large Leak span beyond the session boundary, and labels every row as machine-labeled/OSCAR-normalized reference data.
-- An empty event table produces zero observed rows for each allowlisted kind while collection and per-kind completeness remain `unknown`; it does not manufacture authoritative zero-event counts.
-- Focused tests confirmed inconsistent event durations and denormalized profile mismatches fail safely, while the source fixture remains unchanged after extraction.
-- Confirmed OSCAR was closed and the live database had no WAL/SHM sidecars before making a fresh copy outside the repository. Source and copy matched byte-for-byte and by SHA-256 before access, then the copy was protected as file mode `0400` inside a mode-`0500` directory.
-- Used the guarded `mode=ro&immutable=1` opt-in only on that trusted fixed copy. One locally selected session with allowlisted rows passed session/profile/channel provenance, raw time-unit, duration, source-class, allowlist, and unknown-completeness checks; only contract field names and boolean results were emitted.
-- Reconfirmed OSCAR remained closed, live and copy sidecars remained absent, and source/copy bytes and SHA-256 still matched. The private disposable copy was then removed and its absence verified.
-- Event SQL is restricted by one `sessions.id` and six profile-scoped channel codes; it does not read binary signal tables, waveform data, summary metrics, other event families, or multiple-session results.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all twenty-three tests passed without resource warnings.
+- The deterministic schema-17 fixture reproduced two independent `FlowRate` EventLists, five total samples, exact 40 ms timestamps and end-exclusive ranges, the `L/M` source dimension normalized to L/min, per-list gain/offset conversion, source identifiers, and machine-recorded/OSCAR-normalized provenance.
+- Repeated extraction produced exactly equal immutable output. The fixture retained an explicit positive inter-list gap and decoded both an uncompressed primary BLOB and a Qt `qCompress` BLOB without concatenating or interpolating the segments.
+- Focused tests confirmed missing channel and missing EventLists produce distinct explicit availability states, while a missing data row, profile mismatch, checksum mismatch, or noncontiguous EventList index fails safely. Extraction left the source fixture unchanged.
+- Qt's official documentation identifies `qChecksum`'s default as the ISO 3309 CRC-16-CCITT algorithm and documents the four-byte big-endian `qCompress` length header. A sanitized probe confirmed the ISO-3309/X-25 implementation against an OSCAR checksum before the probe was removed.
+- Confirmed OSCAR was closed and the live database had no WAL/SHM sidecars before making a fresh copy outside the repository. Source and copy matched byte-for-byte before access, then the copy was protected as file mode `0400` inside a mode-`0500` directory.
+- Used the guarded `mode=ro&immutable=1` opt-in only on that trusted fixed copy. One locally selected session with `FlowRate` passed one-session/profile/channel provenance, EventList boundary, 25 Hz timing, L/min unit, sample-count, time-range, gap, storage-integrity, checksum, and source-class checks; only contract field names and boolean results were emitted.
+- Reconfirmed OSCAR remained closed, live and copy sidecars remained absent, and source/copy bytes still matched. The private disposable copy was then removed and its absence verified.
+- Signal SQL is restricted by one `sessions.id` and its profile-scoped `FlowRate` channel. It does not query `MaskPressureHi`, `Leak`, cached signal summaries, event rows, metrics, other sessions, or derived OSCAR channels.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
@@ -118,24 +119,32 @@ S12 — Extract events for one night.
 - Event starts/ends remain raw Unix epoch milliseconds, durations remain integer seconds, and the exact millisecond/second relationship is validated. Non-contained rows are retained unchanged and flagged rather than clipped, reassigned, or silently discarded.
 - Event extraction reuses the S11 validation in the same read transaction and queries exactly one session database identifier. It does not derive corrected display times, OSCAR-day grouping, rates, indices, or any companion metric.
 - The real S12 validation session was selected locally without printing or retaining its identifier, date, event kinds present, event counts, raw timestamps, profile/device provenance, or setting values.
+- S13 extracts only schema-17 `FlowRate`; `MaskPressureHi`, `Leak`, all other signals, and every derived calculation remain outside this sprint.
+- Flow output remains machine-recorded/OSCAR-normalized source data for later independent PAP Pilot analysis. The adapter performs binary decoding and unit conversion only; it does not segment breaths, interpret sign, calculate metrics, smooth, resample, baseline-correct, or fill gaps.
+- Flow EventLists remain separate, zero-based contiguous segments. Timestamps are generated as `first_time + i * rate`, `last_time` is validated as the end-exclusive boundary, and a 40 ms interval is required for the selected 25 Hz schema-17 signal.
+- Primary values decode as little-endian signed 16-bit integers and convert with each EventList's stored gain and offset. The `L/M` source dimension is preserved while the canonical unit is exposed as L/min.
+- `event_data.compression_method`, not `compressed_size`, selects the mutually exclusive raw or Qt-zlib BLOB. Both branches require exact uncompressed length, supported field layout, and a matching Qt ISO-3309/X-25 checksum; `compressed_size` remains validated provenance.
+- Missing profile channel and missing session EventLists are distinct explicit availability states. Malformed timing, provenance, indexing, storage, compression, dimensions, secondary fields, or checksums fail without partial output.
+- The real S13 validation session was selected locally without printing or retaining its identifier, date, segment or sample counts, timestamps, sample values, signal extrema, profile/device provenance, settings, or checksums.
 
 ## Blockers
 
-- No blocker prevents starting S13.
+- No blocker prevents starting S14.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans are handled explicitly by S12 extraction and still require S14 OSCAR cross-checks.
-- Signal gaps/missing lists, the `compressed_size` discrepancy, unresolved Flow Rate sign convention, and unresolved Leak subtype require explicit S13/S14 and later quality-rule handling; they do not prevent beginning S13.
+- S13 now preserves signal gaps/missing lists and treats `compressed_size` only as validated provenance. The unresolved Flow Rate sign convention still requires the S14 OSCAR cross-check, while Leak subtype remains for its later extraction and quality work.
 - The empty local correction table and invalid raw session boundaries remain explicit inputs to later guarded-connection, session-extraction, and structural-quality work.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S13.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S14.
 Using the guarded connection and only a fresh disposable OSCAR database copy,
-extract the selected 25 Hz `FlowRate` signal for one locally selected session,
-preserving EventList boundaries, sample timing, units, encoding provenance,
-gaps, and missing-data behavior. Do not add other signals, events, metrics,
-interpolation, or multiple-night queries. Update SPRINTS.md and STATUS.md,
-commit the completed sprint, verify the working tree is clean, then stop
-without starting S14.
+cross-check one locally selected reference session's S11 settings and boundaries,
+S12 event counts, and S13 `FlowRate` timing, values, units, and sign/display
+behavior against OSCAR. Record an explicit pass or fail for each comparison and
+any bounded discrepancy. Do not fix unrelated discrepancies, add another night,
+add signals or metrics, or start normalized-model work. Update SPRINTS.md and
+STATUS.md, commit the completed sprint, verify the working tree is clean, then
+stop without starting S15.
 ```

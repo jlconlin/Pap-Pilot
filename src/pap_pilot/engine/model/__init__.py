@@ -1,6 +1,6 @@
-"""Deterministic PAP analysis independent of data-source and UI code."""
+"""Versioned normalized records used by the deterministic engine."""
 
-from pap_pilot.engine.model import (
+from pap_pilot.engine.model.normalized import (
     NORMALIZED_FORMAT,
     NORMALIZED_FORMAT_VERSION,
     NORMALIZED_RECORD_VERSION,

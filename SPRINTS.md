@@ -132,7 +132,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 
 ## 2 — Normalized model and fixtures
 
-### S15 — Define normalized core records — queued
+### S15 — Define normalized core records — done
 
 - Objective: Define versioned records for nights, sessions, settings, events, signals, and provenance.
 - Excludes: Quality rules, experiments, persistence, UI, and AI.

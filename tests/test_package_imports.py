@@ -12,6 +12,7 @@ class PackageImportTests(unittest.TestCase):
             "pap_pilot",
             "pap_pilot.adapter",
             "pap_pilot.engine",
+            "pap_pilot.engine.model",
         ):
             with self.subTest(module_name=module_name):
                 module = import_module(module_name)

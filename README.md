@@ -12,4 +12,4 @@ python3 -m venv .venv
 .venv/bin/python -m unittest discover --start-directory tests --verbose
 ```
 
-The package currently has no runtime dependencies. Database extraction, web interface, and AI integration are intentionally outside this scaffold.
+The package currently has no runtime dependencies. It includes a guarded schema-17 OSCAR adapter and versioned normalized engine records; adapter-to-model mapping, persistence, derived analysis, the web interface, and AI integration remain later work.

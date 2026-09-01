@@ -2,14 +2,18 @@
 
 **Updated:** September 1, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S14C completed; Milestone 1 accepted
-**Next sprint:** S15 — Define normalized core records
+**Current sprint:** None — S15 completed
+**Next sprint:** S16 — Map adapter output into normalized records
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session summary, machine/OSCAR event, Flow Rate, Mask Pressure, and Leak extraction are implemented, while metrics, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session summary, machine/OSCAR event, Flow Rate, Mask Pressure, and Leak extraction plus normalized core records are implemented, while adapter-to-model mapping, metrics, web UI, and AI implementation have not begun.
+- `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
+- `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
+- Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
+- Normalized provenance preserves canonical source classifications, upstream system/schema/application versions, stable source-record references, source-specific values, producer/version identity, and parent-provenance links. The model distinguishes machine-recorded, machine-labeled, OSCAR-normalized, OSCAR-derived, companion-derived, AI-generated, user-reported, and external-sensor information.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
@@ -47,9 +51,16 @@
 
 ## Last completed sprint
 
-S14C — Cross-check remaining signals and accept Milestone 1.
+S15 — Define normalized core records.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all fifty-two tests passed without resource warnings.
+- Focused S15 tests constructed and independently round-tripped every public normalized record type, including support records used for source references and source-specific provenance values. Repeated serialization was byte-for-byte identical, and noncanonical input JSON reserialized to the same canonical output.
+- A complete nested night/session/settings/events/signals example retained Unicode units, uniform-waveform and irregular timed-update representations, fractional millisecond sample timing, interval closure, Leak value semantics, all record/format versions, source classes, source references, source values, producer identity, and parent provenance through serialization and deserialization.
+- Records and every nested collection are immutable. Semantically unordered collections receive deterministic ordering, while duplicate record identifiers, setting names, signal kinds, source classes, provenance keys, source references, and parent provenance identifiers fail safely.
+- Strict-decoding tests reject missing/unknown fields, duplicate JSON fields, Boolean values masquerading as integer versions/timestamps, unsupported versions and record types, malformed intervals, mismatched samples, inconsistent uniform timing, duplicate nested records, and non-finite values.
+- Package-boundary tests import `pap_pilot.engine.model`; a source search confirms the normalized model has no adapter import. No OSCAR query, real health data, adapter mapping, quality rule, fixture, persistence layer, experiment behavior, UI, or AI code was added in S15.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all forty-two tests passed without resource warnings after resolving the Leak semantic enum.
 - Reselected the private reference night locally using its one-enabled-session OSCAR-day constraint and extracted Flow Rate, Mask Pressure, and Leak from the same session. Only named boolean contracts were emitted; no profile, therapy date, identifier, setting, count, timestamp, sample value, extrema, or checksum was printed or retained.
@@ -152,6 +163,11 @@ S14C — Cross-check remaining signals and accept Milestone 1.
 - Leak values decode from little-endian signed 16-bit integers using each EventList's stored gain and offset. The database source dimension is absent (`NULL` in the scoped copy; empty string is also accepted as absent), while the canonical L/min unit is established by OSCAR's schema, ResMed loader, and graph path.
 - For sparse Leak, `event_lists.data_size` is `count*6` and covers both uncompressed arrays; `compressed_size` covers both selected storage BLOBs. Individual value/time lengths and the combined metadata are all validated, while the stored checksum applies to the primary value array.
 - Leak EventLists remain separate with raw gaps. Missing Leak means unavailable quality evidence rather than zero leak. The adapter exposes the source semantic as `unintentional`; later quality rules still must decide whether any interval is usable and must not equate the raw trace with PAP Pilot analysis.
+- Normalized records use immutable frozen dataclasses and explicit stable string identifiers. A `NightRecord` owns chronologically ordered sessions; each session owns deterministically ordered settings, raw source events, and signals; each signal owns independent ordered segments rather than flattening gaps.
+- Normalized format version 1 and record version 1 are independent explicit contracts. Canonical JSON uses UTF-8 text without ASCII escaping, sorted object keys, compact separators, finite numbers only, and exact tagged nested record types; storage remains outside S15.
+- Signal timestamps are finite millisecond numbers rather than integers only, preserving OSCAR's `REAL` sample interval contract without truncation. Segment boundaries remain integer Unix milliseconds, interval closure is explicit, uniform timing is internally consistent, and sparse timed updates do not claim a uniform interval.
+- Provenance classifications are an explicit set rather than a single collapsed label, so machine-recorded data normalized by OSCAR retains both origins. Source references and source-specific values can retain the schema/profile/machine/session/channel/EventList identities and loader/checksum details required by S16 without importing adapter types into the engine.
+- S15 performs only structural validation needed for stable records and safe serialization. It does not decide data quality, event completeness, clinical meaning, metric validity, exclusions, or experiment suitability; those remain assigned to later sprints.
 - The initial Python scaffold uses a `src` layout, setuptools as its build backend, Python 3.11 or newer, and no runtime dependencies.
 - The `pap_pilot.adapter` namespace owns external data access, while `pap_pilot.engine` owns deterministic companion analysis; OSCAR-derived results must not cross that boundary as if they were PAP Pilot calculations.
 - The smoke test uses Python's standard-library `unittest` so the scaffold does not introduce a test-framework dependency before one is needed.
@@ -181,8 +197,9 @@ S14C — Cross-check remaining signals and accept Milestone 1.
 
 ## Blockers
 
-- No blocker prevents starting S15.
+- No blocker prevents starting S16.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
+- S15 records are deliberately source-independent and contain no real reference-night mapping. S16 must convert the existing adapter output into these records and choose stable normalized identifiers while preserving every required source reference/value.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans remain handled explicitly by S12 extraction; reference-night count agreement does not redefine those raw provenance rules.
 - S13–S14C preserve waveform gaps/missing lists and treat `compressed_size` only as validated provenance. Flow Rate, Mask Pressure, and Leak display relationships are cross-checked, and the scoped Leak subtype is resolved as unintentional/excess.
@@ -191,5 +208,5 @@ S14C — Cross-check remaining signals and accept Milestone 1.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S15. Define the versioned normalized core records for nights, sessions, settings, events, signals, and provenance with deterministic serialization and provenance-preserving round trips. Do not implement adapter mapping, quality rules, fixtures, persistence, experiments, UI, or AI. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S16. Convert the existing one-session adapter summary, settings, events, Flow Rate, Mask Pressure, and Leak output into the S15 normalized records with stable identifiers and complete source provenance. Do not add OSCAR queries, reference fixtures, quality rules, derived metrics, persistence, experiments, UI, or AI. Add focused deterministic mapping tests, update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

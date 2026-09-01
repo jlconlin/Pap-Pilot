@@ -112,6 +112,24 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Fixing unrelated discrepancies or adding more nights.
 - Done when: Settings, boundaries, event counts, and the first signal have explicit pass/fail comparisons.
 
+### S14A — Extract Mask Pressure — queued
+
+- Objective: Add schema-17 extraction for the required `MaskPressureHi` signal, including timestamps, units, segment boundaries, and provenance.
+- Excludes: Leak extraction, derived calculations, signal alignment analysis, and additional nights.
+- Done when: Focused tests verify sample count, time range, 25 Hz timing, cm H₂O units, gaps, storage integrity, and deterministic output for `MaskPressureHi`.
+
+### S14B — Extract Leak — queued
+
+- Objective: Add schema-17 extraction for the required sparse `Leak` signal, including stored timestamps, units, gaps, and provenance.
+- Excludes: Mask Pressure changes, leak-threshold rules, quality classification, derived calculations, and additional nights.
+- Done when: Focused tests verify sparse timestamp decoding, values, L/min units, gaps, storage integrity, missing-data behavior, and deterministic output for `Leak` without assuming total-versus-excess semantics.
+
+### S14C — Cross-check remaining signals and accept Milestone 1 — queued
+
+- Objective: Cross-check `MaskPressureHi` and `Leak` for the same private reference night against OSCAR and record the Milestone 1 gate decision.
+- Excludes: Fixing unrelated discrepancies, adding nights, defining quality rules, normalized records, and derived metrics.
+- Done when: Timing, values, units, display behavior, and Leak semantics have explicit pass/fail comparisons; all Milestone 1 exit-criterion evidence is reviewed; and the gate is recorded as accepted or the sprint is blocked by a named discrepancy.
+
 ## 2 — Normalized model and fixtures
 
 ### S15 — Define normalized core records — queued

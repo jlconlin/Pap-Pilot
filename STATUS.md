@@ -2,8 +2,8 @@
 
 **Updated:** August 31, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S14 completed; stopped before S15
-**Next sprint:** S15 — Define normalized core records
+**Current sprint:** None — S14 completed; Milestone 1 remains open
+**Next sprint:** S14A — Extract Mask Pressure
 
 ## Current state
 
@@ -16,6 +16,7 @@
 - `pap_pilot.adapter.extract_session_events` returns only the six allowlisted machine-labeled/OSCAR-normalized event kinds for one validated session, with raw provenance and explicitly unknown completeness.
 - `pap_pilot.adapter.extract_flow_rate_signal` returns the selected session's raw 25 Hz `FlowRate` EventLists as separate immutable segments with raw timestamps, L/min values, gaps, storage/checksum provenance, and explicit missing-data state.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for S11 settings and boundaries, S12 event counts, and S13 Flow Rate timing, values, units, and sign/display behavior on one private reference night.
+- Milestone 1 is not yet accepted: `MaskPressureHi` and `Leak` are mapped but still require extraction and OSCAR cross-checks. S14A–S14C now precede normalized-model work.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
 - The former prototype and product-plan files have been consolidated into `Plan.md` and removed from the working tree.
 - The large milestones have been decomposed into short, dependency-ordered sprints in `SPRINTS.md`.
@@ -103,6 +104,7 @@ S14 — Cross-check the reference night.
 - Event-row absence remains unknown rather than zero because the observed `events_loaded` flag is inconsistent with row presence. S14 established reference-night count agreement, not universal event completeness.
 - Non-contained Large Leak spans remain raw and flagged. S14 count agreement does not authorize clipping, reassignment, or reinterpretation of those rows.
 - The user reaffirmed that PAP Pilot must provide additional deterministic analysis rather than merely reproduce OSCAR outputs. Machine/OSCAR events and derived channels are comparison/reference inputs, not authoritative companion metrics.
+- The user directed that the two remaining required-signal extractions and their milestone cross-check be added as three bounded sprints before S15. Suffix identifiers S14A–S14C preserve all existing sprint identifiers and dependencies.
 - The S14 OSCAR cross-check validates import equivalence only. It does not make OSCAR summaries into PAP Pilot analysis; later metrics remain independently calculated in the deterministic engine from mapped source signals.
 - For the reference night, S11 settings/boundaries, S12 counts, and S13 Flow Rate all pass their explicit OSCAR comparisons. No adapter change was justified by S14.
 - OSCAR Flow Rate `session_channels.min/max` are observed single-precision extrema; comparisons use `1e-5` absolute tolerance. `phys_min/phys_max` describe the declared graph range, while `sum`, `avg`, and `wavg` are not populated as independently comparable Flow Rate waveform statistics.
@@ -123,7 +125,7 @@ S14 — Cross-check the reference night.
 - S11 output is a raw, OSCAR-specific adapter record. It does not preempt the versioned normalized records assigned to S15.
 - Session selection is by exactly one `sessions.id`. The extractor does not list nights, carry settings from another session, derive an OSCAR day, apply device-time corrections, or combine split sessions.
 - A usable S11 session must belong to an active profile with agreeing timezone sources, have valid positive raw boundaries, be enabled and non-summary, report settings present, and contain all six required profile-scoped setting rows.
-- Only fixed-EPAP ASV mode codes `PAPMode=6` and `RMS9_Mode=7` are accepted. PS Min must not exceed PS Max, and stored Max IPAP must agree with EPAP plus PS Max; pressure units remain subject to the S14 OSCAR cross-check.
+- Only fixed-EPAP ASV mode codes `PAPMode=6` and `RMS9_Mode=7` are accepted. PS Min must not exceed PS Max, and stored Max IPAP must agree with EPAP plus PS Max; S14 confirmed the pressure-unit contract for the reference night.
 - Profile name and machine serial are retained only in the local raw result for provenance and are never included in ordinary diagnostics, committed fixtures, or sanitized validation output.
 - The real validation session was selected locally without printing or retaining its identifier, therapy date, profile name, serial number, or setting values. Later reference-night work must reselect locally until S17 defines a safe retained fixture.
 - S12 events remain raw adapter/reference data, not PAP Pilot analytical findings. Their explicit source class is `machine_labeled_oscar_normalized`.
@@ -142,7 +144,8 @@ S14 — Cross-check the reference night.
 
 ## Blockers
 
-- No blocker prevents starting S15.
+- No blocker prevents starting S14A.
+- Milestone 1 remains open until S14A and S14B implement both remaining required signals and S14C records their OSCAR comparisons and the gate decision.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans remain handled explicitly by S12 extraction; reference-night count agreement does not redefine those raw provenance rules.
 - S13 preserves signal gaps/missing lists and treats `compressed_size` only as validated provenance. Flow Rate sign/display behavior is now cross-checked; Leak subtype remains for later extraction and quality work.
@@ -151,11 +154,12 @@ S14 — Cross-check the reference night.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S15.
-Define the smallest versioned normalized core records for nights, sessions,
-settings, events, signals, and provenance. Keep them independent from OSCAR SQL,
-quality rules, experiments, persistence, UI, and AI. Add focused deterministic
-serialization/round-trip tests, update SPRINTS.md and STATUS.md, commit the
-completed sprint, verify the working tree is clean, then stop without starting
-S16.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S14A.
+Add schema-17 extraction for the selected session's required `MaskPressureHi`
+signal, preserving timestamps, 25 Hz timing, cm H₂O units, independent
+EventList segments, gaps, storage integrity, and provenance. Use focused
+deterministic tests and a protected disposable OSCAR copy only. Do not extract
+Leak, add alignment analysis or metrics, or start S14B. Update SPRINTS.md and
+STATUS.md, commit the completed sprint, verify the working tree is clean, then
+stop.
 ```

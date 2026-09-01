@@ -2,8 +2,8 @@
 
 **Updated:** August 31, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S13 completed; stopped before S14
-**Next sprint:** S14 — Cross-check the reference night
+**Current sprint:** None — S14 completed; stopped before S15
+**Next sprint:** S15 — Define normalized core records
 
 ## Current state
 
@@ -15,6 +15,7 @@
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
 - `pap_pilot.adapter.extract_session_events` returns only the six allowlisted machine-labeled/OSCAR-normalized event kinds for one validated session, with raw provenance and explicitly unknown completeness.
 - `pap_pilot.adapter.extract_flow_rate_signal` returns the selected session's raw 25 Hz `FlowRate` EventLists as separate immutable segments with raw timestamps, L/min values, gaps, storage/checksum provenance, and explicit missing-data state.
+- `docs/research/oscar-reference-night-cross-check.md` records explicit passes for S11 settings and boundaries, S12 event counts, and S13 Flow Rate timing, values, units, and sign/display behavior on one private reference night.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
 - The former prototype and product-plan files have been consolidated into `Plan.md` and removed from the working tree.
 - The large milestones have been decomposed into short, dependency-ordered sprints in `SPRINTS.md`.
@@ -43,9 +44,17 @@
 
 ## Last completed sprint
 
-S13 — Extract one required signal.
+S14 — Cross-check the reference night.
 
 ## Validation performed
+
+- One locally selected OSCAR day with exactly one enabled session passed all four S14 domains: settings, session boundaries, event counts, and Flow Rate.
+- All six S11 settings exactly matched their OSCAR source rows and were present in OSCAR's built-in Device Settings report; ASV mode encodings and the cm H₂O pressure contract matched.
+- S11 start/end boundaries and duration exactly matched OSCAR session/day report sources. S12 OA, CA, UA, H, and RERA counts matched both session and daily summaries, and all six allowlisted kinds including Large Leak matched session-channel counts; `AllApnea` remained excluded.
+- S13 Flow Rate sample count/time range matched OSCAR's cache, every EventList was 25 Hz, decoded observed extrema matched OSCAR's single-precision cache within `1e-5`, and all values remained inside OSCAR's declared physical graph range.
+- The selected Flow Rate EventLists had zero offset and gain matching OSCAR's cache. OSCAR's ResMed loader, signed EventList storage, and line-chart code confirmed that PAP Pilot's decoded values match OSCAR's graph formula for this session. Official OSCAR chart documentation confirmed L/min and positive-inspiration/negative-expiration display behavior.
+- The selected profile, date, identifiers, settings, counts, timestamps, values, and checksums were not emitted or committed. OSCAR was closed before copying; only protected disposable copies were inspected.
+- macOS denied Accessibility and screen capture access to the disposable OSCAR GUI. The cross-check therefore used OSCAR's built-in database report queries/caches and current graph source path; no screenshot or pixel-level tooltip comparison was retained.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all twenty-three tests passed without resource warnings.
 - The deterministic schema-17 fixture reproduced two independent `FlowRate` EventLists, five total samples, exact 40 ms timestamps and end-exclusive ranges, the `L/M` source dimension normalized to L/min, per-list gain/offset conversion, source identifiers, and machine-recorded/OSCAR-normalized provenance.
@@ -88,18 +97,22 @@ S13 — Extract one required signal.
 - The v17 correction mapping is version-specific and documentation-derived because the local correction table is empty. Range endpoints, open-ended sentinels, drift encoding, and sign behavior require focused synthetic tests before corrected time becomes authoritative.
 - Enabled and non-summary flags do not prove a session has valid boundaries; later extraction must reject or flag zero and negative durations.
 - For the first PS Min experiment, the required fixed-EPAP ASV setting context is `PAPMode`, `RMS9_Mode`, `EPAP`, `PSMin`, `PSMax`, and `IPAPHi`; settings are never carried forward across sessions.
-- Pressure settings normalize to cm H₂O and retain decimal precision. The absence of a database unit column requires the planned OSCAR reference-night cross-check before fixture expectations become authoritative.
+- Pressure settings normalize to cm H₂O and retain decimal precision. S14 confirmed that unit contract against OSCAR for the reference night despite the absence of a database unit column.
 - Schema-17 respiratory-event identity is derived only from `(profile_id, channel_id) → channels.channel_code`; the raw `respiratory_events.event_type` is retained as opaque provenance and never decoded with the schema-16 enum.
 - The first experiment's event allowlist is OA, CA, UA, H, RERA, and Large Leak. `AllApnea` is excluded to prevent aggregate/component double-counting, and CSR, periodic breathing, user flags, and signal data remain out of scope.
-- Event-row absence remains unknown rather than zero because the observed `events_loaded` flag is inconsistent with row presence. S12 must preserve incompleteness and S14 must establish zero-count behavior against OSCAR.
-- Non-contained Large Leak spans remain raw and flagged; no clipping, counting, or session reassignment is allowed before the OSCAR cross-check establishes intended behavior.
+- Event-row absence remains unknown rather than zero because the observed `events_loaded` flag is inconsistent with row presence. S14 established reference-night count agreement, not universal event completeness.
+- Non-contained Large Leak spans remain raw and flagged. S14 count agreement does not authorize clipping, reassignment, or reinterpretation of those rows.
 - The user reaffirmed that PAP Pilot must provide additional deterministic analysis rather than merely reproduce OSCAR outputs. Machine/OSCAR events and derived channels are comparison/reference inputs, not authoritative companion metrics.
+- The S14 OSCAR cross-check validates import equivalence only. It does not make OSCAR summaries into PAP Pilot analysis; later metrics remain independently calculated in the deterministic engine from mapped source signals.
+- For the reference night, S11 settings/boundaries, S12 counts, and S13 Flow Rate all pass their explicit OSCAR comparisons. No adapter change was justified by S14.
+- OSCAR Flow Rate `session_channels.min/max` are observed single-precision extrema; comparisons use `1e-5` absolute tolerance. `phys_min/phys_max` describe the declared graph range, while `sum`, `avg`, and `wavg` are not populated as independently comparable Flow Rate waveform statistics.
+- The scoped Flow Rate lists have zero offset, making PAP Pilot's `raw * gain + offset` conversion identical to OSCAR's graph's raw-times-gain rendering for this reference session. The positive/negative sign convention is now established for this source; it is not a derived breath-phase classification.
 - The minimum S08 input set is `FlowRate`, `MaskPressureHi`, and `Leak`. OSCAR/device-derived AHI, flow limitation, respiratory rate, tidal volume, minute ventilation, target ventilation, Ti, and Te are excluded from the required set and cannot silently substitute for PAP Pilot calculations.
 - `MaskPressureHi` is the required pressure input because it is a 25 Hz waveform synchronized with flow. Sparse `Pressure`, low-resolution `MaskPressure`, and `EPAP` traces are not silent fallbacks.
 - Flow and mask-pressure waveform timestamps derive from `first_time + i*rate`; their observed schema-17 `last_time` is end-exclusive. Leak timestamps derive only from the stored unsigned millisecond-delta array.
 - EventLists remain separate segments. Missing signals and inter-list gaps are explicit quality state; the adapter never interpolates across them, carries a sparse value across a gap, or substitutes `session_channels` summaries for samples.
 - `compressed_size` cannot determine whether a row is compressed in schema 17. Decode selection uses `compression_method` plus the mutually exclusive raw/compressed BLOBs, followed by length and checksum validation.
-- Flow sign convention and whether the scoped ResMed `Leak` trace is excess versus total leak remain unproven by the inspected database contract; S14 must cross-check them against OSCAR before breath-phase or leak-threshold results become authoritative.
+- Whether the scoped ResMed `Leak` trace is excess versus total leak remains unresolved for later signal/quality work; S14 established only Flow Rate display behavior.
 - The initial Python scaffold uses a `src` layout, setuptools as its build backend, Python 3.11 or newer, and no runtime dependencies.
 - The `pap_pilot.adapter` namespace owns external data access, while `pap_pilot.engine` owns deterministic companion analysis; OSCAR-derived results must not cross that boundary as if they were PAP Pilot calculations.
 - The smoke test uses Python's standard-library `unittest` so the scaffold does not introduce a test-framework dependency before one is needed.
@@ -115,7 +128,7 @@ S13 — Extract one required signal.
 - The real validation session was selected locally without printing or retaining its identifier, therapy date, profile name, serial number, or setting values. Later reference-night work must reselect locally until S17 defines a safe retained fixture.
 - S12 events remain raw adapter/reference data, not PAP Pilot analytical findings. Their explicit source class is `machine_labeled_oscar_normalized`.
 - Schema-17 event identity comes only from the profile-scoped channel registry: `Obstructive`, `ClearAirway`, `Apnea`, `Hypopnea`, `RERA`, and `LeakSpan`. `event_type` is preserved as an opaque integer and never decoded with the contradicted schema-16 enum.
-- `AllApnea` and every non-allowlisted channel are excluded from extraction and observed counts. Counts describe retrieved rows only and always carry `unknown` completeness until S14 establishes OSCAR agreement.
+- `AllApnea` and every non-allowlisted channel are excluded from extraction and observed counts. S14 confirmed reference-night count agreement, but raw event completeness remains explicitly `unknown` because agreement for one night is not a universal completeness guarantee.
 - Event starts/ends remain raw Unix epoch milliseconds, durations remain integer seconds, and the exact millisecond/second relationship is validated. Non-contained rows are retained unchanged and flagged rather than clipped, reassigned, or silently discarded.
 - Event extraction reuses the S11 validation in the same read transaction and queries exactly one session database identifier. It does not derive corrected display times, OSCAR-day grouping, rates, indices, or any companion metric.
 - The real S12 validation session was selected locally without printing or retaining its identifier, date, event kinds present, event counts, raw timestamps, profile/device provenance, or setting values.
@@ -129,22 +142,20 @@ S13 — Extract one required signal.
 
 ## Blockers
 
-- No blocker prevents starting S14.
+- No blocker prevents starting S15.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
-- The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans are handled explicitly by S12 extraction and still require S14 OSCAR cross-checks.
-- S13 now preserves signal gaps/missing lists and treats `compressed_size` only as validated provenance. The unresolved Flow Rate sign convention still requires the S14 OSCAR cross-check, while Leak subtype remains for its later extraction and quality work.
+- The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans remain handled explicitly by S12 extraction; reference-night count agreement does not redefine those raw provenance rules.
+- S13 preserves signal gaps/missing lists and treats `compressed_size` only as validated provenance. Flow Rate sign/display behavior is now cross-checked; Leak subtype remains for later extraction and quality work.
 - The empty local correction table and invalid raw session boundaries remain explicit inputs to later guarded-connection, session-extraction, and structural-quality work.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S14.
-Using the guarded connection and only a fresh disposable OSCAR database copy,
-cross-check one locally selected reference session's S11 settings and boundaries,
-S12 event counts, and S13 `FlowRate` timing, values, units, and sign/display
-behavior against OSCAR. Record an explicit pass or fail for each comparison and
-any bounded discrepancy. Do not fix unrelated discrepancies, add another night,
-add signals or metrics, or start normalized-model work. Update SPRINTS.md and
-STATUS.md, commit the completed sprint, verify the working tree is clean, then
-stop without starting S15.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S15.
+Define the smallest versioned normalized core records for nights, sessions,
+settings, events, signals, and provenance. Keep them independent from OSCAR SQL,
+quality rules, experiments, persistence, UI, and AI. Add focused deterministic
+serialization/round-trip tests, update SPRINTS.md and STATUS.md, commit the
+completed sprint, verify the working tree is clean, then stop without starting
+S16.
 ```

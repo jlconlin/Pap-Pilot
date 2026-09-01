@@ -106,7 +106,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Other signals and derived calculations.
 - Done when: A focused test verifies sample count, time range, units, and stable output.
 
-### S14 — Cross-check the reference night — queued
+### S14 — Cross-check the reference night — done
 
 - Objective: Compare S11–S13 outputs with OSCAR for one night and record discrepancies.
 - Excludes: Fixing unrelated discrepancies or adding more nights.

@@ -103,7 +103,7 @@ used as a discovery/integrity cross-check. It cannot replace `event_lists` and
 |---|---|---|---|---|---|
 | `flow_rate` | Profile-scoped `channels.channel_code='FlowRate'` → `event_lists` → `event_data` primary array | L/min; observed raw dimension text is `L/M` | `event_type=0`; uniform 40 ms/sample (25 Hz) in the scoped AirCurve data | Little-endian signed `int16`; `physical = raw * gain + offset`. Observed gain is approximately 0.12 and offset 0, but both must be read per EventList. | Required for every independently analyzed interval. Sign convention is not established by the inspected external contract and must be cross-checked before inspiratory/expiratory phase logic. Do not fill gaps, smooth, resample, or baseline-correct in the adapter. |
 | `mask_pressure` | Profile-scoped `channel_code='MaskPressureHi'` → `event_lists` → `event_data` primary array | cm H₂O; observed dimension text is `cmH2O` | `event_type=0`; uniform 40 ms/sample (25 Hz), with list bounds/counts exactly synchronized to `FlowRate` in the scoped copy | Little-endian signed `int16`; same gain/offset formula. Observed gain is approximately 0.02 and offset 0; never hard-code them. | A paired flow/pressure interval is required for breath-synchronized pressure-response analysis. Missing or misaligned pressure makes that analysis unavailable; sparse `Pressure` is not a silent fallback. Cross-check displayed magnitude and phase against OSCAR. |
-| `leak_rate` | Profile-scoped `channel_code='Leak'` → `event_lists` → `event_data` primary and time arrays | L/min; `event_lists.dimension` is blank in the scoped copy, so the canonical unit comes from OSCAR's ResMed/leak documentation and requires UI cross-check | `event_type=1`; irregular step-change samples. `rate=0`; absolute sample time is `first_time + uint32_delta_ms` | Primary values are little-endian signed `int16` with the gain/offset formula. Time deltas are little-endian unsigned `uint32`. Observed gain is approximately 1.2 and offset 0; read both per list. | Missing leak means quality is unknown, never zero. Do not assume the channel is total versus excess/unintentional leak until the reference-night OSCAR cross-check. Apply step-hold only between recorded updates and never across EventList gaps. |
+| `leak_rate` | Profile-scoped `channel_code='Leak'` → `event_lists` → `event_data` primary and time arrays | L/min; `event_lists.dimension` is SQL `NULL` in the scoped copy (an empty string is treated equivalently absent), so the canonical unit comes from OSCAR's ResMed/leak documentation and requires UI cross-check | `event_type=1`; irregular step-change samples. `rate=0`; absolute sample time is `first_time + uint32_delta_ms` | Primary values are little-endian signed `int16` with the gain/offset formula. Time deltas are little-endian unsigned `uint32`. Observed gain is approximately 1.2 and offset 0; read both per list. | Missing leak means quality is unknown, never zero. Do not assume the channel is total versus excess/unintentional leak until the reference-night OSCAR cross-check. Apply step-hold only between recorded updates and never across EventList gaps. |
 
 The observed `channels.type` is the same broad numeric class for all three
 signals and does not distinguish uniform waveforms from sparse steps.
@@ -131,15 +131,21 @@ For every selected EventList:
    count/rate/gain/offset, size mismatch, unsupported second field, or failed
    decompression. Do not return partial values as valid evidence.
 
+For uniform waveforms, `data_size` is the `count * 2` primary-array size. For
+sparse `Leak`, schema 17 stores `data_size=count * 6`, covering both the
+`count * 2` primary values and `count * 4` explicit timestamps; its
+`compressed_size` likewise covers the two selected storage BLOBs together.
+Validate each array length independently as well as the combined metadata.
+
 The selected channels had `has_second_field=0` and no secondary BLOBs in the
 scoped copy. All observed primary arrays were stored uncompressed and had
 matching sizes; the documented compressed form must still be supported.
 
 The schema-16 documentation says `compressed_size` is null for uncompressed
 data. In the schema-17 copy it was populated and equal to `data_size` even
-when `compression_method=0` and only `data_blob` existed. Therefore
-`compressed_size` is provenance/diagnostic metadata only, not a storage-mode
-selector.
+when `compression_method=0`; for sparse Leak that equality includes both raw
+BLOBs. Therefore `compressed_size` is provenance/diagnostic metadata only,
+not a storage-mode selector.
 
 ## Timing rules
 

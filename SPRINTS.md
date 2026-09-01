@@ -118,7 +118,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Leak extraction, derived calculations, signal alignment analysis, and additional nights.
 - Done when: Focused tests verify sample count, time range, 25 Hz timing, cm H₂O units, gaps, storage integrity, and deterministic output for `MaskPressureHi`.
 
-### S14B — Extract Leak — queued
+### S14B — Extract Leak — done
 
 - Objective: Add schema-17 extraction for the required sparse `Leak` signal, including stored timestamps, units, gaps, and provenance.
 - Excludes: Mask Pressure changes, leak-threshold rules, quality classification, derived calculations, and additional nights.

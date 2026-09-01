@@ -17,7 +17,11 @@ from pap_pilot.adapter import (
     MASK_PRESSURE_CHANNEL_CODE,
     MASK_PRESSURE_SAMPLE_INTERVAL_MS,
     MASK_PRESSURE_SOURCE_DIMENSION,
+    LEAK_CANONICAL_UNIT,
+    LEAK_CHANNEL_CODE,
+    LEAK_SOURCE_DIMENSION,
     InvalidFlowSignalError,
+    InvalidLeakSignalError,
     InvalidMaskPressureSignalError,
     InvalidSessionEventError,
     InvalidSessionSummaryError,
@@ -25,6 +29,8 @@ from pap_pilot.adapter import (
     OscarEventKind,
     OscarEventSourceClass,
     OscarFlowAvailability,
+    OscarLeakAvailability,
+    OscarLeakSemantics,
     OscarMaskPressureAvailability,
     OscarSignalSourceClass,
     OscarSignalStorage,
@@ -39,6 +45,7 @@ from pap_pilot.adapter import (
     OscarObservedEventCount,
     SessionNotFoundError,
     extract_flow_rate_signal,
+    extract_leak_signal,
     extract_mask_pressure_signal,
     extract_session_events,
     extract_session_summary,
@@ -455,6 +462,108 @@ class SessionSummaryTests(unittest.TestCase):
                         None,
                         1,
                         256,
+                    ),
+                ),
+            )
+            connection.execute(
+                "INSERT INTO channels VALUES (?, ?, ?)",
+                (1, 303, LEAK_CHANNEL_CODE),
+            )
+            raw_leak_0 = struct.pack("<3h", 0, 10, 20)
+            raw_leak_times_0 = struct.pack("<3I", 0, 30_000, 70_000)
+            raw_leak_1 = struct.pack("<2h", 5, 15)
+            raw_leak_times_1 = struct.pack("<2I", 0, 45_000)
+            compressed_leak_1 = (
+                len(raw_leak_1).to_bytes(4, byteorder="big")
+                + zlib.compress(raw_leak_1)
+            )
+            compressed_leak_times_1 = (
+                len(raw_leak_times_1).to_bytes(4, byteorder="big")
+                + zlib.compress(raw_leak_times_1)
+            )
+            connection.executemany(
+                """
+                INSERT INTO event_lists VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+                """,
+                (
+                    (
+                        405,
+                        100,
+                        1,
+                        303,
+                        0,
+                        1,
+                        1_800_000_003_000,
+                        1_800_000_073_000,
+                        3,
+                        0.0,
+                        1.2,
+                        0.6,
+                        0.6,
+                        24.6,
+                        LEAK_SOURCE_DIMENSION,
+                        0,
+                        None,
+                        None,
+                        len(raw_leak_0) + len(raw_leak_times_0),
+                        len(raw_leak_0) + len(raw_leak_times_0),
+                    ),
+                    (
+                        406,
+                        100,
+                        1,
+                        303,
+                        1,
+                        1,
+                        1_800_000_103_000,
+                        1_800_000_148_000,
+                        2,
+                        0.0,
+                        1.2,
+                        0.6,
+                        6.6,
+                        18.6,
+                        LEAK_SOURCE_DIMENSION,
+                        0,
+                        None,
+                        None,
+                        len(raw_leak_1) + len(raw_leak_times_1),
+                        len(compressed_leak_1) + len(compressed_leak_times_1),
+                    ),
+                ),
+            )
+            connection.executemany(
+                """
+                INSERT INTO event_data VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+                """,
+                (
+                    (
+                        505,
+                        405,
+                        raw_leak_0,
+                        None,
+                        None,
+                        None,
+                        raw_leak_times_0,
+                        None,
+                        0,
+                        55_760,
+                    ),
+                    (
+                        506,
+                        406,
+                        None,
+                        compressed_leak_1,
+                        None,
+                        None,
+                        None,
+                        compressed_leak_times_1,
+                        1,
+                        4_417,
                     ),
                 ),
             )
@@ -937,6 +1046,177 @@ class SessionSummaryTests(unittest.TestCase):
 
         with self.assertRaises(InvalidMaskPressureSignalError):
             extract_mask_pressure_signal(self.database_path, 100)
+
+    def test_extracts_stable_sparse_leak_with_stored_timestamps(self) -> None:
+        original_database = self.database_path.read_bytes()
+
+        result = extract_leak_signal(self.database_path, 100)
+        repeated_result = extract_leak_signal(self.database_path, 100)
+
+        self.assertEqual(result, repeated_result)
+        self.assertEqual(result.availability, OscarLeakAvailability.AVAILABLE)
+        self.assertEqual(result.source_channel_id, 303)
+        self.assertEqual(result.channel_code, LEAK_CHANNEL_CODE)
+        self.assertEqual(result.canonical_unit, LEAK_CANONICAL_UNIT)
+        self.assertEqual(
+            result.semantics,
+            OscarLeakSemantics.UNDETERMINED_TOTAL_OR_EXCESS,
+        )
+        self.assertEqual(result.total_sample_count, 5)
+        self.assertEqual(len(result.segments), 2)
+        self.assertEqual(
+            result.source_class,
+            OscarSignalSourceClass.MACHINE_RECORDED_OSCAR_NORMALIZED,
+        )
+
+        first, second = result.segments
+        self.assertEqual(first.source_eventlist_id, 405)
+        self.assertEqual(first.source_event_data_id, 505)
+        self.assertEqual(first.eventlist_index, 0)
+        self.assertEqual(first.raw_first_time_ms, 1_800_000_003_000)
+        self.assertEqual(first.raw_last_time_ms, 1_800_000_073_000)
+        self.assertEqual(first.sample_count, 3)
+        self.assertEqual(first.raw_time_deltas_ms, (0, 30_000, 70_000))
+        self.assertEqual(
+            first.raw_sample_times_ms,
+            (
+                1_800_000_003_000,
+                1_800_000_033_000,
+                1_800_000_073_000,
+            ),
+        )
+        self.assertEqual(first.values_l_min, (0.6, 12.6, 24.6))
+        self.assertEqual(first.gain_l_min_per_raw_unit, 1.2)
+        self.assertEqual(first.offset_l_min, 0.6)
+        self.assertEqual(first.source_dimension, LEAK_SOURCE_DIMENSION)
+        self.assertEqual(first.canonical_unit, LEAK_CANONICAL_UNIT)
+        self.assertIsNone(first.gap_before_ms)
+        self.assertEqual(first.storage, OscarSignalStorage.UNCOMPRESSED)
+        self.assertEqual(first.source_data_size_bytes, 18)
+        self.assertEqual(first.source_compressed_size_bytes, 18)
+        self.assertEqual(first.value_data_size_bytes, 6)
+        self.assertEqual(first.value_stored_size_bytes, 6)
+        self.assertEqual(first.time_data_size_bytes, 12)
+        self.assertEqual(first.time_stored_size_bytes, 12)
+        self.assertEqual(first.source_checksum, 55_760)
+
+        self.assertEqual(second.source_eventlist_id, 406)
+        self.assertEqual(second.source_event_data_id, 506)
+        self.assertEqual(second.eventlist_index, 1)
+        self.assertEqual(second.raw_time_deltas_ms, (0, 45_000))
+        self.assertEqual(
+            second.raw_sample_times_ms,
+            (1_800_000_103_000, 1_800_000_148_000),
+        )
+        self.assertEqual(second.values_l_min, (6.6, 18.6))
+        self.assertEqual(second.gap_before_ms, 30_000)
+        self.assertEqual(second.storage, OscarSignalStorage.QT_ZLIB)
+        self.assertEqual(second.source_data_size_bytes, 12)
+        self.assertEqual(
+            second.source_compressed_size_bytes,
+            second.value_stored_size_bytes + second.time_stored_size_bytes,
+        )
+        self.assertEqual(second.value_data_size_bytes, 4)
+        self.assertGreater(second.value_stored_size_bytes, 4)
+        self.assertEqual(second.time_data_size_bytes, 8)
+        self.assertGreater(second.time_stored_size_bytes, 8)
+        self.assertEqual(second.source_checksum, 4_417)
+        self.assertEqual(self.database_path.read_bytes(), original_database)
+
+    def test_missing_leak_eventlists_are_explicit(self) -> None:
+        self._update("DELETE FROM event_lists WHERE channel_id = ?", (303,))
+
+        result = extract_leak_signal(self.database_path, 100)
+
+        self.assertEqual(result.availability, OscarLeakAvailability.DATA_MISSING)
+        self.assertEqual(result.source_channel_id, 303)
+        self.assertEqual(result.segments, ())
+        self.assertEqual(result.total_sample_count, 0)
+        self.assertEqual(
+            result.semantics,
+            OscarLeakSemantics.UNDETERMINED_TOTAL_OR_EXCESS,
+        )
+
+    def test_missing_leak_channel_is_explicit(self) -> None:
+        self._update(
+            "DELETE FROM channels WHERE channel_code = ?",
+            (LEAK_CHANNEL_CODE,),
+        )
+
+        result = extract_leak_signal(self.database_path, 100)
+
+        self.assertEqual(
+            result.availability,
+            OscarLeakAvailability.CHANNEL_MISSING,
+        )
+        self.assertIsNone(result.source_channel_id)
+        self.assertEqual(result.segments, ())
+
+    def test_leak_checksum_mismatch_fails_safely(self) -> None:
+        self._update("UPDATE event_data SET checksum = ? WHERE id = ?", (0, 505))
+
+        with self.assertRaises(InvalidLeakSignalError):
+            extract_leak_signal(self.database_path, 100)
+
+    def test_missing_leak_data_row_fails_safely(self) -> None:
+        self._update("DELETE FROM event_data WHERE id = ?", (506,))
+
+        with self.assertRaises(InvalidLeakSignalError):
+            extract_leak_signal(self.database_path, 100)
+
+    def test_leak_combined_storage_size_mismatch_fails_safely(self) -> None:
+        self._update(
+            "UPDATE event_lists SET data_size = ? WHERE id = ?",
+            (6, 405),
+        )
+
+        with self.assertRaises(InvalidLeakSignalError):
+            extract_leak_signal(self.database_path, 100)
+
+    def test_leak_timestamp_length_mismatch_fails_safely(self) -> None:
+        self._update(
+            "UPDATE event_data SET time_blob = ? WHERE id = ?",
+            (struct.pack("<2I", 0, 70_000), 505),
+        )
+
+        with self.assertRaises(InvalidLeakSignalError):
+            extract_leak_signal(self.database_path, 100)
+
+    def test_leak_nonmonotonic_timestamps_fail_safely(self) -> None:
+        self._update(
+            "UPDATE event_data SET time_blob = ? WHERE id = ?",
+            (struct.pack("<3I", 0, 70_000, 30_000), 505),
+        )
+
+        with self.assertRaises(InvalidLeakSignalError):
+            extract_leak_signal(self.database_path, 100)
+
+    def test_noncontiguous_leak_eventlists_fail_safely(self) -> None:
+        self._update(
+            "UPDATE event_lists SET eventlist_index = ? WHERE id = ?",
+            (2, 406),
+        )
+
+        with self.assertRaises(InvalidLeakSignalError):
+            extract_leak_signal(self.database_path, 100)
+
+    def test_leak_profile_mismatch_fails_safely(self) -> None:
+        self._update(
+            "UPDATE event_lists SET profile_id = ? WHERE id = ?",
+            (2, 405),
+        )
+
+        with self.assertRaises(InvalidLeakSignalError):
+            extract_leak_signal(self.database_path, 100)
+
+    def test_leak_wrong_dimension_fails_safely(self) -> None:
+        self._update(
+            "UPDATE event_lists SET dimension = ? WHERE id = ?",
+            ("L/M", 405),
+        )
+
+        with self.assertRaises(InvalidLeakSignalError):
+            extract_leak_signal(self.database_path, 100)
 
 
 if __name__ == "__main__":

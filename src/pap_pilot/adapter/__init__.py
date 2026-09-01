@@ -72,6 +72,10 @@ from pap_pilot.adapter.session_summary import (
     SessionSummaryError,
     extract_session_summary,
 )
+from pap_pilot.adapter.normalization import (
+    OscarNormalizationError,
+    normalize_oscar_session,
+)
 
 __all__ = [
     "EVENT_CHANNELS",
@@ -108,6 +112,7 @@ __all__ = [
     "OscarMaskPressureAvailability",
     "OscarMaskPressureSegment",
     "OscarMaskPressureSignal",
+    "OscarNormalizationError",
     "OscarObservedEventCount",
     "OscarProfileProvenance",
     "OscarSchemaProvenance",
@@ -133,5 +138,6 @@ __all__ = [
     "extract_leak_signal",
     "extract_mask_pressure_signal",
     "extract_session_summary",
+    "normalize_oscar_session",
     "open_oscar_database",
 ]

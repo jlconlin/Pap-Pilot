@@ -2,19 +2,19 @@
 
 **Updated:** September 1, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S15 completed
-**Next sprint:** S16 — Map adapter output into normalized records
+**Current sprint:** None — S16 completed
+**Next sprint:** S17 — Freeze the first reference fixture
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session summary, machine/OSCAR event, Flow Rate, Mask Pressure, and Leak extraction plus normalized core records are implemented, while adapter-to-model mapping, metrics, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, and deterministic adapter-to-model mapping are implemented, while reference fixtures, quality rules, metrics, web UI, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
 - Normalized provenance preserves canonical source classifications, upstream system/schema/application versions, stable source-record references, source-specific values, producer/version identity, and parent-provenance links. The model distinguishes machine-recorded, machine-labeled, OSCAR-normalized, OSCAR-derived, companion-derived, AI-generated, user-reported, and external-sensor information.
-- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S16.
+- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S17.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
@@ -22,6 +22,9 @@
 - `pap_pilot.adapter.extract_flow_rate_signal` returns the selected session's raw 25 Hz `FlowRate` EventLists as separate immutable segments with raw timestamps, L/min values, gaps, storage/checksum provenance, and explicit missing-data state.
 - `pap_pilot.adapter.extract_mask_pressure_signal` returns only the selected session's raw 25 Hz `MaskPressureHi` EventLists as separate immutable segments with raw timestamps, cm H₂O values, gaps, storage/checksum provenance, and explicit missing-data state.
 - `pap_pilot.adapter.extract_leak_signal` returns only the selected session's stored sparse `Leak` updates as separate immutable EventLists with raw unsigned timestamp deltas, raw timestamps, L/min values, gaps, combined value/time storage provenance, checksum validation, explicit missing-data state, and the OSCAR-resolved `unintentional` source semantic.
+- `pap_pilot.adapter.normalize_oscar_session` is a pure mapper from the existing summary, event, Flow Rate, Mask Pressure, and Leak adapter records to one version-1 normalized night/session tree. It rejects independently extracted inputs that disagree about their session and adds no OSCAR queries or derived analysis.
+- The mapper produces deterministic composite record identifiers, the six normalized settings, raw source events, uniform Flow Rate and Mask Pressure segments, sparse Leak timed updates, explicit empty signals for source missing-data states, and a complete parent-linked provenance chain.
+- The mapper assigns the local therapy date from the raw session start, profile timezone, and configured day boundary. It canonicalizes OSCAR's valid local-time text for the normalized field while retaining the exact raw preference in provenance; it does not apply device-time corrections or group multiple sessions.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -52,9 +55,17 @@
 
 ## Last completed sprint
 
-S15 — Define normalized core records.
+S16 — Map adapter output into normalized records.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all fifty-seven tests passed without resource warnings.
+- The existing disposable schema-17 database fixture maps reproducibly to a canonical normalized night containing one session, all six required settings, all seven allowlisted source rows in deterministic order, two Flow Rate segments, two Mask Pressure segments, and two sparse Leak segments. Repeated mapping and serialization are byte-for-byte stable, and deserialization restores the identical record.
+- Focused S16 tests verify stable composite identifiers, units, waveform versus timed-update representations, interval closure, Leak semantics, source references, source-specific metadata, parent-provenance links, preservation of missing-signal availability without invented samples, rejection of mixed-session extractions, and canonicalization of OSCAR day-boundary text while retaining its raw value.
+- Production source inspection confirms that normalization adds no SQLite import or query, quality classification, metric, fixture, persistence, experiment, UI, or AI behavior. The source-independent `pap_pilot.engine.model` package still imports no adapter types.
+- With OSCAR closed, a fresh protected copy of the private database was opened only through the guarded `mode=ro&immutable=1` path. One locally selected compatible private session passed canonical round-trip, complete setting set, complete signal set, one-session night, provenance-presence, and stable-output checks; only those named booleans were emitted.
+- The private validation exposed that the profile's valid OSCAR day-split text is not in the canonical form required by the normalized model. The mapper now parses the source value, writes canonical local ISO time to `NightRecord`, and keeps the exact source text in provenance; a focused regression test covers this behavior.
+- OSCAR remained closed, the source and copy stayed byte-identical, neither location gained WAL/SHM sidecars, and the disposable database plus temporary verifier were removed. No private profile, date, identifier, setting, event, timestamp, signal value, count, or checksum was retained in the repository.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all fifty-two tests passed without resource warnings.
 - Focused S15 tests constructed and independently round-tripped every public normalized record type, including support records used for source references and source-specific provenance values. Repeated serialization was byte-for-byte identical, and noncanonical input JSON reserialized to the same canonical output.
@@ -170,6 +181,12 @@ S15 — Define normalized core records.
 - Signal timestamps are finite millisecond numbers rather than integers only, preserving OSCAR's `REAL` sample interval contract without truncation. Segment boundaries remain integer Unix milliseconds, interval closure is explicit, uniform timing is internally consistent, and sparse timed updates do not claim a uniform interval.
 - Provenance classifications are an explicit set rather than a single collapsed label, so machine-recorded data normalized by OSCAR retains both origins. Source references and source-specific values can retain the schema/profile/machine/session/channel/EventList identities and loader/checksum details required by S16 without importing adapter types into the engine.
 - S15 performs only structural validation needed for stable records and safe serialization. It does not decide data quality, event completeness, clinical meaning, metric validity, exclusions, or experiment suitability; those remain assigned to later sprints.
+- S16 mapping is owned by `pap_pilot.adapter.normalization`; it may depend on the source-independent normalized model, while `pap_pilot.engine.model` remains free of OSCAR adapter imports.
+- Stable normalized identifiers are deterministic composites of the schema version and distinct OSCAR profile, machine database/source, session database/source, channel, event, and EventList identities as appropriate. Source database identifiers and device/source identifiers remain separate rather than being conflated.
+- The normalized setting names are `therapy_mode_code`, `loader_mode_code`, `epap`, `ps_min`, `ps_max`, and `max_ipap`; source codes, channel identifiers, original values, and canonical units remain in provenance.
+- Source-specific provenance values use canonical JSON scalar or collection text so nulls, booleans, numbers, strings, enums, and sparse Leak time-delta arrays retain their types and serialize deterministically.
+- A missing required signal remains a normalized signal record with no segments and explicit source availability provenance. The mapper never treats missing data as zero, fills gaps, interpolates, or substitutes a different OSCAR channel.
+- The normalized night date is assigned from the raw session start in the profile's IANA timezone relative to the configured OSCAR day split. The raw time and raw day-split preference remain in provenance; device-time correction, OSCAR-day cross-checking beyond the accepted private reference work, split-session grouping, and multi-session night assembly remain later concerns.
 - The initial Python scaffold uses a `src` layout, setuptools as its build backend, Python 3.11 or newer, and no runtime dependencies.
 - The `pap_pilot.adapter` namespace owns external data access, while `pap_pilot.engine` owns deterministic companion analysis; OSCAR-derived results must not cross that boundary as if they were PAP Pilot calculations.
 - The smoke test uses Python's standard-library `unittest` so the scaffold does not introduce a test-framework dependency before one is needed.
@@ -199,9 +216,9 @@ S15 — Define normalized core records.
 
 ## Blockers
 
-- No blocker prevents starting S16.
+- No blocker prevents starting S17.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
-- S15 records are deliberately source-independent and contain no real reference-night mapping. S16 must convert the existing adapter output into these records and choose stable normalized identifiers while preserving every required source reference/value.
+- S16 maps one validated session at a time and deliberately does not retain a private fixture. S17 must create the first safe de-identified/fixed reference-night fixture and expected normalized output without adding another night or metric expectations.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans remain handled explicitly by S12 extraction; reference-night count agreement does not redefine those raw provenance rules.
 - S13–S14C preserve waveform gaps/missing lists and treat `compressed_size` only as validated provenance. Flow Rate, Mask Pressure, and Leak display relationships are cross-checked, and the scoped Leak subtype is resolved as unintentional/excess.
@@ -210,5 +227,5 @@ S15 — Define normalized core records.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S16. Convert the existing one-session adapter summary, settings, events, Flow Rate, Mask Pressure, and Leak output into the S15 normalized records with stable identifiers and complete source provenance. Do not add OSCAR queries, reference fixtures, quality rules, derived metrics, persistence, experiments, UI, or AI. Add focused deterministic mapping tests, update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S17. Create one safe de-identified/fixed reference-night fixture with expected normalized output and documented origin using the completed S16 mapping. Do not add another night, metric expectations, quality rules, persistence, experiments, UI, or AI. Add the focused fixture regression check, update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

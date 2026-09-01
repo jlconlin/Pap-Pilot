@@ -1,6 +1,8 @@
 """Deterministic tests for one-session OSCAR summary extraction."""
 
 from contextlib import closing
+from dataclasses import replace
+import json
 from pathlib import Path
 import sqlite3
 import struct
@@ -32,6 +34,7 @@ from pap_pilot.adapter import (
     OscarLeakAvailability,
     OscarLeakSemantics,
     OscarMaskPressureAvailability,
+    OscarNormalizationError,
     OscarSignalSourceClass,
     OscarSignalStorage,
     OscarMachineProvenance,
@@ -49,6 +52,14 @@ from pap_pilot.adapter import (
     extract_mask_pressure_signal,
     extract_session_events,
     extract_session_summary,
+    normalize_oscar_session,
+)
+from pap_pilot.engine import (
+    IntervalClosure,
+    SignalRepresentation,
+    SourceClass,
+    deserialize_normalized_record,
+    serialize_normalized_record,
 )
 
 
@@ -1218,6 +1229,241 @@ class SessionSummaryTests(unittest.TestCase):
 
         with self.assertRaises(InvalidLeakSignalError):
             extract_leak_signal(self.database_path, 100)
+
+    def test_maps_disposable_oscar_input_to_stable_normalized_output(self) -> None:
+        original_database = self.database_path.read_bytes()
+        summary = extract_session_summary(self.database_path, 100)
+        events = extract_session_events(self.database_path, 100)
+        flow = extract_flow_rate_signal(self.database_path, 100)
+        mask_pressure = extract_mask_pressure_signal(self.database_path, 100)
+        leak = extract_leak_signal(self.database_path, 100)
+
+        night = normalize_oscar_session(summary, events, flow, mask_pressure, leak)
+        repeated = normalize_oscar_session(summary, events, flow, mask_pressure, leak)
+        serialized = serialize_normalized_record(night)
+
+        self.assertEqual(night, repeated)
+        self.assertEqual(serialized, serialize_normalized_record(repeated))
+        self.assertEqual(deserialize_normalized_record(serialized), night)
+        self.assertEqual(night.local_date, "2027-01-14")
+        self.assertEqual(night.timezone, "America/Denver")
+        self.assertEqual(night.day_boundary_local_time, "12:00:00")
+        self.assertEqual(
+            night.record_id,
+            "night:oscar:v17:profile-db:1:2027-01-14",
+        )
+
+        session = night.sessions[0]
+        self.assertEqual(
+            session.record_id,
+            "session:oscar:v17:profile-db:1:machine-db:10:machine-source:42:session-db:100:session-source:7001",
+        )
+        self.assertEqual(
+            session.device_id,
+            "device:oscar:v17:profile-db:1:machine-db:10:machine-source:42",
+        )
+        self.assertEqual(session.start_time_ms, summary.session.raw_start_ms)
+        self.assertEqual(session.end_time_ms, summary.session.raw_end_ms)
+        self.assertEqual(
+            {setting.name: (setting.value, setting.unit) for setting in session.settings},
+            {
+                "therapy_mode_code": (6, None),
+                "loader_mode_code": (7, None),
+                "epap": (5.0, "cm H₂O"),
+                "ps_min": (1.0, "cm H₂O"),
+                "ps_max": (10.0, "cm H₂O"),
+                "max_ipap": (15.0, "cm H₂O"),
+            },
+        )
+        self.assertEqual(len(session.events), 7)
+        self.assertEqual(
+            tuple(event.event_kind for event in session.events),
+            (
+                "obstructive_apnea",
+                "clear_airway_apnea",
+                "unclassified_apnea",
+                "hypopnea",
+                "rera",
+                "hypopnea",
+                "large_leak",
+            ),
+        )
+
+        signals = {signal.signal_kind: signal for signal in session.signals}
+        self.assertEqual(set(signals), {"flow_rate", "mask_pressure", "leak_rate"})
+        self.assertEqual(signals["flow_rate"].representation, SignalRepresentation.UNIFORM_WAVEFORM)
+        self.assertEqual(signals["mask_pressure"].representation, SignalRepresentation.UNIFORM_WAVEFORM)
+        self.assertEqual(signals["leak_rate"].representation, SignalRepresentation.TIMED_UPDATES)
+        self.assertEqual(signals["leak_rate"].value_semantics, "unintentional")
+        self.assertEqual(len(signals["flow_rate"].segments), 2)
+        self.assertEqual(len(signals["mask_pressure"].segments), 2)
+        self.assertEqual(len(signals["leak_rate"].segments), 2)
+        self.assertEqual(
+            signals["flow_rate"].segments[0].values,
+            flow.segments[0].values_l_min,
+        )
+        self.assertEqual(
+            signals["mask_pressure"].segments[0].values,
+            mask_pressure.segments[0].values_cm_h2o,
+        )
+        self.assertEqual(
+            signals["leak_rate"].segments[0].sample_times_ms,
+            leak.segments[0].raw_sample_times_ms,
+        )
+        self.assertEqual(
+            signals["leak_rate"].segments[0].interval_closure,
+            IntervalClosure.START_AND_END_INCLUSIVE,
+        )
+        self.assertEqual(self.database_path.read_bytes(), original_database)
+
+    def test_normalized_mapping_preserves_source_provenance(self) -> None:
+        summary = extract_session_summary(self.database_path, 100)
+        events = extract_session_events(self.database_path, 100)
+        flow = extract_flow_rate_signal(self.database_path, 100)
+        mask_pressure = extract_mask_pressure_signal(self.database_path, 100)
+        leak = extract_leak_signal(self.database_path, 100)
+
+        night = normalize_oscar_session(summary, events, flow, mask_pressure, leak)
+        session = night.sessions[0]
+        session_values = {
+            value.name: json.loads(value.value)
+            for value in session.provenance.source_values
+        }
+        self.assertEqual(session_values["profile.name"], "fixture-profile")
+        self.assertEqual(session_values["machine.serial_number"], "fixture-serial")
+        self.assertEqual(session_values["schema.version"], 17)
+        self.assertEqual(session_values["session.events_loaded"], False)
+        self.assertEqual(session_values["events.completeness"], "unknown")
+        self.assertEqual(
+            sum(
+                count["observed_rows"]
+                for count in session_values["events.observed_row_counts"]
+            ),
+            len(events.events),
+        )
+        self.assertEqual(
+            set(session.provenance.source_classes),
+            {SourceClass.MACHINE_RECORDED, SourceClass.OSCAR_NORMALIZED},
+        )
+        self.assertEqual(
+            {
+                (reference.source_record_type, reference.source_record_id)
+                for reference in session.provenance.source_references
+            },
+            {
+                ("schema_version.version", "17"),
+                ("profiles.id", "1"),
+                ("machines.id", "10"),
+                ("machines.machine_id", "42"),
+                ("sessions.id", "100"),
+                ("sessions.session_id", "7001"),
+            },
+        )
+
+        ps_min = next(setting for setting in session.settings if setting.name == "ps_min")
+        self.assertIn(
+            ("channels.channel_id", "104"),
+            {
+                (reference.source_record_type, reference.source_record_id)
+                for reference in ps_min.provenance.source_references
+            },
+        )
+        self.assertEqual(
+            set(session.events[0].provenance.source_classes),
+            {SourceClass.MACHINE_LABELED, SourceClass.OSCAR_NORMALIZED},
+        )
+        self.assertIn(
+            ("respiratory_events.id", "1"),
+            {
+                (reference.source_record_type, reference.source_record_id)
+                for reference in session.events[0].provenance.source_references
+            },
+        )
+
+        leak_signal = next(signal for signal in session.signals if signal.signal_kind == "leak_rate")
+        leak_values = {
+            value.name: json.loads(value.value)
+            for value in leak_signal.segments[0].provenance.source_values
+        }
+        self.assertEqual(leak_values["segment.raw_time_deltas_ms"], [0, 30_000, 70_000])
+        self.assertEqual(leak_values["segment.source_dimension"], None)
+        self.assertEqual(leak_values["segment.source_checksum"], 55_760)
+        self.assertEqual(
+            leak_signal.segments[0].provenance.parent_provenance_ids,
+            (leak_signal.provenance.record_id,),
+        )
+        self.assertEqual(
+            night.provenance.parent_provenance_ids,
+            (session.provenance.record_id,),
+        )
+
+    def test_normalized_mapping_preserves_missing_signal_state_without_samples(self) -> None:
+        self._update("DELETE FROM event_data WHERE eventlist_id IN (?, ?)", (401, 402))
+        self._update("DELETE FROM event_lists WHERE channel_id = ?", (301,))
+        summary = extract_session_summary(self.database_path, 100)
+        events = extract_session_events(self.database_path, 100)
+        flow = extract_flow_rate_signal(self.database_path, 100)
+        mask_pressure = extract_mask_pressure_signal(self.database_path, 100)
+        leak = extract_leak_signal(self.database_path, 100)
+
+        night = normalize_oscar_session(summary, events, flow, mask_pressure, leak)
+
+        normalized_flow = next(
+            signal
+            for signal in night.sessions[0].signals
+            if signal.signal_kind == "flow_rate"
+        )
+        source_values = {
+            value.name: json.loads(value.value)
+            for value in normalized_flow.provenance.source_values
+        }
+        self.assertEqual(flow.availability, OscarFlowAvailability.DATA_MISSING)
+        self.assertEqual(normalized_flow.segments, ())
+        self.assertEqual(source_values["signal.availability"], "data_missing")
+        self.assertEqual(source_values["signal.source_channel_id"], 301)
+
+    def test_normalized_mapping_rejects_mixed_session_extractions(self) -> None:
+        summary = extract_session_summary(self.database_path, 100)
+        events = extract_session_events(self.database_path, 100)
+        flow = extract_flow_rate_signal(self.database_path, 100)
+        mask_pressure = extract_mask_pressure_signal(self.database_path, 100)
+        leak = extract_leak_signal(self.database_path, 100)
+        conflicting_profile = replace(summary.profile, name="other-profile")
+        conflicting_summary = replace(summary, profile=conflicting_profile)
+        conflicting_flow = replace(flow, session_summary=conflicting_summary)
+
+        with self.assertRaisesRegex(
+            OscarNormalizationError,
+            "FlowRate extraction does not match",
+        ):
+            normalize_oscar_session(
+                summary,
+                events,
+                conflicting_flow,
+                mask_pressure,
+                leak,
+            )
+
+    def test_normalized_mapping_canonicalizes_the_oscar_day_boundary(self) -> None:
+        self._update(
+            "UPDATE profile_preferences SET value = ? WHERE key = ?",
+            ("12:00", "DaySplitTime"),
+        )
+        summary = extract_session_summary(self.database_path, 100)
+        events = extract_session_events(self.database_path, 100)
+        flow = extract_flow_rate_signal(self.database_path, 100)
+        mask_pressure = extract_mask_pressure_signal(self.database_path, 100)
+        leak = extract_leak_signal(self.database_path, 100)
+
+        night = normalize_oscar_session(summary, events, flow, mask_pressure, leak)
+        session_values = {
+            value.name: json.loads(value.value)
+            for value in night.sessions[0].provenance.source_values
+        }
+
+        self.assertEqual(summary.profile.day_split_time, "12:00")
+        self.assertEqual(night.day_boundary_local_time, "12:00:00")
+        self.assertEqual(session_values["profile.day_split_time"], "12:00")
 
 
 if __name__ == "__main__":

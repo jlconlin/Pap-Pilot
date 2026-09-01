@@ -138,7 +138,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Quality rules, experiments, persistence, UI, and AI.
 - Done when: Records serialize deterministically and required provenance survives a round trip.
 
-### S16 — Map adapter output into normalized records — queued
+### S16 — Map adapter output into normalized records — done
 
 - Objective: Convert the reference-night adapter output into the S15 records.
 - Excludes: New OSCAR queries and derived metrics.

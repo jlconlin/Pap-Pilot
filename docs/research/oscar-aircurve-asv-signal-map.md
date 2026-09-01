@@ -16,7 +16,7 @@ The minimum selected set is therefore:
 |---|---|---|---|
 | `flow_rate` | `FlowRate` | Primary input for PAP Pilot's own breath segmentation, morphology, variability/stability analysis, and representative breathing evidence. Exact derived metrics remain for S21. | Machine-recorded, OSCAR-normalized waveform |
 | `mask_pressure` | `MaskPressureHi` | High-resolution pressure waveform synchronized with flow, allowing PAP Pilot to examine breath-by-breath pressure/pressure-support response rather than rely on a summary or sparse therapy-pressure trace. | Machine-recorded, OSCAR-normalized waveform |
-| `leak_rate` | `Leak` | Time-resolved quality/confounder input so PAP Pilot can assess whether waveform evidence is contaminated instead of relying only on the machine's Large Leak flags. | Machine-recorded, OSCAR-normalized step trace |
+| `leak_rate` | `Leak` | Time-resolved quality/confounder input so PAP Pilot can assess whether waveform evidence is contaminated instead of relying only on the machine's Large Leak flags. | Machine-recorded, OSCAR-normalized timed updates |
 
 `Pressure`, `MaskPressure`, and `EPAP` event traces are not required while the synchronized high-resolution `MaskPressureHi` waveform is available. `AHI`, `FLG`, `RespRate`, `TidalVolume`, `MinuteVent`, `TgMV`, `Ti`, `Te`, `Snore`, and unrelated signals are excluded from the minimum set. This does not decide the S21 metric formulas; it establishes the smallest raw inputs capable of supporting independent analysis and the initial evidence view.
 
@@ -64,9 +64,9 @@ One `(session_id, channel_id)` can have multiple EventLists, uniquely ordered by
 
 | Internal signal | Source location | Canonical unit | Sample timing | Value encoding | Quality caveats |
 |---|---|---|---|---|---|
-| `flow_rate` | Profile-scoped `channels.channel_code='FlowRate'` → `event_lists` → `event_data` primary array | L/min; observed raw dimension text is `L/M` | `event_type=0`; uniform 40 ms/sample (25 Hz) in the scoped AirCurve data | Little-endian signed `int16`; `physical = raw * gain + offset`. Observed gain is approximately 0.12 and offset 0, but both must be read per EventList. | Required for every independently analyzed interval. Sign convention is not established by the inspected external contract and must be cross-checked before inspiratory/expiratory phase logic. Do not fill gaps, smooth, resample, or baseline-correct in the adapter. |
-| `mask_pressure` | Profile-scoped `channel_code='MaskPressureHi'` → `event_lists` → `event_data` primary array | cm H₂O; observed dimension text is `cmH2O` | `event_type=0`; uniform 40 ms/sample (25 Hz), with list bounds/counts exactly synchronized to `FlowRate` in the scoped copy | Little-endian signed `int16`; same gain/offset formula. Observed gain is approximately 0.02 and offset 0; never hard-code them. | A paired flow/pressure interval is required for breath-synchronized pressure-response analysis. Missing or misaligned pressure makes that analysis unavailable; sparse `Pressure` is not a silent fallback. Cross-check displayed magnitude and phase against OSCAR. |
-| `leak_rate` | Profile-scoped `channel_code='Leak'` → `event_lists` → `event_data` primary and time arrays | L/min; `event_lists.dimension` is SQL `NULL` in the scoped copy (an empty string is treated equivalently absent), so the canonical unit comes from OSCAR's ResMed/leak documentation and requires UI cross-check | `event_type=1`; irregular step-change samples. `rate=0`; absolute sample time is `first_time + uint32_delta_ms` | Primary values are little-endian signed `int16` with the gain/offset formula. Time deltas are little-endian unsigned `uint32`. Observed gain is approximately 1.2 and offset 0; read both per list. | Missing leak means quality is unknown, never zero. Do not assume the channel is total versus excess/unintentional leak until the reference-night OSCAR cross-check. Apply step-hold only between recorded updates and never across EventList gaps. |
+| `flow_rate` | Profile-scoped `channels.channel_code='FlowRate'` → `event_lists` → `event_data` primary array | L/min; observed raw dimension text is `L/M` | `event_type=0`; uniform 40 ms/sample (25 Hz) in the scoped AirCurve data | Little-endian signed `int16`; `physical = raw * gain + offset`. Observed gain is approximately 0.12 and offset 0, but both must be read per EventList. | Required for every independently analyzed interval. S14 established OSCAR's positive-inspiration/negative-expiration display convention for the reference night; later breath-phase classification still belongs to PAP Pilot. Do not fill gaps, smooth, resample, or baseline-correct in the adapter. |
+| `mask_pressure` | Profile-scoped `channel_code='MaskPressureHi'` → `event_lists` → `event_data` primary array | cm H₂O; observed dimension text is `cmH2O` | `event_type=0`; uniform 40 ms/sample (25 Hz), with list bounds/counts exactly synchronized to `FlowRate` in the scoped copy | Little-endian signed `int16`; same gain/offset formula. Observed gain is approximately 0.02 and offset 0; never hard-code them. | A paired flow/pressure interval is required for breath-synchronized pressure-response analysis. Missing or misaligned pressure makes that analysis unavailable; sparse `Pressure` is not a silent fallback. S14C established the OSCAR Mask Pressure graph relationship for the reference night. |
+| `leak_rate` | Profile-scoped `channel_code='Leak'` → `event_lists` → `event_data` primary and time arrays | L/min; `event_lists.dimension` is SQL `NULL` in the scoped copy (an empty string is treated equivalently absent), while OSCAR's schema and ResMed loader assign the channel L/min | `event_type=1`; irregular timed updates. `rate=0`; absolute sample time is `first_time + uint32_delta_ms` | Primary values are little-endian signed `int16` with the gain/offset formula. Time deltas are little-endian unsigned `uint32`. Observed gain is approximately 1.2 and offset 0; read both per list. | OSCAR's `Leak` channel is unintentional/excess leak, distinct from `LeakTotal`, which includes natural mask vent leakage. Missing leak means quality is unknown, never zero. Keep stored updates exact; a later view may connect updates as steps only within an EventList and must never hold across gaps. |
 
 The observed `channels.type` is the same broad numeric class for all three signals and does not distinguish uniform waveforms from sparse steps. `event_lists.event_type` is the authoritative encoding discriminator here: `0=EVL_Waveform`, `1=EVL_Event`.
 
@@ -117,7 +117,7 @@ For `Leak`, load exactly `count * 4` bytes from whichever one of `time_blob` or 
 sample_time_ms[i] = first_time + uint32_le_delta[i]
 ```
 
-The observed deltas were zero-based, nondecreasing, within the EventList bounds, and the final delta landed on `last_time`. Values are a step trace: hold a value only until the next recorded update. Do not invent a uniform sample interval from `rate`, extend the final value past the list boundary, or hold across a gap.
+The observed deltas were zero-based, nondecreasing, within the EventList bounds, and the final delta landed on `last_time`. Values are irregular timed updates. OSCAR's graph connects them with straight segments or horizontal-then-vertical steps according to the square-wave display preference. The adapter must not invent a uniform sample interval from `rate`, extend the final value past the list boundary, or hold across a gap.
 
 All timestamps remain raw Unix epoch milliseconds. Apply any supported session device-time correction consistently to a derived display timeline, while preserving the raw values and never writing corrected times to OSCAR.
 
@@ -143,7 +143,7 @@ Sanitized validation established that:
 - the three selected channel definitions exist and are enabled for the scoped profile;
 - all selected EventLists and data rows have consistent profile/session/channel joins and Unix-millisecond bounds within their associated valid sessions;
 - flow and high-resolution mask pressure are uniform 25 Hz waveforms and are exactly synchronized whenever present;
-- leak is a sparse step trace with a complete little-endian millisecond-delta array;
+- leak is a sparse timed-update trace with a complete little-endian millisecond-delta array;
 - primary and time-array lengths match their counts, selected lists have no second field, and EventList indexes are zero-based and contiguous;
 - all observed selected BLOBs use the uncompressed storage branch, while `compressed_size` remains populated and therefore cannot select the branch;
 - stored checksums are present, and a shortest-list sample from each selected channel matched the official CRC implementation; and
@@ -153,10 +153,8 @@ Exact sample values, extrema, session counts, dates, and identifiers were not re
 
 ## Implementation boundary
 
-This mapping supplies the three required signal identities, locations, units, timing, binary encodings, and quality caveats. Later work must still:
+This mapping and the S14/S14C reference-night cross-check supply the three required signal identities, locations, units, timing, binary encodings, display relationships, and quality caveats. Later work must still:
 
-- implement the guarded read-only connection before therapy extraction;
-- extract only the first selected signal in S13 and cross-check its sample count, timing, values, units, and sign/display behavior against OSCAR in S14;
 - define quality rules in S18/S20 rather than hiding missing or corrupted data in the adapter;
 - choose exact companion-derived metrics and formulas only in S21; and
 - keep every derived result labeled companion-derived, with source intervals, algorithm version, units, exclusions, and limitations.

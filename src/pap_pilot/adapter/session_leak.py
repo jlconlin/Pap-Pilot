@@ -38,9 +38,9 @@ class OscarLeakAvailability(StrEnum):
 
 
 class OscarLeakSemantics(StrEnum):
-    """What the stored Leak values represent clinically."""
+    """What OSCAR's stored Leak channel values represent."""
 
-    UNDETERMINED_TOTAL_OR_EXCESS = "undetermined_total_or_excess"
+    UNINTENTIONAL = "unintentional"
 
 
 class SessionLeakError(OscarDatabaseError):
@@ -148,7 +148,7 @@ def extract_leak_signal(
         source_channel_id=channel_id,
         channel_code=LEAK_CHANNEL_CODE,
         canonical_unit=LEAK_CANONICAL_UNIT,
-        semantics=OscarLeakSemantics.UNDETERMINED_TOTAL_OR_EXCESS,
+        semantics=OscarLeakSemantics.UNINTENTIONAL,
         segments=segments,
         source_class=(
             OscarSignalSourceClass.MACHINE_RECORDED_OSCAR_NORMALIZED
@@ -168,7 +168,7 @@ def _missing_signal(
         source_channel_id=source_channel_id,
         channel_code=LEAK_CHANNEL_CODE,
         canonical_unit=LEAK_CANONICAL_UNIT,
-        semantics=OscarLeakSemantics.UNDETERMINED_TOTAL_OR_EXCESS,
+        semantics=OscarLeakSemantics.UNINTENTIONAL,
         segments=(),
         source_class=(
             OscarSignalSourceClass.MACHINE_RECORDED_OSCAR_NORMALIZED

@@ -1060,7 +1060,7 @@ class SessionSummaryTests(unittest.TestCase):
         self.assertEqual(result.canonical_unit, LEAK_CANONICAL_UNIT)
         self.assertEqual(
             result.semantics,
-            OscarLeakSemantics.UNDETERMINED_TOTAL_OR_EXCESS,
+            OscarLeakSemantics.UNINTENTIONAL,
         )
         self.assertEqual(result.total_sample_count, 5)
         self.assertEqual(len(result.segments), 2)
@@ -1134,7 +1134,7 @@ class SessionSummaryTests(unittest.TestCase):
         self.assertEqual(result.total_sample_count, 0)
         self.assertEqual(
             result.semantics,
-            OscarLeakSemantics.UNDETERMINED_TOTAL_OR_EXCESS,
+            OscarLeakSemantics.UNINTENTIONAL,
         )
 
     def test_missing_leak_channel_is_explicit(self) -> None:
@@ -1151,6 +1151,7 @@ class SessionSummaryTests(unittest.TestCase):
         )
         self.assertIsNone(result.source_channel_id)
         self.assertEqual(result.segments, ())
+        self.assertEqual(result.semantics, OscarLeakSemantics.UNINTENTIONAL)
 
     def test_leak_checksum_mismatch_fails_safely(self) -> None:
         self._update("UPDATE event_data SET checksum = ? WHERE id = ?", (0, 505))

@@ -1,9 +1,9 @@
 # PAP Pilot — session handoff
 
-**Updated:** August 31, 2026
+**Updated:** September 1, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S14B completed; Milestone 1 remains open
-**Next sprint:** S14C — Cross-check remaining signals and accept Milestone 1
+**Current sprint:** None — S14C completed; Milestone 1 accepted
+**Next sprint:** S15 — Define normalized core records
 
 ## Current state
 
@@ -16,9 +16,9 @@
 - `pap_pilot.adapter.extract_session_events` returns only the six allowlisted machine-labeled/OSCAR-normalized event kinds for one validated session, with raw provenance and explicitly unknown completeness.
 - `pap_pilot.adapter.extract_flow_rate_signal` returns the selected session's raw 25 Hz `FlowRate` EventLists as separate immutable segments with raw timestamps, L/min values, gaps, storage/checksum provenance, and explicit missing-data state.
 - `pap_pilot.adapter.extract_mask_pressure_signal` returns only the selected session's raw 25 Hz `MaskPressureHi` EventLists as separate immutable segments with raw timestamps, cm H₂O values, gaps, storage/checksum provenance, and explicit missing-data state.
-- `pap_pilot.adapter.extract_leak_signal` returns only the selected session's stored sparse `Leak` updates as separate immutable EventLists with raw unsigned timestamp deltas, raw timestamps, L/min values, gaps, combined value/time storage provenance, checksum validation, explicit missing-data state, and explicitly unresolved total-versus-excess semantics.
-- `docs/research/oscar-reference-night-cross-check.md` records explicit passes for S11 settings and boundaries, S12 event counts, and S13 Flow Rate timing, values, units, and sign/display behavior on one private reference night.
-- Milestone 1 is not yet accepted: `MaskPressureHi` and `Leak` are extracted but still require their OSCAR display/semantics cross-check in S14C before normalized-model work begins.
+- `pap_pilot.adapter.extract_leak_signal` returns only the selected session's stored sparse `Leak` updates as separate immutable EventLists with raw unsigned timestamp deltas, raw timestamps, L/min values, gaps, combined value/time storage provenance, checksum validation, explicit missing-data state, and the OSCAR-resolved `unintentional` source semantic.
+- `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
+- Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
 - The former prototype and product-plan files have been consolidated into `Plan.md` and removed from the working tree.
 - The large milestones have been decomposed into short, dependency-ordered sprints in `SPRINTS.md`.
@@ -47,9 +47,17 @@
 
 ## Last completed sprint
 
-S14B — Extract Leak.
+S14C — Cross-check remaining signals and accept Milestone 1.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all forty-two tests passed without resource warnings after resolving the Leak semantic enum.
+- Reselected the private reference night locally using its one-enabled-session OSCAR-day constraint and extracted Flow Rate, Mask Pressure, and Leak from the same session. Only named boolean contracts were emitted; no profile, therapy date, identifier, setting, count, timestamp, sample value, extrema, or checksum was printed or retained.
+- `MaskPressureHi` passed exact EventList/cache count and outer-bound comparisons, exact 40 ms generated timing, OSCAR-cache extrema comparisons within `1e-5`, physical graph-range checks, cm H₂O unit checks, gain/zero-offset checks, and exact per-segment synchronization with Flow Rate.
+- `Leak` passed exact stored-update/cache count and outer-bound comparisons, unsigned delta-derived timing and monotonicity checks, OSCAR-cache extrema comparisons within `1e-5`, physical graph-range checks, L/min unit checks, gain/zero-offset checks, and confirmation that the adapter returns stored updates without inferred holds.
+- Pinned OSCAR source commit `64c5e90a26f91fb15868bcfcccde0c1e1522ac86` establishes that the Mask Pressure graph substitutes `MaskPressureHi` when present, sparse Leak display follows the square-wave graph preference, and ResMed `Leak` maps to the unintentional/excess `CPAP_Leak` channel rather than the distinct total-leak channel.
+- Confirmed OSCAR was closed before and after validation. The source and protected `0400` disposable copy matched byte-for-byte before and after guarded `mode=ro&immutable=1` access, neither the live directory nor copy gained SQLite sidecars, and both the private copy and temporary OSCAR source checkout were removed.
+- Reviewed every Milestone 1 work item and its exit criterion. The official-demo run is recorded, the required schema subset is mapped, the adapter is strictly read-only and version-gated, and the selected sessions/settings/events/signals are reproducible. The gate is accepted with no discrepancy blocking Milestone 2.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all forty-two tests passed without resource warnings.
 - The deterministic schema-17 fixture reproduced two independent sparse `Leak` EventLists, five stored updates, exact unsigned 32-bit millisecond-delta timestamps, L/min gain/offset conversion, source identifiers, and machine-recorded/OSCAR-normalized provenance.
@@ -139,11 +147,11 @@ S14B — Extract Leak.
 - Flow and mask-pressure waveform timestamps derive from `first_time + i*rate`; their observed schema-17 `last_time` is end-exclusive. Leak timestamps derive only from the stored unsigned millisecond-delta array.
 - EventLists remain separate segments. Missing signals and inter-list gaps are explicit quality state; the adapter never interpolates across them, carries a sparse value across a gap, or substitutes `session_channels` summaries for samples.
 - `compressed_size` cannot determine whether a row is compressed in schema 17. Decode selection uses `compression_method` plus the mutually exclusive raw/compressed BLOBs, followed by length and checksum validation.
-- Whether the scoped ResMed `Leak` trace is excess versus total leak remains unresolved for later signal/quality work; S14 established only Flow Rate display behavior.
+- The scoped ResMed `Leak` trace is unintentional/excess leak, not total leak. OSCAR maps the ResMed signal to `CPAP_Leak`, defines `CPAP_LeakTotal` separately as including natural mask leakage, and derives `CPAP_Leak` by subtracting expected mask vent leak only when an unintentional channel is absent.
 - Schema-17 sparse Leak timestamps come only from the stored little-endian unsigned 32-bit millisecond-delta array; `rate` must be zero, deltas must be nondecreasing and span the EventList bounds, and the adapter returns no inferred step-hold samples.
-- Leak values decode from little-endian signed 16-bit integers using each EventList's stored gain and offset. The database source dimension is absent (`NULL` in the scoped copy; empty string is also accepted as absent), while the canonical L/min unit remains explicit and awaits S14C display cross-check.
+- Leak values decode from little-endian signed 16-bit integers using each EventList's stored gain and offset. The database source dimension is absent (`NULL` in the scoped copy; empty string is also accepted as absent), while the canonical L/min unit is established by OSCAR's schema, ResMed loader, and graph path.
 - For sparse Leak, `event_lists.data_size` is `count*6` and covers both uncompressed arrays; `compressed_size` covers both selected storage BLOBs. Individual value/time lengths and the combined metadata are all validated, while the stored checksum applies to the primary value array.
-- Leak EventLists remain separate with raw gaps. Missing Leak means unavailable quality evidence rather than zero leak, and total-versus-excess semantics remain explicitly `undetermined_total_or_excess` until S14C.
+- Leak EventLists remain separate with raw gaps. Missing Leak means unavailable quality evidence rather than zero leak. The adapter exposes the source semantic as `unintentional`; later quality rules still must decide whether any interval is usable and must not equate the raw trace with PAP Pilot analysis.
 - The initial Python scaffold uses a `src` layout, setuptools as its build backend, Python 3.11 or newer, and no runtime dependencies.
 - The `pap_pilot.adapter` namespace owns external data access, while `pap_pilot.engine` owns deterministic companion analysis; OSCAR-derived results must not cross that boundary as if they were PAP Pilot calculations.
 - The smoke test uses Python's standard-library `unittest` so the scaffold does not introduce a test-framework dependency before one is needed.
@@ -173,23 +181,15 @@ S14B — Extract Leak.
 
 ## Blockers
 
-- No blocker prevents starting S14C.
-- Milestone 1 remains open until S14C records the Mask Pressure and Leak OSCAR comparisons and the gate decision.
+- No blocker prevents starting S15.
+- Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans remain handled explicitly by S12 extraction; reference-night count agreement does not redefine those raw provenance rules.
-- S13 and S14A preserve waveform gaps/missing lists and treat `compressed_size` only as validated provenance. Flow Rate sign/display behavior is cross-checked, while Mask Pressure display behavior and Leak subtype remain for S14C.
+- S13–S14C preserve waveform gaps/missing lists and treat `compressed_size` only as validated provenance. Flow Rate, Mask Pressure, and Leak display relationships are cross-checked, and the scoped Leak subtype is resolved as unintentional/excess.
 - The empty local correction table and invalid raw session boundaries remain explicit inputs to later guarded-connection, session-extraction, and structural-quality work.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S14C.
-Cross-check the existing `MaskPressureHi` and `Leak` extraction for the same
-private reference night against OSCAR, including timing, values, units, display
-behavior, and Leak total-versus-excess semantics. Review every Milestone 1 exit
-criterion and record the gate as accepted or name the blocking discrepancy.
-Do not fix unrelated discrepancies, add nights, define quality rules, create
-normalized records, change extraction without evidence, or start S15. Use only
-protected disposable OSCAR copies, update records, commit, verify a clean tree,
-then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S15. Define the versioned normalized core records for nights, sessions, settings, events, signals, and provenance with deterministic serialization and provenance-preserving round trips. Do not implement adapter mapping, quality rules, fixtures, persistence, experiments, UI, or AI. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

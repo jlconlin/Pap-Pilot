@@ -13,13 +13,19 @@ from pap_pilot.adapter import (
     FLOW_RATE_CHANNEL_CODE,
     FLOW_RATE_SAMPLE_INTERVAL_MS,
     FLOW_RATE_SOURCE_DIMENSION,
+    MASK_PRESSURE_CANONICAL_UNIT,
+    MASK_PRESSURE_CHANNEL_CODE,
+    MASK_PRESSURE_SAMPLE_INTERVAL_MS,
+    MASK_PRESSURE_SOURCE_DIMENSION,
     InvalidFlowSignalError,
+    InvalidMaskPressureSignalError,
     InvalidSessionEventError,
     InvalidSessionSummaryError,
     OscarEventCompleteness,
     OscarEventKind,
     OscarEventSourceClass,
     OscarFlowAvailability,
+    OscarMaskPressureAvailability,
     OscarSignalSourceClass,
     OscarSignalStorage,
     OscarMachineProvenance,
@@ -33,6 +39,7 @@ from pap_pilot.adapter import (
     OscarObservedEventCount,
     SessionNotFoundError,
     extract_flow_rate_signal,
+    extract_mask_pressure_signal,
     extract_session_events,
     extract_session_summary,
 )
@@ -352,6 +359,102 @@ class SessionSummaryTests(unittest.TestCase):
                         None,
                         1,
                         54_936,
+                    ),
+                ),
+            )
+            connection.execute(
+                "INSERT INTO channels VALUES (?, ?, ?)",
+                (1, 302, MASK_PRESSURE_CHANNEL_CODE),
+            )
+            raw_mask_pressure_0 = struct.pack("<3h", 500, 600, 700)
+            raw_mask_pressure_1 = struct.pack("<2h", 750, 650)
+            compressed_mask_pressure_1 = (
+                len(raw_mask_pressure_1).to_bytes(4, byteorder="big")
+                + zlib.compress(raw_mask_pressure_1)
+            )
+            connection.executemany(
+                """
+                INSERT INTO event_lists VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+                """,
+                (
+                    (
+                        403,
+                        100,
+                        1,
+                        302,
+                        0,
+                        0,
+                        1_800_000_001_000,
+                        1_800_000_001_120,
+                        3,
+                        40.0,
+                        0.02,
+                        0.0,
+                        10.0,
+                        14.0,
+                        "cmH2O",
+                        0,
+                        None,
+                        None,
+                        len(raw_mask_pressure_0),
+                        len(raw_mask_pressure_0),
+                    ),
+                    (
+                        404,
+                        100,
+                        1,
+                        302,
+                        1,
+                        0,
+                        1_800_000_002_000,
+                        1_800_000_002_080,
+                        2,
+                        40.0,
+                        0.02,
+                        0.0,
+                        13.0,
+                        15.0,
+                        "cmH2O",
+                        0,
+                        None,
+                        None,
+                        len(raw_mask_pressure_1),
+                        len(compressed_mask_pressure_1),
+                    ),
+                ),
+            )
+            connection.executemany(
+                """
+                INSERT INTO event_data VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+                """,
+                (
+                    (
+                        503,
+                        403,
+                        raw_mask_pressure_0,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        0,
+                        6_510,
+                    ),
+                    (
+                        504,
+                        404,
+                        None,
+                        compressed_mask_pressure_1,
+                        None,
+                        None,
+                        None,
+                        None,
+                        1,
+                        256,
                     ),
                 ),
             )
@@ -694,6 +797,146 @@ class SessionSummaryTests(unittest.TestCase):
 
         with self.assertRaises(InvalidFlowSignalError):
             extract_flow_rate_signal(self.database_path, 100)
+
+    def test_extracts_stable_mask_pressure_with_timestamps_and_units(self) -> None:
+        original_database = self.database_path.read_bytes()
+
+        result = extract_mask_pressure_signal(self.database_path, 100)
+        repeated_result = extract_mask_pressure_signal(self.database_path, 100)
+
+        self.assertEqual(result, repeated_result)
+        self.assertEqual(
+            result.availability,
+            OscarMaskPressureAvailability.AVAILABLE,
+        )
+        self.assertEqual(result.source_channel_id, 302)
+        self.assertEqual(result.channel_code, MASK_PRESSURE_CHANNEL_CODE)
+        self.assertEqual(result.canonical_unit, MASK_PRESSURE_CANONICAL_UNIT)
+        self.assertEqual(result.total_sample_count, 5)
+        self.assertEqual(len(result.segments), 2)
+        self.assertEqual(
+            result.source_class,
+            OscarSignalSourceClass.MACHINE_RECORDED_OSCAR_NORMALIZED,
+        )
+
+        first, second = result.segments
+        self.assertEqual(first.source_eventlist_id, 403)
+        self.assertEqual(first.source_event_data_id, 503)
+        self.assertEqual(first.eventlist_index, 0)
+        self.assertEqual(first.sample_count, 3)
+        self.assertEqual(
+            first.sample_interval_ms,
+            MASK_PRESSURE_SAMPLE_INTERVAL_MS,
+        )
+        self.assertEqual(
+            first.raw_sample_times_ms,
+            (
+                1_800_000_001_000.0,
+                1_800_000_001_040.0,
+                1_800_000_001_080.0,
+            ),
+        )
+        self.assertEqual(first.raw_last_sample_time_ms, 1_800_000_001_080.0)
+        self.assertEqual(first.raw_end_time_ms_exclusive, 1_800_000_001_120)
+        self.assertEqual(first.values_cm_h2o, (10.0, 12.0, 14.0))
+        self.assertEqual(
+            first.gain_cm_h2o_per_raw_unit,
+            0.02,
+        )
+        self.assertEqual(first.offset_cm_h2o, 0.0)
+        self.assertEqual(
+            first.source_dimension,
+            MASK_PRESSURE_SOURCE_DIMENSION,
+        )
+        self.assertEqual(first.canonical_unit, MASK_PRESSURE_CANONICAL_UNIT)
+        self.assertIsNone(first.gap_before_ms)
+        self.assertEqual(first.storage, OscarSignalStorage.UNCOMPRESSED)
+        self.assertEqual(first.data_size_bytes, 6)
+        self.assertEqual(first.compressed_size_bytes, 6)
+        self.assertEqual(first.source_checksum, 6_510)
+
+        self.assertEqual(second.source_eventlist_id, 404)
+        self.assertEqual(second.source_event_data_id, 504)
+        self.assertEqual(second.eventlist_index, 1)
+        self.assertEqual(second.sample_count, 2)
+        self.assertEqual(
+            second.raw_sample_times_ms,
+            (1_800_000_002_000.0, 1_800_000_002_040.0),
+        )
+        self.assertEqual(second.raw_end_time_ms_exclusive, 1_800_000_002_080)
+        self.assertEqual(second.values_cm_h2o, (15.0, 13.0))
+        self.assertEqual(second.gap_before_ms, 880)
+        self.assertEqual(second.storage, OscarSignalStorage.QT_ZLIB)
+        self.assertEqual(second.data_size_bytes, 4)
+        self.assertEqual(second.source_checksum, 256)
+        self.assertEqual(self.database_path.read_bytes(), original_database)
+
+    def test_missing_mask_pressure_eventlists_are_explicit(self) -> None:
+        self._update("DELETE FROM event_lists WHERE channel_id = ?", (302,))
+
+        result = extract_mask_pressure_signal(self.database_path, 100)
+
+        self.assertEqual(
+            result.availability,
+            OscarMaskPressureAvailability.DATA_MISSING,
+        )
+        self.assertEqual(result.source_channel_id, 302)
+        self.assertEqual(result.segments, ())
+        self.assertEqual(result.total_sample_count, 0)
+
+    def test_missing_mask_pressure_channel_is_explicit(self) -> None:
+        self._update(
+            "DELETE FROM channels WHERE channel_code = ?",
+            (MASK_PRESSURE_CHANNEL_CODE,),
+        )
+
+        result = extract_mask_pressure_signal(self.database_path, 100)
+
+        self.assertEqual(
+            result.availability,
+            OscarMaskPressureAvailability.CHANNEL_MISSING,
+        )
+        self.assertIsNone(result.source_channel_id)
+        self.assertEqual(result.segments, ())
+
+    def test_mask_pressure_checksum_mismatch_fails_safely(self) -> None:
+        self._update("UPDATE event_data SET checksum = ? WHERE id = ?", (0, 503))
+
+        with self.assertRaises(InvalidMaskPressureSignalError):
+            extract_mask_pressure_signal(self.database_path, 100)
+
+    def test_noncontiguous_mask_pressure_eventlists_fail_safely(self) -> None:
+        self._update(
+            "UPDATE event_lists SET eventlist_index = ? WHERE id = ?",
+            (2, 404),
+        )
+
+        with self.assertRaises(InvalidMaskPressureSignalError):
+            extract_mask_pressure_signal(self.database_path, 100)
+
+    def test_mask_pressure_profile_mismatch_fails_safely(self) -> None:
+        self._update(
+            "UPDATE event_lists SET profile_id = ? WHERE id = ?",
+            (2, 403),
+        )
+
+        with self.assertRaises(InvalidMaskPressureSignalError):
+            extract_mask_pressure_signal(self.database_path, 100)
+
+    def test_missing_mask_pressure_data_row_fails_safely(self) -> None:
+        self._update("DELETE FROM event_data WHERE id = ?", (504,))
+
+        with self.assertRaises(InvalidMaskPressureSignalError):
+            extract_mask_pressure_signal(self.database_path, 100)
+
+    def test_mask_pressure_wrong_dimension_fails_safely(self) -> None:
+        self._update(
+            "UPDATE event_lists SET dimension = ? WHERE id = ?",
+            ("hPa", 403),
+        )
+
+        with self.assertRaises(InvalidMaskPressureSignalError):
+            extract_mask_pressure_signal(self.database_path, 100)
 
 
 if __name__ == "__main__":

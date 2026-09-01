@@ -112,7 +112,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Fixing unrelated discrepancies or adding more nights.
 - Done when: Settings, boundaries, event counts, and the first signal have explicit pass/fail comparisons.
 
-### S14A — Extract Mask Pressure — queued
+### S14A — Extract Mask Pressure — done
 
 - Objective: Add schema-17 extraction for the required `MaskPressureHi` signal, including timestamps, units, segment boundaries, and provenance.
 - Excludes: Leak extraction, derived calculations, signal alignment analysis, and additional nights.

@@ -2,21 +2,22 @@
 
 **Updated:** August 31, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S14 completed; Milestone 1 remains open
-**Next sprint:** S14A — Extract Mask Pressure
+**Current sprint:** None — S14A completed; Milestone 1 remains open
+**Next sprint:** S14B — Extract Leak
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session summary, machine/OSCAR event, and one-signal extraction have begun, while other signals, metrics, web UI, and AI implementation have not.
+- The adapter and deterministic engine are separate package namespaces; one-session summary, machine/OSCAR event, Flow Rate, and Mask Pressure extraction are implemented, while Leak, metrics, web UI, and AI implementation have not begun.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
 - `pap_pilot.adapter.extract_session_events` returns only the six allowlisted machine-labeled/OSCAR-normalized event kinds for one validated session, with raw provenance and explicitly unknown completeness.
 - `pap_pilot.adapter.extract_flow_rate_signal` returns the selected session's raw 25 Hz `FlowRate` EventLists as separate immutable segments with raw timestamps, L/min values, gaps, storage/checksum provenance, and explicit missing-data state.
+- `pap_pilot.adapter.extract_mask_pressure_signal` returns only the selected session's raw 25 Hz `MaskPressureHi` EventLists as separate immutable segments with raw timestamps, cm H₂O values, gaps, storage/checksum provenance, and explicit missing-data state.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for S11 settings and boundaries, S12 event counts, and S13 Flow Rate timing, values, units, and sign/display behavior on one private reference night.
-- Milestone 1 is not yet accepted: `MaskPressureHi` and `Leak` are mapped but still require extraction and OSCAR cross-checks. S14A–S14C now precede normalized-model work.
+- Milestone 1 is not yet accepted: `MaskPressureHi` is extracted but still requires its OSCAR display cross-check, while `Leak` still requires extraction and cross-checking. S14B–S14C precede normalized-model work.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
 - The former prototype and product-plan files have been consolidated into `Plan.md` and removed from the working tree.
 - The large milestones have been decomposed into short, dependency-ordered sprints in `SPRINTS.md`.
@@ -45,9 +46,19 @@
 
 ## Last completed sprint
 
-S14 — Cross-check the reference night.
+S14A — Extract Mask Pressure.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all thirty-one tests passed without resource warnings.
+- The deterministic schema-17 fixture reproduced two independent `MaskPressureHi` EventLists, five total samples, exact 40 ms timestamps and end-exclusive ranges, the `cmH2O` source dimension normalized to cm H₂O, per-list gain/offset conversion, source identifiers, and machine-recorded/OSCAR-normalized provenance.
+- Repeated Mask Pressure extraction produced exactly equal immutable output. The fixture retained an explicit positive inter-list gap and decoded both an uncompressed primary BLOB and a Qt `qCompress` BLOB without concatenating or interpolating the segments.
+- Focused tests confirmed missing Mask Pressure channel and missing EventLists produce distinct explicit availability states, while a missing data row, profile mismatch, checksum mismatch, noncontiguous EventList index, or wrong source dimension fails safely. Extraction left the source fixture unchanged.
+- The uniform waveform decoder is now shared internally by Flow Rate and Mask Pressure while their public records retain signal-specific value, gain, offset, unit, availability, and error fields. Existing Flow Rate tests passed unchanged after the refactor.
+- Confirmed OSCAR was closed and the live database had no WAL/SHM sidecars before making a fresh protected copy outside the repository. Source and copy matched byte-for-byte before access, and the copy was protected as file mode `0400` inside a mode-`0500` directory.
+- Used the guarded `mode=ro&immutable=1` opt-in only on that trusted copy. One locally selected compatible session passed exact `MaskPressureHi` channel identity, 25 Hz timing, cm H₂O source/canonical units, sample shape, in-session boundaries, explicit gaps, finite values, storage/checksum validation, and source-provenance checks; only boolean contract results were emitted.
+- Reconfirmed source and copy bytes still matched, no copy sidecars were created, and the disposable copy and validation helper were removed. No profile, therapy date, session identifier, timestamps, counts, pressure values, settings, or checksums were emitted or retained.
+- Mask Pressure SQL is restricted by one validated session and its profile-scoped `MaskPressureHi` channel. It does not query `Leak`, sparse `Pressure`, other signals, metrics, other sessions, or perform Flow/Pressure alignment analysis.
 
 - One locally selected OSCAR day with exactly one enabled session passed all four S14 domains: settings, session boundaries, event counts, and Flow Rate.
 - All six S11 settings exactly matched their OSCAR source rows and were present in OSCAR's built-in Device Settings report; ASV mode encodings and the cm H₂O pressure contract matched.
@@ -57,7 +68,6 @@ S14 — Cross-check the reference night.
 - The selected profile, date, identifiers, settings, counts, timestamps, values, and checksums were not emitted or committed. OSCAR was closed before copying; only protected disposable copies were inspected.
 - macOS denied Accessibility and screen capture access to the disposable OSCAR GUI. The cross-check therefore used OSCAR's built-in database report queries/caches and current graph source path; no screenshot or pixel-level tooltip comparison was retained.
 
-- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all twenty-three tests passed without resource warnings.
 - The deterministic schema-17 fixture reproduced two independent `FlowRate` EventLists, five total samples, exact 40 ms timestamps and end-exclusive ranges, the `L/M` source dimension normalized to L/min, per-list gain/offset conversion, source identifiers, and machine-recorded/OSCAR-normalized provenance.
 - Repeated extraction produced exactly equal immutable output. The fixture retained an explicit positive inter-list gap and decoded both an uncompressed primary BLOB and a Qt `qCompress` BLOB without concatenating or interpolating the segments.
 - Focused tests confirmed missing channel and missing EventLists produce distinct explicit availability states, while a missing data row, profile mismatch, checksum mismatch, or noncontiguous EventList index fails safely. Extraction left the source fixture unchanged.
@@ -109,6 +119,9 @@ S14 — Cross-check the reference night.
 - For the reference night, S11 settings/boundaries, S12 counts, and S13 Flow Rate all pass their explicit OSCAR comparisons. No adapter change was justified by S14.
 - OSCAR Flow Rate `session_channels.min/max` are observed single-precision extrema; comparisons use `1e-5` absolute tolerance. `phys_min/phys_max` describe the declared graph range, while `sum`, `avg`, and `wavg` are not populated as independently comparable Flow Rate waveform statistics.
 - The scoped Flow Rate lists have zero offset, making PAP Pilot's `raw * gain + offset` conversion identical to OSCAR's graph's raw-times-gain rendering for this reference session. The positive/negative sign convention is now established for this source; it is not a derived breath-phase classification.
+- `FlowRate` and `MaskPressureHi` share only private uniform-waveform storage decoding. Their public adapter records remain signal-specific so pressure cannot be consumed as flow by field-name coincidence.
+- `MaskPressureHi` is allowlisted explicitly, requires schema-17 waveform type 0, exact `cmH2O` source dimension, 40 ms sample interval, signed little-endian 16-bit primary values, per-EventList gain/offset, and valid Qt ISO-3309/X-25 checksum provenance.
+- Mask Pressure EventLists remain independent segments with explicit gaps and missing states. S14A does not align them with Flow Rate or derive pressure-support response; those are later analysis concerns.
 - The minimum S08 input set is `FlowRate`, `MaskPressureHi`, and `Leak`. OSCAR/device-derived AHI, flow limitation, respiratory rate, tidal volume, minute ventilation, target ventilation, Ti, and Te are excluded from the required set and cannot silently substitute for PAP Pilot calculations.
 - `MaskPressureHi` is the required pressure input because it is a 25 Hz waveform synchronized with flow. Sparse `Pressure`, low-resolution `MaskPressure`, and `EPAP` traces are not silent fallbacks.
 - Flow and mask-pressure waveform timestamps derive from `first_time + i*rate`; their observed schema-17 `last_time` is end-exclusive. Leak timestamps derive only from the stored unsigned millisecond-delta array.
@@ -144,22 +157,23 @@ S14 — Cross-check the reference night.
 
 ## Blockers
 
-- No blocker prevents starting S14A.
-- Milestone 1 remains open until S14A and S14B implement both remaining required signals and S14C records their OSCAR comparisons and the gate decision.
+- No blocker prevents starting S14B.
+- Milestone 1 remains open until S14B implements Leak and S14C records the remaining OSCAR comparisons and the gate decision.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans remain handled explicitly by S12 extraction; reference-night count agreement does not redefine those raw provenance rules.
-- S13 preserves signal gaps/missing lists and treats `compressed_size` only as validated provenance. Flow Rate sign/display behavior is now cross-checked; Leak subtype remains for later extraction and quality work.
+- S13 and S14A preserve waveform gaps/missing lists and treat `compressed_size` only as validated provenance. Flow Rate sign/display behavior is cross-checked, while Mask Pressure display behavior and Leak subtype remain for S14C.
 - The empty local correction table and invalid raw session boundaries remain explicit inputs to later guarded-connection, session-extraction, and structural-quality work.
 
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S14A.
-Add schema-17 extraction for the selected session's required `MaskPressureHi`
-signal, preserving timestamps, 25 Hz timing, cm H₂O units, independent
-EventList segments, gaps, storage integrity, and provenance. Use focused
-deterministic tests and a protected disposable OSCAR copy only. Do not extract
-Leak, add alignment analysis or metrics, or start S14B. Update SPRINTS.md and
-STATUS.md, commit the completed sprint, verify the working tree is clean, then
-stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S14B.
+Add schema-17 extraction for the selected session's required sparse `Leak`
+signal, decoding stored value and timestamp arrays while preserving L/min
+units, EventList gaps, storage integrity, provenance, and explicit missing-data
+state. Do not assume total-versus-excess semantics, apply step-hold behavior,
+add leak thresholds or quality rules, change Mask Pressure, or start S14C.
+Use focused deterministic tests and a protected disposable OSCAR copy only.
+Update SPRINTS.md and STATUS.md, commit the completed sprint, verify the working
+tree is clean, then stop.
 ```

@@ -1,4 +1,4 @@
-"""Extract the raw FlowRate waveform for one OSCAR session."""
+"""Extract the raw MaskPressureHi waveform for one OSCAR session."""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -16,39 +16,39 @@ from pap_pilot.adapter.oscar import OscarDatabaseError
 from pap_pilot.adapter.session_summary import OscarSessionSummary
 
 
-FLOW_RATE_CHANNEL_CODE: Final = "FlowRate"
-FLOW_RATE_CANONICAL_UNIT: Final = "L/min"
-FLOW_RATE_SOURCE_DIMENSION: Final = "L/M"
-FLOW_RATE_SAMPLE_INTERVAL_MS: Final = 40.0
+MASK_PRESSURE_CHANNEL_CODE: Final = "MaskPressureHi"
+MASK_PRESSURE_CANONICAL_UNIT: Final = "cm H₂O"
+MASK_PRESSURE_SOURCE_DIMENSION: Final = "cmH2O"
+MASK_PRESSURE_SAMPLE_INTERVAL_MS: Final = 40.0
 
-_FLOW_RATE_SPEC: Final = UniformWaveformSpec(
-    signal_name=FLOW_RATE_CHANNEL_CODE,
-    channel_code=FLOW_RATE_CHANNEL_CODE,
-    source_dimension=FLOW_RATE_SOURCE_DIMENSION,
-    canonical_unit=FLOW_RATE_CANONICAL_UNIT,
-    sample_interval_ms=FLOW_RATE_SAMPLE_INTERVAL_MS,
+_MASK_PRESSURE_SPEC: Final = UniformWaveformSpec(
+    signal_name=MASK_PRESSURE_CHANNEL_CODE,
+    channel_code=MASK_PRESSURE_CHANNEL_CODE,
+    source_dimension=MASK_PRESSURE_SOURCE_DIMENSION,
+    canonical_unit=MASK_PRESSURE_CANONICAL_UNIT,
+    sample_interval_ms=MASK_PRESSURE_SAMPLE_INTERVAL_MS,
 )
 
 
-class OscarFlowAvailability(StrEnum):
-    """Why a selected session does or does not have FlowRate samples."""
+class OscarMaskPressureAvailability(StrEnum):
+    """Why a selected session does or does not have MaskPressureHi samples."""
 
     AVAILABLE = "available"
     CHANNEL_MISSING = "channel_missing"
     DATA_MISSING = "data_missing"
 
 
-class SessionFlowError(OscarDatabaseError):
-    """Base class for FlowRate data that cannot be extracted safely."""
+class SessionMaskPressureError(OscarDatabaseError):
+    """Base class for MaskPressureHi data that cannot be extracted safely."""
 
 
-class InvalidFlowSignalError(SessionFlowError):
-    """Raised when FlowRate rows violate the schema-17 signal contract."""
+class InvalidMaskPressureSignalError(SessionMaskPressureError):
+    """Raised when MaskPressureHi violates the schema-17 signal contract."""
 
 
 @dataclass(frozen=True, slots=True)
-class OscarFlowSegment:
-    """One independent, uniformly sampled OSCAR FlowRate EventList."""
+class OscarMaskPressureSegment:
+    """One independent, uniformly sampled MaskPressureHi EventList."""
 
     source_eventlist_id: int
     source_event_data_id: int
@@ -61,9 +61,9 @@ class OscarFlowSegment:
     sample_interval_ms: float
     sample_count: int
     raw_sample_times_ms: tuple[float, ...]
-    values_l_min: tuple[float, ...]
-    gain_l_min_per_raw_unit: float
-    offset_l_min: float
+    values_cm_h2o: tuple[float, ...]
+    gain_cm_h2o_per_raw_unit: float
+    offset_cm_h2o: float
     source_dimension: str
     canonical_unit: str
     gap_before_ms: int | None
@@ -81,15 +81,15 @@ class OscarFlowSegment:
 
 
 @dataclass(frozen=True, slots=True)
-class OscarFlowSignal:
-    """The raw FlowRate availability and segments for one session."""
+class OscarMaskPressureSignal:
+    """The raw MaskPressureHi availability and segments for one session."""
 
     session_summary: OscarSessionSummary
-    availability: OscarFlowAvailability
+    availability: OscarMaskPressureAvailability
     source_channel_id: int | None
     channel_code: str
     canonical_unit: str
-    segments: tuple[OscarFlowSegment, ...]
+    segments: tuple[OscarMaskPressureSegment, ...]
     source_class: OscarSignalSourceClass
 
     @property
@@ -99,36 +99,38 @@ class OscarFlowSignal:
         return sum(segment.sample_count for segment in self.segments)
 
 
-def extract_flow_rate_signal(
+def extract_mask_pressure_signal(
     database_path: str | Path,
     session_database_id: int,
     *,
     trusted_immutable_copy: bool = False,
-) -> OscarFlowSignal:
-    """Extract only FlowRate EventLists for exactly one validated session."""
+) -> OscarMaskPressureSignal:
+    """Extract only MaskPressureHi EventLists for one validated session."""
 
     waveform = extract_uniform_waveform(
         database_path,
         session_database_id,
-        spec=_FLOW_RATE_SPEC,
-        error_type=InvalidFlowSignalError,
+        spec=_MASK_PRESSURE_SPEC,
+        error_type=InvalidMaskPressureSignalError,
         trusted_immutable_copy=trusted_immutable_copy,
     )
-    return OscarFlowSignal(
+    return OscarMaskPressureSignal(
         session_summary=waveform.session_summary,
-        availability=OscarFlowAvailability(waveform.availability.value),
+        availability=OscarMaskPressureAvailability(waveform.availability.value),
         source_channel_id=waveform.source_channel_id,
         channel_code=waveform.channel_code,
         canonical_unit=waveform.canonical_unit,
-        segments=tuple(_flow_segment(segment) for segment in waveform.segments),
+        segments=tuple(
+            _mask_pressure_segment(segment) for segment in waveform.segments
+        ),
         source_class=waveform.source_class,
     )
 
 
-def _flow_segment(
+def _mask_pressure_segment(
     segment: DecodedUniformWaveformSegment,
-) -> OscarFlowSegment:
-    return OscarFlowSegment(
+) -> OscarMaskPressureSegment:
+    return OscarMaskPressureSegment(
         source_eventlist_id=segment.source_eventlist_id,
         source_event_data_id=segment.source_event_data_id,
         session_database_id=segment.session_database_id,
@@ -140,9 +142,9 @@ def _flow_segment(
         sample_interval_ms=segment.sample_interval_ms,
         sample_count=segment.sample_count,
         raw_sample_times_ms=segment.raw_sample_times_ms,
-        values_l_min=segment.values,
-        gain_l_min_per_raw_unit=segment.gain_per_raw_unit,
-        offset_l_min=segment.offset,
+        values_cm_h2o=segment.values,
+        gain_cm_h2o_per_raw_unit=segment.gain_per_raw_unit,
+        offset_cm_h2o=segment.offset,
         source_dimension=segment.source_dimension,
         canonical_unit=segment.canonical_unit,
         gap_before_ms=segment.gap_before_ms,

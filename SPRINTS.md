@@ -212,11 +212,11 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Automatic change detection, metrics, and final classification.
 - Done when: Boundary and exclusion tests reproduce expected period membership.
 
-### S28 — Add subjective outcomes and confounders — queued
+### S28 — Define sleep-journal outcomes and confounders — queued
 
-- Objective: Represent the initial subjective reports and confounders needed by the retrospective fixture.
-- Excludes: Forms/UI and prospective daily reminders.
-- Done when: Entries are append-only, timestamped, attributable, and replay correctly.
+- Objective: Represent the structured sleep-journal responses, optional original free-text notes, and confounders needed by the retrospective fixture.
+- Excludes: Forms/UI, automated interpretation of free text, and prospective daily reminders.
+- Done when: Structured responses and original notes are append-only, timestamped, attributable, linked to the relevant therapy night, and replay correctly.
 
 ### S29 — Define outcome classification rules — queued
 
@@ -294,11 +294,11 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Monitoring calculations and UI.
 - Done when: Replay tests cover one complete lifecycle and corrections remain additive.
 
-### S41 — Add morning outcome entry — queued
+### S41 — Add morning sleep-journal entry — queued
 
-- Objective: Add the smallest local form/API for subjective outcome, adverse effect, and confounder events.
-- Excludes: Notifications, mobile UI, and free-form clinical advice.
-- Done when: Entries validate, append, and appear in reconstructed experiment state.
+- Objective: Add the smallest local form/API for structured morning outcomes, optional free-text notes, adverse effects, and confounder events.
+- Excludes: Notifications, mobile UI, AI or NLP interpretation of journal prose, and free-form clinical advice.
+- Done when: Entries validate, append, link to the selected therapy night, and appear in reconstructed experiment state.
 
 ### S42 — Add prospective monitoring view — queued
 

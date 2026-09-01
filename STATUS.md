@@ -14,6 +14,7 @@
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
 - Normalized provenance preserves canonical source classifications, upstream system/schema/application versions, stable source-record references, source-specific values, producer/version identity, and parent-provenance links. The model distinguishes machine-recorded, machine-labeled, OSCAR-normalized, OSCAR-derived, companion-derived, AI-generated, user-reported, and external-sensor information.
+- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S16.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
@@ -114,6 +115,7 @@ S15 — Define normalized core records.
 - Sprints deliberately stop at their stated completion check.
 - Undiscovered work becomes a new queued sprint rather than silently expanding an active sprint.
 - Repository prose is not hard-wrapped at a fixed column. Markdown paragraphs and list items stay on one logical line, with line breaks reserved for semantic structure and literal blocks.
+- The sleep journal will use a hybrid design rather than text alone: structured fields support deterministic comparison, while optional free text preserves context and unexpected observations. Exact fields, scales, and prompts remain a bounded S28 decision, and AI or NLP must not silently promote prose into authoritative structured data.
 - The user decided that working-name selection must precede version-control initialization and all technical development.
 - The user decided that the plan will be maintained in place as `Plan.md`; Git history and focused decision records replace version-suffixed plan copies.
 - The user decided to keep the product plan and execution queue separate: milestone gates stay in `Plan.md`, while all sprint identifiers, ordering, and status stay in `SPRINTS.md`.

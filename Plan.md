@@ -2,7 +2,7 @@
 
 **Status:** Living product and implementation plan
 **Created:** August 27, 2026
-**Updated:** August 28, 2026
+**Updated:** September 1, 2026
 **Governs:** The personal prototype; deferred future-product requirements are retained in Part II
 **Working name:** PAP Pilot
 **Technical identifiers:** `pap-pilot` command/slug, `pap_pilot` Python package, and `pap_pilot.sqlite3` local database
@@ -98,7 +98,7 @@ Early development must use a backup or disposable copy until read-only behavior 
 - Read-only OSCAR adapter.
 - Deterministic metrics and before-and-after comparisons.
 - Append-only experiment history.
-- Brief subjective outcome and confounder logging.
+- A daily sleep journal that combines a brief structured morning check-in with optional free-text notes, links each entry to the relevant therapy night, and records confounders.
 - One configured AI provider after the deterministic vertical slice works.
 - Manual settings application and explicit confirmation of when a change was applied.
 
@@ -143,6 +143,7 @@ The prototype must include:
 - Versioned definitions for each metric and threshold.
 - Tests for units, missing samples, clock corrections, short or split sessions, large leak, signal artifacts, and likely wake breathing.
 - Explicit distinction among machine-recorded, OSCAR-derived, companion-derived, AI-generated, and user-reported information.
+- Explicit scales and meanings for structured journal fields, preservation of the user's original free text, and no silent conversion of journal prose into authoritative structured facts.
 - An `insufficient evidence` result when quality or sample-size requirements are not met.
 - Storage of engine, rule-set, and prompt versions with every experiment evaluation.
 
@@ -165,7 +166,7 @@ Each experiment record must include:
 - Possible adverse effects.
 - Stop and revert conditions.
 - What was actually applied and when.
-- Confounders and subjective reports.
+- Structured daily sleep-journal responses, optional free-text notes, and confounders.
 - Final classification and next action.
 
 Initial classifications are:
@@ -200,7 +201,7 @@ Minimum event types include:
 - Hypothesis drafted.
 - Experiment proposed, accepted, rejected, or revised.
 - Setting change confirmed as applied.
-- Morning outcome recorded.
+- Sleep-journal entry recorded.
 - Confounder or adverse effect recorded.
 - Experiment stopped, extended, kept, or reverted.
 - Evaluation issued or superseded.
@@ -220,7 +221,7 @@ The prototype must:
 3. Assign nights to baseline and intervention periods.
 4. Exclude or flag nights that fail predefined quality criteria.
 5. Calculate a small predefined set of objective outcomes.
-6. Incorporate reported awakenings, sleep quality, morning energy, daytime tiredness, travel, and other known confounders where available.
+6. Incorporate structured daily journal responses for reported awakenings, sleep quality, morning energy, and daytime tiredness, plus optional notes, travel, and other known confounders where available.
 7. Show representative baseline and intervention waveform segments.
 8. Produce an evaluation with evidence, uncertainty, and limitations.
 9. Determine whether the rules support keeping, reverting, extending, or classifying the experiment as inconclusive.
@@ -302,7 +303,7 @@ These milestones are outcome gates, not a task queue. The current order and stat
 - Internal serialization and local database schema.
 - Initial objective metrics and their definitions.
 - Valid-night criteria and minimum baseline/intervention duration.
-- Subjective questionnaire and required confounders.
+- Exact structured morning journal fields and scales, optional-text prompts, and required confounders.
 - Initial settings recommendation allowlist, change bounds, and exclusions.
 - Outcome weighting and classification thresholds.
 - Choice of the first AI provider and whether health data may be sent to a hosted service.

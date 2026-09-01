@@ -94,6 +94,7 @@ S14B — Extract Leak.
 - Only one Codex goal/sprint should be active at a time.
 - Sprints deliberately stop at their stated completion check.
 - Undiscovered work becomes a new queued sprint rather than silently expanding an active sprint.
+- Repository prose is not hard-wrapped at a fixed column. Markdown paragraphs and list items stay on one logical line, with line breaks reserved for semantic structure and literal blocks.
 - The user decided that working-name selection must precede version-control initialization and all technical development.
 - The user decided that the plan will be maintained in place as `Plan.md`; Git history and focused decision records replace version-suffixed plan copies.
 - The user decided to keep the product plan and execution queue separate: milestone gates stay in `Plan.md`, while all sprint identifiers, ordering, and status stay in `SPRINTS.md`.

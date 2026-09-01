@@ -36,9 +36,7 @@ The working name should:
 
 ## Decision
 
-Use **PAP Pilot** as the working product name, displayed as two words and
-pronounced “P-A-P Pilot.” The space is part of the display name and avoids the
-ambiguous “paw-pilot” reading of `PAPilot`.
+Use **PAP Pilot** as the working product name, displayed as two words and pronounced “P-A-P Pilot.” The space is part of the display name and avoids the ambiguous “paw-pilot” reading of `PAPilot`.
 
 Approved identifiers:
 
@@ -49,25 +47,16 @@ Approved identifiers:
 
 ## Rationale
 
-“PAP” anchors the product in its actual data domain. “Pilot” provides memorable
-wordplay and supports an approachable fighter-pilot mascot without tying the
-implementation to ASV, OSCAR, a particular AI provider, or a future
-distribution model. The application remains an advisory companion: the user
-reviews and manually applies every settings change, and the application never
-controls a PAP device. The product language and interface must not imply
-autonomous control.
+“PAP” anchors the product in its actual data domain. “Pilot” provides memorable wordplay and supports an approachable fighter-pilot mascot without tying the implementation to ASV, OSCAR, a particular AI provider, or a future distribution model. The application remains an advisory companion: the user reviews and manually applies every settings change, and the application never controls a PAP device. The product language and interface must not imply autonomous control.
 
 ## Consequences
 
 - Use `PAP Pilot` consistently in governing and tracking documents.
-- Preserve the space in the display name and pronounce PAP as the letters
-  “P-A-P.”
-- Use the approved technical identifiers when the Python project and local
-  database are created.
+- Preserve the space in the display name and pronounce PAP as the letters “P-A-P.”
+- Use the approved technical identifiers when the Python project and local database are created.
 - Continue to describe the application as advisory; the working name does not relax any deterministic safety boundary.
 - Revisit external clearance only before distribution or public branding.
 
 ## Approval
 
-The user explicitly approved the working name and complete identifier set on
-August 28, 2026.
+The user explicitly approved the working name and complete identifier set on August 28, 2026.

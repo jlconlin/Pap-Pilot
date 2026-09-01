@@ -8,6 +8,11 @@
 - Update `Plan.md` in place; do not create additional versioned plan documents.
 - Update `Plan.md` only when product scope, requirements, safety boundaries, architecture, or milestone gates change; routine execution changes belong in `SPRINTS.md` or `STATUS.md`.
 
+## Documentation style
+
+- Do not hard-wrap Markdown or other prose at a fixed column. Keep each paragraph or list item on one logical line, regardless of visual length.
+- Use line breaks only for semantic structure such as headings, list items, tables, blank-line paragraph boundaries, block quotations, and fenced or literal content.
+
 ## Working method
 
 1. Read this file, `Plan.md`, `SPRINTS.md`, and `STATUS.md` before changing code.
@@ -28,8 +33,7 @@
 - `queued`: not started.
 - `active`: the only sprint currently in progress.
 - `blocked`: cannot proceed without a named input or decision.
-- `done`: its stated completion check has passed, its changes are committed,
-  and the working tree is clean.
+- `done`: its stated completion check has passed, its changes are committed, and the working tree is clean.
 
 ## Safety boundaries
 

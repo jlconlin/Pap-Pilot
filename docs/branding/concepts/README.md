@@ -3,10 +3,7 @@
 **Generated:** August 28, 2026
 **Status:** Exploratory references only; none is final artwork or an approved logo.
 
-These concept sheets preserve early visual directions for the proposed
-**PAP Pilot** working name. Image generation is nondeterministic, so the
-prompts below preserve design intent rather than guaranteeing identical
-results if they are run again.
+These concept sheets preserve early visual directions for the proposed **PAP Pilot** working name. Image generation is nondeterministic, so the prompts below preserve design intent rather than guaranteeing identical results if they are run again.
 
 ## Concept summary
 
@@ -23,11 +20,9 @@ Useful elements to retain in later exploration:
 - Aim for competent first, approachable second, and playful third.
 - Keep the angular flight helmet and fighter-pilot silhouette.
 - Use visible adult eyes or a raised visor to avoid an intimidating, anonymous character.
-- Distinguish CPAP equipment with a soft cushion rim, fabric-like headgear,
-  clips, a swivel elbow, and corrugated hose.
+- Distinguish CPAP equipment with a soft cushion rim, fabric-like headgear, clips, a swivel elbow, and corrugated hose.
 - Preserve the hose-shaped **P** as a possible secondary mark.
-- Do not assume the final mascot, logo, palette, or character presentation has
-  been selected.
+- Do not assume the final mascot, logo, palette, or character presentation has been selected.
 
 ## 01 — Initial Hose Knows and PAPilot comparison
 
@@ -112,8 +107,7 @@ Critical balance:
 
 ## 04 — Balanced PAP Pilot direction
 
-**Reference images:** `01-hose-knows-and-papilot-initial.png` and
-`03-papilot-cpap-details.png`
+**Reference images:** `01-hose-knows-and-papilot-initial.png` and `03-papilot-cpap-details.png`
 
 ```text
 Create a new PAP Pilot mascot and logo exploration sheet that finds the exact tonal midpoint between the two attached references: the first reference is too cute, childlike, and toy-like; the second reference is too fierce, anonymous, and hard-core. The result should feel warm, capable, adventurous, and broadly welcoming while remaining unmistakably inspired by a modern fighter pilot.

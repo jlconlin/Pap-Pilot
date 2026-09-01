@@ -2,15 +2,11 @@
 
 **Mapped:** August 30, 2026 (America/Denver)
 
-**Scope:** The minimum OSCAR fields required to identify the schema, select a
-profile, preserve machine provenance, identify sessions, interpret session-day
-boundaries, and retain device-time corrections. Settings, events, waveforms,
-summaries, and unrelated tables are intentionally excluded.
+**Scope:** The minimum OSCAR fields required to identify the schema, select a profile, preserve machine provenance, identify sessions, interpret session-day boundaries, and retain device-time corrections. Settings, events, waveforms, summaries, and unrelated tables are intentionally excluded.
 
 ## Evidence boundary
 
-The source artifact is the official OSCAR 2.0.1 `Notes.zip` already recorded in
-`oscar-2-source-materials.md`:
+The source artifact is the official OSCAR 2.0.1 `Notes.zip` already recorded in `oscar-2-source-materials.md`:
 
 | Item | Verified identity |
 |---|---|
@@ -20,21 +16,14 @@ The source artifact is the official OSCAR 2.0.1 `Notes.zip` already recorded in
 | Session-day reference | `Notes/Waveform Demo/python_waveform_demo_spec.md` and its matching Python demo |
 | Time-correction references | `Notes/Developer Notes/Clock Drift Plan.md`, `TIME_ALIGNMENT_CODE_REVIEW.md`, `time differences labels.md`, and `Eliminate DST zone.md` |
 
-The published schema documents stop at schema **16**. The installed OSCAR
-2.0.0 database reports schema **17**. The bundled time-alignment review says the
-`device_time_corrections` migration is v17, and the protected local copy
-confirms that table's exact DDL. Therefore:
+The published schema documents stop at schema **16**. The installed OSCAR 2.0.0 database reports schema **17**. The bundled time-alignment review says the `device_time_corrections` migration is v17, and the protected local copy confirms that table's exact DDL. Therefore:
 
 - the schema-v16 documents define the profile, machine, and session baseline;
-- the schema-v17 disposable copy is authoritative for which scoped columns and
-  constraints are actually present locally;
-- the bundled developer notes supply the only official semantics found for the
-  v17 correction fields; and
-- every implementation must version-gate this mapping rather than treating it
-  as a contract for another OSCAR schema.
+- the schema-v17 disposable copy is authoritative for which scoped columns and constraints are actually present locally;
+- the bundled developer notes supply the only official semantics found for the v17 correction fields; and
+- every implementation must version-gate this mapping rather than treating it as a contract for another OSCAR schema.
 
-No username, folder path, serial number, therapy date, session identifier, or
-correction reason is retained in this note.
+No username, folder path, serial number, therapy date, session identifier, or correction reason is retained in this note.
 
 ## Relationship spine
 
@@ -47,8 +36,7 @@ profiles.id
         └── device_time_corrections.machine_id
 ```
 
-`sessions` and `device_time_corrections` do not contain `profile_id` in the
-observed schema. Profile ownership must be established through `machines`.
+`sessions` and `device_time_corrections` do not contain `profile_id` in the observed schema. Profile ownership must be established through `machines`.
 
 ## Schema identification
 
@@ -57,9 +45,7 @@ observed schema. Profile ownership must be established through `machines`.
 | `oscar_schema_version` | `MAX(schema_version.version)` | Integer schema revision | The official demo uses `MAX(version)`. The observed database contains one current-state row, version 17, rather than a contiguous migration ledger. Reject an absent, null, or unsupported value. |
 | `schema_applied_at` | `schema_version.applied_at` for the selected version | SQLite timestamp text | Provenance only. `CURRENT_TIMESTAMP` is UTC, but the external documents do not promise a stable display format beyond text. |
 
-`machines.data_version` is a loader-data version and is not interchangeable
-with `schema_version.version`, the OSCAR application version, or the Notes
-archive release.
+`machines.data_version` is a loader-data version and is not interchangeable with `schema_version.version`, the OSCAR application version, or the Notes archive release.
 
 ## Profile and session-calendar mapping
 
@@ -72,8 +58,7 @@ archive release.
 | `oscar_day_split_time` | `profile_preferences.value` where `profile_id=profiles.id`, category=`profile`, key=`DaySplitTime` | Local wall-clock time text; `data_type=time` | The official waveform demo hard-codes noon, while the bundled clock-drift plan refers to the configured profile split. Preserve the setting for later cross-checking; do not silently replace it with noon. |
 | `lock_summary_sessions` | `profile_preferences.value` where `profile_id=profiles.id`, category=`profile`, key=`LockSummarySessions` | Boolean stored as text; `data_type=bool` | The clock-drift plan says summary-only sessions use noon when this is true. The generic preference table does not enforce boolean encoding in SQL. |
 
-`profiles.data_folder` and personal columns in `user_info` are not needed for
-the mapping and must not enter the companion's normalized identity record.
+`profiles.data_folder` and personal columns in `user_info` are not needed for the mapping and must not enter the companion's normalized identity record.
 
 ## Machine mapping
 
@@ -93,8 +78,7 @@ the mapping and must not enter the companion's normalized identity record.
 | `last_imported_at` | `machines.last_imported` | ISO-8601 text | Nullable import provenance, not a therapy-session boundary. Timezone precision must be preserved as stored. |
 | `purge_cutoff_date` | `machines.purge_date` | ISO-8601 date text | Nullable. A value means historical absence may be deliberate; it is not evidence that no earlier therapy occurred. |
 
-`machines.properties`, row-creation metadata, and any device setting are outside
-this sprint's required identity record.
+`machines.properties`, row-creation metadata, and any device setting are outside this sprint's required identity record.
 
 ## Session mapping
 
@@ -113,16 +97,11 @@ this sprint's required identity record.
 | `oscar_day` | Derived from `raw_start_ms`, the profile's local-time context, `DaySplitTime`, and `LockSummarySessions` | Local calendar date, `YYYY-MM-DD` | The schema has no direct OSCAR-day column on `sessions`. The schema-v13 demo uses `[D 12:00, D+1 12:00)` via SQLite `localtime`; the newer time-alignment notes describe the configured split and special noon behavior for locked summary sessions. This derivation must be cross-checked against OSCAR before it becomes authoritative. |
 | `profile_db_id` | Derived through `sessions.machine_id → machines.id → machines.profile_id` | Unitless integer | Never infer profile ownership from globally comparing `session_id`. |
 
-`sessions.created_at` and `updated_at` are database-row metadata, not device or
-therapy times, and are not needed in the first normalized session identity.
+`sessions.created_at` and `updated_at` are database-row metadata, not device or therapy times, and are not needed in the first normalized session identity.
 
 ## Device-time-correction mapping
 
-Schema 17 contains `device_time_corrections`; the earlier
-`machine_time_offsets` table proposed in the bundled clock-drift plan is absent.
-The observed correction table has no rows, so its row-level behavior is mapped
-from the exact DDL plus the bundled v17 time-alignment review, not inferred from
-local correction values.
+Schema 17 contains `device_time_corrections`; the earlier `machine_time_offsets` table proposed in the bundled clock-drift plan is absent. The observed correction table has no rows, so its row-level behavior is mapped from the exact DDL plus the bundled v17 time-alignment review, not inferred from local correction values.
 
 | Internal value | OSCAR source | Type or unit | Required interpretation and caveat |
 |---|---|---|---|
@@ -141,8 +120,7 @@ local correction values.
 | `display_start_ms` | `sessions.start_time + active_correction_ms` | Unix epoch milliseconds | Display/access-time boundary only; retain `raw_start_ms` separately and do not persist this value back to OSCAR. |
 | `display_end_ms` | `sessions.end_time + active_correction_ms` | Unix epoch milliseconds | Display/access-time boundary only; retain `raw_end_ms` separately and do not use this derivation to conceal an invalid raw session. |
 
-For an active row whose date range matches the session's OSCAR day, the bundled
-review describes these version-specific contributions:
+For an active row whose date range matches the session's OSCAR day, the bundled review describes these version-specific contributions:
 
 ```text
 non-drift contribution_ms = offset_ms
@@ -152,55 +130,32 @@ display_start_ms = raw_start_ms + total_correction_ms
 display_end_ms = raw_end_ms + total_correction_ms
 ```
 
-These are display/access-time values. The official notes say the raw session
-timestamps and cached raw channel bounds remain unmodified, and they identify a
-reviewed issue where day classification occurs before corrections are available.
-The companion must therefore retain raw and corrected values separately and
-must not rewrite the OSCAR-day assignment merely from this formula without an
-OSCAR cross-check.
+These are display/access-time values. The official notes say the raw session timestamps and cached raw channel bounds remain unmodified, and they identify a reviewed issue where day classification occurs before corrections are available. The companion must therefore retain raw and corrected values separately and must not rewrite the OSCAR-day assignment merely from this formula without an OSCAR cross-check.
 
 ## Protected-copy observations
 
-The schema was inspected only through SQLite 3.51.0 using a
-`mode=ro&immutable=1` URI against a file-mode `0400` copy in a directory of mode
-`0500`. Before copying, OSCAR was closed and the live database had no WAL or SHM
-sidecar. Source and copy byte counts and SHA-256 digests matched; the private
-database size and digest are not retained.
+The schema was inspected only through SQLite 3.51.0 using a `mode=ro&immutable=1` URI against a file-mode `0400` copy in a directory of mode `0500`. Before copying, OSCAR was closed and the live database had no WAL or SHM sidecar. Source and copy byte counts and SHA-256 digests matched; the private database size and digest are not retained.
 
 Sanitized validation established that:
 
 - `schema_version` contains the current value 17 as a single row;
 - all scoped columns and constraints shown above exist in the protected copy;
-- scoped profile-to-machine and machine-to-session relationships have no
-  observed orphan rows;
-- `(profile_id, machine_id)` and `(machine_id, session_id)` are unique as
-  documented;
-- observed session boundary values have Unix-millisecond magnitude, session
-  flags use 0/1, and every observed `duration` equals `end_time - start_time`;
-- some enabled, non-summary sessions nevertheless have zero or negative raw
-  duration, requiring an explicit later validity check;
-- the active profile's `user_info.timezone` and mirrored `TimeZone` preference
-  agree, and the scoped split-time preferences are present with the expected
-  type hints;
+- scoped profile-to-machine and machine-to-session relationships have no observed orphan rows;
+- `(profile_id, machine_id)` and `(machine_id, session_id)` are unique as documented;
+- observed session boundary values have Unix-millisecond magnitude, session flags use 0/1, and every observed `duration` equals `end_time - start_time`;
+- some enabled, non-summary sessions nevertheless have zero or negative raw duration, requiring an explicit later validity check;
+- the active profile's `user_info.timezone` and mirrored `TimeZone` preference agree, and the scoped split-time preferences are present with the expected type hints;
 - the legacy `ClockDrift` preference is zero or absent; and
 - `device_time_corrections` is present but currently empty.
 
-No settings, event, waveform, summary, or unrelated data row was queried.
-After inspection, OSCAR was still closed, source sidecars were still absent,
-the source and copy remained byte-identical, and no sidecar had been created
-beside the copy. The official archive, extracted notes, and disposable database
-were then removed from the temporary workspace, and that workspace's absence
-was verified.
+No settings, event, waveform, summary, or unrelated data row was queried. After inspection, OSCAR was still closed, source sidecars were still absent, the source and copy remained byte-identical, and no sidecar had been created beside the copy. The official archive, extracted notes, and disposable database were then removed from the temporary workspace, and that workspace's absence was verified.
 
 ## Implementation boundary
 
-This mapping supplies field names, units, relationships, and known caveats; it
-does not design or implement the adapter. Later work must still:
+This mapping supplies field names, units, relationships, and known caveats; it does not design or implement the adapter. Later work must still:
 
-- make the schema-17 support decision explicit and reject other versions by
-  default;
+- make the schema-17 support decision explicit and reject other versions by default;
 - validate positive session bounds rather than relying on OSCAR flags;
 - cross-check OSCAR-day and corrected-time behavior against OSCAR;
-- test the v17 correction formula and range endpoints with synthetic rows before
-  treating corrected time as authoritative; and
+- test the v17 correction formula and range endpoints with synthetic rows before treating corrected time as authoritative; and
 - keep settings, events, and waveforms in their dedicated mapping sprints.

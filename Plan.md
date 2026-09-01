@@ -7,19 +7,11 @@
 **Working name:** PAP Pilot
 **Technical identifiers:** `pap-pilot` command/slug, `pap_pilot` Python package, and `pap_pilot.sqlite3` local database
 
-This is the single authoritative plan. Part I governs current work. Part II
-preserves future distribution requirements and possibilities; it does not
-expand the personal prototype unless a later decision explicitly promotes an
-item into Part I and the sprint queue.
+This is the single authoritative plan. Part I governs current work. Part II preserves future distribution requirements and possibilities; it does not expand the personal prototype unless a later decision explicitly promotes an item into Part I and the sprint queue.
 
-Update this file in place as decisions change. Use Git history and focused
-decision records for provenance rather than creating additional versioned plan
-documents.
+Update this file in place as decisions change. Use Git history and focused decision records for provenance rather than creating additional versioned plan documents.
 
-`SPRINTS.md` is the authoritative implementation queue. This plan defines
-scope, requirements, safety boundaries, and milestone exit criteria; it does
-not track sprint identifiers, ordering, or status. `STATUS.md` records the
-current handoff state.
+`SPRINTS.md` is the authoritative implementation queue. This plan defines scope, requirements, safety boundaries, and milestone exit criteria; it does not track sprint identifiers, ordering, or status. `STATUS.md` records the current handoff state.
 
 # Part I — Personal Prototype
 
@@ -240,8 +232,7 @@ Success means that the tool reproduces the evidence transparently and reaches a 
 
 ## 10. Development sequence
 
-These milestones are outcome gates, not a task queue. The current order and
-status of the work needed to reach them lives only in `SPRINTS.md`.
+These milestones are outcome gates, not a task queue. The current order and status of the work needed to reach them lives only in `SPRINTS.md`.
 
 ### Milestone 0: Working identity and continuity
 
@@ -324,14 +315,9 @@ These decisions should be recorded as short architecture or methodology decision
 
 ## 12. Execution source of truth
 
-Use `SPRINTS.md` for the ordered work queue, sprint scope, exclusions,
-completion checks, and status. Use `STATUS.md` for the current handoff,
-validation evidence, decisions, and blockers. Update this plan only when the
-product scope, requirements, safety boundaries, architecture, or milestone
-gates change.
+Use `SPRINTS.md` for the ordered work queue, sprint scope, exclusions, completion checks, and status. Use `STATUS.md` for the current handoff, validation evidence, decisions, and blockers. Update this plan only when the product scope, requirements, safety boundaries, architecture, or milestone gates change.
 
-The deterministic retrospective evaluation must still work end to end before
-AI integration or broad UI work begins.
+The deterministic retrospective evaluation must still work end to end before AI integration or broad UI work begins.
 
 ---
 
@@ -479,10 +465,7 @@ The product must not imply that one universal ideal waveform applies to every us
 
 ### F5.10 Working identity now; external clearance later
 
-The personal prototype selects a stable working name and technical identifiers
-before scaffolding begins, as required by Part I. Final trademark, app-store,
-domain, social-handle, and legal clearance remains deferred until public
-distribution or branding is considered.
+The personal prototype selects a stable working name and technical identifiers before scaffolding begins, as required by Part I. Final trademark, app-store, domain, social-handle, and legal clearance remains deferred until public distribution or branding is considered.
 
 ---
 

@@ -1,0 +1,84 @@
+{
+  "fixture_id": "pap-pilot-minute-ventilation-upper-tail-ratio",
+  "fixture_version": 1,
+  "source_kind": "wholly_synthetic_hand_calculated_cases",
+  "metric_set_id": "pap-pilot.ps-min-objective-metrics",
+  "metric_set_version": 1,
+  "metric_id": "minute_ventilation_upper_tail_ratio",
+  "algorithm_version": 1,
+  "minimum_eligible_duration_ms": 300000,
+  "window_duration_ms": 60000,
+  "window_step_ms": 1000,
+  "minimum_observation_count": 20,
+  "quantile_method": "Hyndman-Fan type 7",
+  "cases": {
+    "exactly_twenty_type_7": {
+      "eligible_run_durations_ms": [79000, 55240, 55240, 55240, 55280],
+      "long_run_flow_blocks": [[60000, 1.0], [19000, 61.0]],
+      "hand_calculation": "The twenty overlapping windows are 1..20 L/min; Q50=(10+11)/2=10.5; Q95=19+0.05*(20-19)=19.05; ratio=19.05/10.5",
+      "expected_observation_count": 20,
+      "expected_sample_cell_count": 1975,
+      "expected_eligible_duration_ms": 300000,
+      "expected_q50_l_min": 10.5,
+      "expected_q95_l_min": 19.05,
+      "expected_ratio": 1.8142857142857143
+    },
+    "nineteen_windows": {
+      "eligible_run_durations_ms": [78000, 55520, 55520, 55520, 55440],
+      "hand_calculation": "Only the 78000 ms run admits windows: floor((78000-60000)/1000)+1=19; the four other runs are each shorter than 60000 ms",
+      "expected_observation_count": 19,
+      "expected_eligible_duration_ms": 300000,
+      "expected_reason": "too_few_ventilation_windows"
+    },
+    "one_ms_below": {
+      "requested_duration_ms": 300000,
+      "excluded_interval_ms": [299999, 300000],
+      "hand_calculation": "300000 requested ms - 1 excluded ms = 299999 eligible ms",
+      "expected_eligible_duration_ms": 299999,
+      "expected_reason": "eligible_duration_below_300000_ms"
+    },
+    "positive_flow_only": {
+      "requested_duration_ms": 300000,
+      "alternating_flow_l_min": [10.0, -10.0],
+      "hand_calculation": "Every 60000 ms window has 750 positive 40 ms cells and 750 clamped negative cells: 10*750*40/60000=5 L/min; Q50=Q95=5",
+      "expected_observation_count": 241,
+      "expected_q50_l_min": 5.0,
+      "expected_q95_l_min": 5.0,
+      "expected_ratio": 1.0
+    },
+    "partial_sample_cell": {
+      "requested_duration_ms": 300040,
+      "excluded_interval_ms": [1, 39],
+      "hand_calculation": "The long eligible run [39,300040) starts inside the first 40 ms Flow Rate cell; every complete window still integrates constant 10 L/min exactly",
+      "expected_eligible_duration_ms": 300002,
+      "expected_observation_count": 241,
+      "expected_sample_cell_count": 7501,
+      "expected_ratio": 1.0
+    },
+    "overlapping_leak_and_artifact": {
+      "requested_duration_ms": 300160,
+      "artifact_interval_ms": [40, 160],
+      "large_leak_interval_ms": [100, 200],
+      "hand_calculation": "union([40,160), [100,200)) removes 160 ms, leaving 300000 eligible ms without admitting a window across the exclusion",
+      "expected_excluded_interval_ms": [40, 200],
+      "expected_eligible_duration_ms": 300000,
+      "expected_ratio": 1.0
+    },
+    "split_sessions": {
+      "session_intervals_ms": [[0, 150000], [151000, 301000]],
+      "flow_l_min": [5.0, 15.0],
+      "hand_calculation": "Each session supplies 91 windows; Q50 lies halfway between the 91st value 5 and 92nd value 15, while Q95=15; ratio=15/10",
+      "expected_observation_count": 182,
+      "expected_q50_l_min": 10.0,
+      "expected_q95_l_min": 15.0,
+      "expected_ratio": 1.5
+    },
+    "nonpositive_median": {
+      "requested_duration_ms": 300000,
+      "flow_l_min": -10.0,
+      "hand_calculation": "All negative Flow Rate cells clamp to zero, so Q50=Q95=0 and the ratio is not calculated",
+      "expected_observation_count": 241,
+      "expected_reason": "nonpositive_ventilation_median"
+    }
+  }
+}

@@ -13,7 +13,11 @@ METRIC_SET_ID: Final = "pap-pilot.ps-min-objective-metrics"
 METRIC_SET_VERSION: Final = 1
 METRIC_ENGINE_VERSION: Final = "0.1.0"
 MEAN_MASK_PRESSURE_ABOVE_EPAP_ALGORITHM_VERSION: Final = 1
+MINUTE_VENTILATION_UPPER_TAIL_RATIO_ALGORITHM_VERSION: Final = 1
 MINIMUM_ELIGIBLE_DURATION_MS: Final = 300_000
+VENTILATION_WINDOW_DURATION_MS: Final = 60_000
+VENTILATION_WINDOW_STEP_MS: Final = 1_000
+MINIMUM_VENTILATION_OBSERVATIONS: Final = 20
 
 MetricScalar: TypeAlias = bool | int | float | str | None
 TimestampMs: TypeAlias = int | float
@@ -24,9 +28,10 @@ class MetricModelError(ValueError):
 
 
 class MetricId(StrEnum):
-    """Metric identifiers implemented in the current sprint."""
+    """Metric identifiers in metric-set version 1."""
 
     MEAN_MASK_PRESSURE_ABOVE_EPAP = "mean_mask_pressure_above_epap"
+    MINUTE_VENTILATION_UPPER_TAIL_RATIO = "minute_ventilation_upper_tail_ratio"
 
 
 class MetricStatus(StrEnum):
@@ -37,7 +42,7 @@ class MetricStatus(StrEnum):
 
 
 class MetricReason(StrEnum):
-    """Stable result reasons implemented for the first metric."""
+    """Stable result reasons for metric-set version 1."""
 
     CALCULATED = "calculated"
     SETTINGS_UNAVAILABLE = "settings_unavailable"
@@ -46,6 +51,8 @@ class MetricReason(StrEnum):
     UNSUPPORTED_SIGNAL_CONTRACT = "unsupported_signal_contract"
     QUALITY_PREREQUISITE_UNRESOLVED = "quality_prerequisite_unresolved"
     ELIGIBLE_DURATION_BELOW_300000_MS = "eligible_duration_below_300000_ms"
+    TOO_FEW_VENTILATION_WINDOWS = "too_few_ventilation_windows"
+    NONPOSITIVE_VENTILATION_MEDIAN = "nonpositive_ventilation_median"
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,6 +145,8 @@ class MetricResult:
     excluded_duration_ms: TimestampMs
     sample_cell_count: int
     limitations: tuple[str, ...]
+    measurements: tuple[MetricValue, ...] = ()
+    observation_count: int = 0
     source_class: SourceClass = SourceClass.COMPANION_DERIVED
     metric_set_id: str = METRIC_SET_ID
     metric_set_version: int = METRIC_SET_VERSION
@@ -151,7 +160,11 @@ class MetricResult:
         _positive_integer(self.algorithm_version, "metric algorithm version")
         _enum(self.status, MetricStatus, "metric status")
         _enum(self.reason_code, MetricReason, "metric reason")
-        if self.metric_id is not MetricId.MEAN_MASK_PRESSURE_ABOVE_EPAP or self.algorithm_version != MEAN_MASK_PRESSURE_ABOVE_EPAP_ALGORITHM_VERSION:
+        expected_algorithm_version = {
+            MetricId.MEAN_MASK_PRESSURE_ABOVE_EPAP: MEAN_MASK_PRESSURE_ABOVE_EPAP_ALGORITHM_VERSION,
+            MetricId.MINUTE_VENTILATION_UPPER_TAIL_RATIO: MINUTE_VENTILATION_UPPER_TAIL_RATIO_ALGORITHM_VERSION,
+        }[self.metric_id]
+        if self.algorithm_version != expected_algorithm_version:
             raise MetricModelError("The metric identity or algorithm version is unsupported.")
         if self.metric_set_id != METRIC_SET_ID or self.metric_set_version != METRIC_SET_VERSION:
             raise MetricModelError("The metric-set identity or version is unsupported.")
@@ -164,11 +177,13 @@ class MetricResult:
             raise MetricModelError("Metric results must be companion-derived.")
 
         parameters = _typed_tuple(self.parameters, MetricValue, "metric parameters")
+        measurements = _typed_tuple(self.measurements, MetricValue, "metric measurements")
         settings = _typed_tuple(self.settings, MetricSettingValue, "metric settings")
         requested = _typed_tuple(self.requested_intervals, MetricInterval, "requested metric intervals")
         eligible = _typed_tuple(self.eligible_intervals, MetricInterval, "eligible metric intervals")
         excluded = _typed_tuple(self.excluded_intervals, MetricInterval, "excluded metric intervals")
         _unique(tuple(value.name for value in parameters), "metric parameter names")
+        _unique(tuple(value.name for value in measurements), "metric measurement names")
         _unique(tuple((value.session_record_id, value.name) for value in settings), "per-session metric setting names")
         for name, values in (
             ("metric session identifiers", self.session_record_ids),
@@ -200,19 +215,45 @@ class MetricResult:
             raise MetricModelError("Eligible and excluded durations must partition the requested duration.")
         if type(self.sample_cell_count) is not int or self.sample_cell_count < 0:
             raise MetricModelError("The metric sample-cell count must be a nonnegative integer.")
+        if type(self.observation_count) is not int or self.observation_count < 0:
+            raise MetricModelError("The metric observation count must be a nonnegative integer.")
         if any(value.session_record_id not in self.session_record_ids for value in (*requested, *eligible, *excluded)):
             raise MetricModelError("Every metric interval must identify an evaluated session.")
+        if self.metric_id is MetricId.MEAN_MASK_PRESSURE_ABOVE_EPAP and (measurements or self.observation_count):
+            raise MetricModelError("The pressure metric cannot carry ventilation observations or measurements.")
         if self.status is MetricStatus.CALCULATED:
-            if self.reason_code is not MetricReason.CALCULATED or self.value is None or self.unit != "cm H₂O":
-                raise MetricModelError("A calculated pressure metric requires its calculated reason, finite value, and canonical unit.")
+            expected_unit = "cm H₂O" if self.metric_id is MetricId.MEAN_MASK_PRESSURE_ABOVE_EPAP else "1"
+            if self.reason_code is not MetricReason.CALCULATED or self.value is None or self.unit != expected_unit:
+                raise MetricModelError("A calculated metric requires its calculated reason, finite value, and canonical unit.")
             _number(self.value, "calculated metric value")
             if self.eligible_duration_ms < MINIMUM_ELIGIBLE_DURATION_MS or self.sample_cell_count == 0:
                 raise MetricModelError("A calculated metric requires the minimum eligible duration and contributing sample cells.")
             if len(settings) != len(self.session_record_ids) * 6:
                 raise MetricModelError("A calculated metric requires all six settings for every session.")
+            if self.metric_id is MetricId.MINUTE_VENTILATION_UPPER_TAIL_RATIO:
+                values = {measurement.name: measurement for measurement in measurements}
+                if self.observation_count < MINIMUM_VENTILATION_OBSERVATIONS or set(values) != {"ventilation_q50_l_min", "ventilation_q95_l_min"}:
+                    raise MetricModelError("A calculated ventilation metric requires its observation minimum and exact supporting quantiles.")
+                if any(measurement.unit != "L/min" or type(measurement.value) is not float for measurement in values.values()):
+                    raise MetricModelError("Ventilation quantiles require finite floating-point L/min values.")
+                q50 = values["ventilation_q50_l_min"].value
+                q95 = values["ventilation_q95_l_min"].value
+                assert type(q50) is float and type(q95) is float
+                if q50 <= 0 or q95 < q50 or not math.isclose(self.value, q95 / q50, rel_tol=1e-12, abs_tol=1e-12):
+                    raise MetricModelError("A calculated ventilation metric requires a positive median.")
         elif self.reason_code is MetricReason.CALCULATED or self.value is not None or self.unit is not None:
             raise MetricModelError("An insufficient metric cannot carry a calculated reason, value, or unit.")
+        elif self.reason_code is MetricReason.ELIGIBLE_DURATION_BELOW_300000_MS and self.eligible_duration_ms >= MINIMUM_ELIGIBLE_DURATION_MS:
+            raise MetricModelError("The eligible-duration reason requires duration below the exact minimum.")
+        elif self.reason_code is MetricReason.TOO_FEW_VENTILATION_WINDOWS and (self.metric_id is not MetricId.MINUTE_VENTILATION_UPPER_TAIL_RATIO or self.eligible_duration_ms < MINIMUM_ELIGIBLE_DURATION_MS or self.observation_count >= MINIMUM_VENTILATION_OBSERVATIONS):
+            raise MetricModelError("The too-few-windows reason requires sufficient duration and fewer than twenty ventilation observations.")
+        elif self.reason_code is MetricReason.NONPOSITIVE_VENTILATION_MEDIAN:
+            values = {measurement.name: measurement for measurement in measurements}
+            q50 = values.get("ventilation_q50_l_min")
+            if self.metric_id is not MetricId.MINUTE_VENTILATION_UPPER_TAIL_RATIO or self.eligible_duration_ms < MINIMUM_ELIGIBLE_DURATION_MS or self.observation_count < MINIMUM_VENTILATION_OBSERVATIONS or set(values) != {"ventilation_q50_l_min", "ventilation_q95_l_min"} or any(measurement.unit != "L/min" or type(measurement.value) is not float for measurement in values.values()) or q50 is None or q50.value > 0:
+                raise MetricModelError("The nonpositive-median reason requires sufficient ventilation observations and a nonpositive Q50.")
         object.__setattr__(self, "parameters", tuple(sorted(parameters, key=lambda value: value.name)))
+        object.__setattr__(self, "measurements", tuple(sorted(measurements, key=lambda value: value.name)))
         object.__setattr__(self, "settings", tuple(sorted(settings, key=lambda value: (value.session_record_id, value.name))))
         object.__setattr__(self, "requested_intervals", tuple(sorted(requested, key=_interval_key)))
         object.__setattr__(self, "eligible_intervals", tuple(sorted(eligible, key=_interval_key)))

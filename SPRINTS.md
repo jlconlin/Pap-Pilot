@@ -182,7 +182,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Other metrics, scoring, and classification.
 - Done when: Unit and fixture tests match hand-checked expected values and retain provenance.
 
-### S23 — Implement initial metric 2 — queued
+### S23 — Implement initial metric 2 — done
 
 - Objective: Implement and test only the second metric selected in S21, or mark this sprint unnecessary if S21 selects one metric.
 - Excludes: Other metrics, scoring, and classification.

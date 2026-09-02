@@ -2,19 +2,19 @@
 
 **Updated:** September 2, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S22 completed
-**Next sprint:** S23 — Implement `minute_ventilation_upper_tail_ratio`
+**Current sprint:** None — S23 completed
+**Next sprint:** S25 — Define experiment and event schemas
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, the initial objective-metric methodology, and the first objective metric are complete, while the second metric, experiment logic, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, the initial objective-metric methodology, and both initial objective metrics are complete, while experiment logic, web UI, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
 - Normalized provenance preserves canonical source classifications, upstream system/schema/application versions, stable source-record references, source-specific values, producer/version identity, and parent-provenance links. The model distinguishes machine-recorded, machine-labeled, OSCAR-normalized, OSCAR-derived, companion-derived, AI-generated, user-reported, and external-sensor information.
-- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S23.
+- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S25.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
@@ -40,10 +40,12 @@
 - `docs/decisions/0004-initial-objective-metrics.md` accepts `pap-pilot.ps-min-objective-metrics` version 1 with exactly two independently calculated per-night outcomes: time-averaged Mask Pressure above fixed EPAP and the 95th-percentile-to-median ratio of one-minute positive-flow ventilation.
 - Both initial metrics use explicit half-open sample cells, metric-specific quality intersections, at least 300,000 ms of eligible PAP-on evidence, deterministic provenance, and independent insufficient-evidence results. They do not use OSCAR/device summary metrics or turn absent machine events into zero.
 - Likely-wake findings remain disclosed limitations rather than exclusions for these PAP-on metrics because no validated breath detector exists and PAP flow cannot establish sleep. Breath-derived metrics and likely-wake burden remain deferred rather than receiving invented boundaries.
-- `pap_pilot.engine.metrics` implements only `mean_mask_pressure_above_epap` algorithm version 1. It calculates the duration-weighted mean of `max(mask_pressure - fixed_epap, 0)` directly from normalized 40 ms Mask Pressure cells over the exact Flow Rate/Mask Pressure/Leak intersection after required quality exclusions.
+- `pap_pilot.engine.metrics` implements both accepted version-1 metrics independently from normalized signals. `mean_mask_pressure_above_epap` calculates the duration-weighted mean of `max(mask_pressure - fixed_epap, 0)` directly from normalized 40 ms Mask Pressure cells over the exact Flow Rate/Mask Pressure/Leak intersection after required quality exclusions.
 - The pressure metric requires the complete fixed-EPAP ASV setting signature independently on every session, rejects unsupported or inconsistent settings without carrying values forward, pools eligible duration across compatible split sessions, and never bridges sessions or source EventLists.
-- Immutable metric results retain the metric-set and algorithm versions, stable status/reason, exact parameter and per-session setting snapshots, requested/eligible/excluded intervals and durations, contributing sample-cell count, quality report and finding identifiers, normalized source/provenance identifiers, limitations, and a deterministic companion-derived identity.
+- `minute_ventilation_upper_tail_ratio` integrates positive 40 ms Flow Rate cells into complete one-minute observations stepped every second, then calculates the Hyndman-Fan type-7 Q95/Q50 ratio. It requires only Flow Rate and unintentional Leak evidence, deliberately does not depend on Mask Pressure or an OSCAR/device ventilation summary, and never bridges quality exclusions, source segments, or sessions.
+- Immutable metric results retain the metric-set and algorithm versions, stable status/reason, exact parameter and per-session setting snapshots, requested/eligible/excluded intervals and durations, contributing sample-cell and observation counts, supporting Q50/Q95 measurements, quality report and finding identifiers, normalized source/provenance identifiers, limitations, and a deterministic companion-derived identity.
 - `tests/fixtures/mean-mask-pressure-above-epap-v1.json` is a wholly synthetic hand-calculated fixture covering the exact 300,000 ms boundary, a one-millisecond shortfall, partial sample-cell weighting, overlapping leak/artifact exclusions, a source-segment gap, and compatible split sessions.
+- `tests/fixtures/minute-ventilation-upper-tail-ratio-v1.json` is a wholly synthetic hand-calculated fixture covering exact 300,000 ms and twenty-observation boundaries, a one-millisecond and one-observation shortfall, positive-flow clamping, exact type-7 quantiles, partial sample cells, overlapping exclusions, source gaps, compatible split sessions, and a nonpositive median.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -74,9 +76,15 @@
 
 ## Last completed sprint
 
-S22 — Implement initial metric 1.
+S23 — Implement initial metric 2.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_ventilation_metric -v`; all sixteen focused S23 tests passed. The fixed fixture and boundary cases cover exact 300,000 ms and twenty-window admission, one-millisecond and one-window shortfalls, positive-flow clamping, one-second window steps, partial 40 ms cells, type-7 quantiles, overlapping leak/artifact exclusions, source gaps, compatible and inconsistent split sessions, stable insufficient-evidence reasons, a nonpositive median, missing likely-wake input, Mask Pressure independence, immutability, deterministic identity, and provenance.
+- Ran the thirteen existing pressure-metric tests together with the new ventilation tests; all twenty-nine metric tests passed, confirming that the shared result-model extension preserves the S22 calculation and validation contract.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests -q`; all one hundred thirty-two tests passed without resource warnings.
+- Hand calculations matched the exact twenty-observation sequence, Q50 of 10.5 L/min, Q95 of 19.05 L/min, final unitless ratio, duration partitions, partial-cell counts, and unioned exclusions. Production-scope inspection found no scoring, classification, breath detector, persistence, UI, AI, SQLite, or OSCAR adapter/database dependency in the S23 evaluator; Mask Pressure is neither a numerical nor quality prerequisite, and no OSCAR database was accessed.
+- `git diff --check` passed.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_pressure_metric tests.test_package_imports -v`; all fourteen focused metric/package tests passed.
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all one hundred sixteen tests passed without resource warnings. The thirteen pressure-metric tests cover the accepted fixture metadata, formula and below-EPAP clamp, exact minimum duration, one millisecond below it, partial-cell weighting, overlapping leak/artifact unions, source gaps, compatible and inconsistent split sessions, settings/signal/contract reasons, unresolved artifact input, unresolved common coverage, missing likely-wake prerequisites, deterministic identity, immutability, and provenance.
@@ -189,6 +197,8 @@ S22 — Implement initial metric 1.
 - Metric set `pap-pilot.ps-min-objective-metrics` version 1 contains exactly `mean_mask_pressure_above_epap` and `minute_ventilation_upper_tail_ratio`, both calculated once per normalized night from PAP Pilot's mapped waveforms rather than OSCAR/device summaries.
 - `mean_mask_pressure_above_epap` is the duration-weighted mean of `max(mask_pressure - fixed_epap, 0)` over synchronized Flow Rate/Mask Pressure/Leak evidence after version-1 quality exclusions. `minute_ventilation_upper_tail_ratio` is the type-7 Q95/Q50 ratio of independently integrated positive Flow Rate in complete one-minute windows stepped every second.
 - The S22 evaluator generates the canonical structural and signal-quality reports for the requested normalized night, consults and retains every resulting finding, and applies only the missing-signal, alignment, large-leak, and Flow Rate/Mask Pressure artifact exclusions named by metric-set version 1. Short/split-session cautions and missing likely-wake prerequisites remain visible but do not censor the pressure metric.
+- The S23 evaluator requests structural coverage only for Flow Rate and Leak, evaluates large leak and Flow Rate artifacts directly, retains likely-wake findings without using them as exclusions, and does not call the combined pressure-aware signal-quality path. This keeps Mask Pressure entirely outside the second metric's numerical and quality dependencies.
+- Minute-ventilation observations are anchored independently within each maximal eligible run: the first complete window ends 60,000 ms after the run begins, later windows end every 1,000 ms, and no window crosses an exclusion, source EventList, or session boundary. Q50 and Q95 use the exact type-7 rule, remain visible in L/min, and a finite strictly positive median is required before division.
 - Metric intervals always retain their session identity; eligible intervals additionally retain the exact Flow Rate, Mask Pressure, and Leak segment identifiers. A Mask Pressure sample cell may contribute more than one partial piece after exclusion, but its observation count remains one unique cell.
 - Each metric requires at least 300,000 ms of eligible evidence. This is a metric calculation boundary, not a universal valid-night, adherence, or experiment sample-size rule; S29 still owns meaningful-change thresholds, weights, and classifications.
 - Version 1 deliberately does not select machine AHI/event rate, OSCAR/device ventilation summaries, likely-wake burden, or a breath-derived metric. S24 is closed as unnecessary because S21 selected two metrics; S22 and S23 own their implementations independently.
@@ -288,8 +298,8 @@ S22 — Implement initial metric 1.
 
 ## Blockers
 
-- No blocker prevents starting S23.
-- S22 implements only `mean_mask_pressure_above_epap`; `minute_ventilation_upper_tail_ratio` remains wholly unimplemented for S23.
+- No blocker prevents starting S25.
+- Both version-1 objective metrics are implemented and tested independently from normalized waveform evidence. S25 is the next queued sprint because S24 was previously closed as unnecessary.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -303,5 +313,5 @@ S22 — Implement initial metric 1.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, STATUS.md, and `docs/decisions/0004-initial-objective-metrics.md`. Complete only S23. Implement `minute_ventilation_upper_tail_ratio` exactly as metric-set version 1 defines it, including one-minute positive-flow integration, 1,000 ms steps, type-7 Q50/Q95 quantiles, quality intersections/exclusions, minimum duration and observation boundaries, metric-specific insufficient-evidence reasons, deterministic companion-derived provenance, and hand-calculated fixed fixtures. Do not change `mean_mask_pressure_above_epap`, add a breath detector, choose outcome weights or classification thresholds, add persistence, build UI, or add AI. Keep OSCAR/device summaries as comparison evidence only. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S25. Define versioned experiment records and the minimum append-only event types required by the governing plan. Add tests for valid creation, correction by reference, and rejection of destructive replacement. Do not implement persistence, prospective safety rules, night allocation, metrics, classification, UI, or AI. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

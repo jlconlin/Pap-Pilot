@@ -2,19 +2,19 @@
 
 **Updated:** September 2, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S23 completed
-**Next sprint:** S25 — Define experiment and event schemas
+**Current sprint:** None — S25 completed
+**Next sprint:** S26 — Implement the append-only experiment store
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, the initial objective-metric methodology, and both initial objective metrics are complete, while experiment logic, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, and the version-1 experiment/event schemas are complete, while experiment persistence/replay, allocation, classification, web UI, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
 - Normalized provenance preserves canonical source classifications, upstream system/schema/application versions, stable source-record references, source-specific values, producer/version identity, and parent-provenance links. The model distinguishes machine-recorded, machine-labeled, OSCAR-normalized, OSCAR-derived, companion-derived, AI-generated, user-reported, and external-sensor information.
-- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S25.
+- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S26.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
@@ -46,6 +46,9 @@
 - Immutable metric results retain the metric-set and algorithm versions, stable status/reason, exact parameter and per-session setting snapshots, requested/eligible/excluded intervals and durations, contributing sample-cell and observation counts, supporting Q50/Q95 measurements, quality report and finding identifiers, normalized source/provenance identifiers, limitations, and a deterministic companion-derived identity.
 - `tests/fixtures/mean-mask-pressure-above-epap-v1.json` is a wholly synthetic hand-calculated fixture covering the exact 300,000 ms boundary, a one-millisecond shortfall, partial sample-cell weighting, overlapping leak/artifact exclusions, a source-segment gap, and compatible split sessions.
 - `tests/fixtures/minute-ventilation-upper-tail-ratio-v1.json` is a wholly synthetic hand-calculated fixture covering exact 300,000 ms and twenty-observation boundaries, a one-millisecond and one-observation shortfall, positive-flow clamping, exact type-7 quantiles, partial sample cells, overlapping exclusions, source gaps, compatible split sessions, and a nonpositive median.
+- `pap_pilot.engine.experiments` defines immutable version-1 experiment identities, exact setting values and one-variable changes, evidence-linked representative intervals, complete structural proposals, typed event payloads, and append-only history validation without importing storage, OSCAR, UI, safety-policy, allocation, classification, or AI execution code.
+- The proposal schema carries the problem/hypothesis event links, baseline local dates and exact settings, one proposed setting change, settings held fixed, evidence and waveform intervals, expected objective and subjective effects, minimum valid nights, invalid-night criteria, possible adverse effects, and explicit stop/revert conditions. Actual application, journal content, and evaluations remain additive referenced events rather than mutable fields.
+- The version-1 event vocabulary contains exactly the plan's sixteen minimum types. Every event has a stable experiment identity, contiguous sequence number, timestamp, actor, typed payload, source class, source/provenance links, and independent schema/record versions; correction events retain the event type and reference an earlier event, while identifier or sequence reuse is rejected as destructive replacement.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -76,9 +79,13 @@
 
 ## Last completed sprint
 
-S23 — Implement initial metric 2.
+S25 — Define experiment and event schemas.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_experiment_model tests.test_package_imports -v`; all sixteen focused schema/package tests passed. They cover explicit versions, complete proposal creation, the exact sixteen-event vocabulary, every event-to-payload contract, backward reference integrity, additive same-type correction by prior-event reference, rejection of destructive identifier/sequence reuse, cross-experiment and noncontiguous histories, extension-date constraints, structural single-variable changes, invalid/incomplete proposals, finite values, evidence linkage, and deep immutability.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests -q`; all one hundred forty-seven tests passed without resource warnings.
+- `git diff --check` and Python compilation passed. Production-scope inspection confirmed that the experiment package imports no SQLite, OSCAR adapter, persistence, UI, safety-policy, night-allocation, metric-classification, replay-state, or AI execution implementation; no OSCAR database was accessed.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_ventilation_metric -v`; all sixteen focused S23 tests passed. The fixed fixture and boundary cases cover exact 300,000 ms and twenty-window admission, one-millisecond and one-window shortfalls, positive-flow clamping, one-second window steps, partial 40 ms cells, type-7 quantiles, overlapping leak/artifact exclusions, source gaps, compatible and inconsistent split sessions, stable insufficient-evidence reasons, a nonpositive median, missing likely-wake input, Mask Pressure independence, immutability, deterministic identity, and provenance.
 - Ran the thirteen existing pressure-metric tests together with the new ventilation tests; all twenty-nine metric tests passed, confirming that the shared result-model extension preserves the S22 calculation and validation contract.
@@ -194,6 +201,10 @@ S23 — Implement initial metric 2.
 - “Pilot” is a mascot and guidance metaphor only; it does not imply autonomous device control or relax any safety boundary.
 - Final branding, external name clearance, trademark review, domains, and app-store availability remain deferred.
 - A sprint is not complete until its completion check passes, its in-scope changes are committed, and the working tree is clean.
+- The S25 experiment record is stable identity and creation metadata; changing experiment facts live only in its separate append-only event history. S26 will decide physical SQLite persistence and reconstruct state from those records without changing their version-1 domain meaning.
+- A structurally complete proposal is a typed payload rather than an unvalidated dictionary. It expresses the entire plan-level experiment design and exactly one changed setting, but it applies no allowed-setting, range, clinical eligibility, prospective stop, or reversion policy; S38–S40 retain those decisions and behaviors.
+- Event sequence is explicit and contiguous within an experiment. Corrections append a new event of the same type and point to an earlier event in that history; the prior event remains present, and reusing an existing sequence or identifier is a destructive replacement error.
+- S25 defines only a sleep-journal event reference and an evaluation event reference. S28 still owns journal fields/scales and S29 still owns classifications, outcome weights, and next-action rules; the schema does not preempt either decision.
 - Metric set `pap-pilot.ps-min-objective-metrics` version 1 contains exactly `mean_mask_pressure_above_epap` and `minute_ventilation_upper_tail_ratio`, both calculated once per normalized night from PAP Pilot's mapped waveforms rather than OSCAR/device summaries.
 - `mean_mask_pressure_above_epap` is the duration-weighted mean of `max(mask_pressure - fixed_epap, 0)` over synchronized Flow Rate/Mask Pressure/Leak evidence after version-1 quality exclusions. `minute_ventilation_upper_tail_ratio` is the type-7 Q95/Q50 ratio of independently integrated positive Flow Rate in complete one-minute windows stepped every second.
 - The S22 evaluator generates the canonical structural and signal-quality reports for the requested normalized night, consults and retains every resulting finding, and applies only the missing-signal, alignment, large-leak, and Flow Rate/Mask Pressure artifact exclusions named by metric-set version 1. Short/split-session cautions and missing likely-wake prerequisites remain visible but do not censor the pressure metric.
@@ -298,8 +309,8 @@ S23 — Implement initial metric 2.
 
 ## Blockers
 
-- No blocker prevents starting S25.
-- Both version-1 objective metrics are implemented and tested independently from normalized waveform evidence. S25 is the next queued sprint because S24 was previously closed as unnecessary.
+- No blocker prevents starting S26.
+- S25 defines the version-1 experiment/event domain contract and validates in-memory append semantics only. It creates no database, persistence adapter, replayed experiment state, update/delete API, or OSCAR dependency; those boundaries remain intact for S26.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -313,5 +324,5 @@ S23 — Implement initial metric 2.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S25. Define versioned experiment records and the minimum append-only event types required by the governing plan. Add tests for valid creation, correction by reference, and rejection of destructive replacement. Do not implement persistence, prospective safety rules, night allocation, metrics, classification, UI, or AI. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S26. Persist and replay the S25 experiment/event records in a local SQLite store. Prove that replay reconstructs state, corrections preserve the complete history, and destructive mutation is unavailable. Do not write to OSCAR, build UI or synchronization, add event editing/deletion, allocate baseline/intervention nights, define journal contents or classifications, or implement prospective lifecycle/safety behavior. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

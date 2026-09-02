@@ -194,7 +194,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Other metrics, scoring, and classification.
 - Done when: The accepted S21 methodology selects fewer than three metrics and records why no third metric belongs in the initial set.
 
-### S25 — Define experiment and event schemas — queued
+### S25 — Define experiment and event schemas — done
 
 - Objective: Define versioned experiment records and the minimum append-only event types from the governing plan.
 - Excludes: Persistence implementation and prospective safety rules.

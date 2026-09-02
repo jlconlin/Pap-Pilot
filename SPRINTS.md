@@ -170,7 +170,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 
 ## 3 — Retrospective experiment engine
 
-### S21 — Choose the initial objective metrics — queued
+### S21 — Choose the initial objective metrics — done
 
 - Objective: Select the smallest metrics needed for the PS Min experiment and define formulas, units, exclusions, and limitations.
 - Excludes: Metric implementation and outcome weighting.
@@ -188,11 +188,11 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Other metrics, scoring, and classification.
 - Done when: Unit and fixture tests match hand-checked expected values and retain provenance.
 
-### S24 — Implement initial metric 3 — queued
+### S24 — Implement initial metric 3 — done
 
-- Objective: Implement and test only the third metric selected in S21, or mark this sprint unnecessary if S21 selects fewer than three.
+- Objective: Closed as unnecessary because S21 selected exactly two initial metrics.
 - Excludes: Other metrics, scoring, and classification.
-- Done when: Unit and fixture tests match hand-checked expected values and retain provenance.
+- Done when: The accepted S21 methodology selects fewer than three metrics and records why no third metric belongs in the initial set.
 
 ### S25 — Define experiment and event schemas — queued
 

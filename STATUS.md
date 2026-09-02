@@ -2,19 +2,19 @@
 
 **Updated:** September 2, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S20 completed
-**Next sprint:** S21 — Choose the initial objective metrics
+**Current sprint:** None — S21 completed
+**Next sprint:** S22 — Implement `mean_mask_pressure_above_epap`
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, and all version-1 quality rules are complete, while metrics, experiment logic, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, and the initial objective-metric methodology are complete, while metric implementation, experiment logic, web UI, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
 - Normalized provenance preserves canonical source classifications, upstream system/schema/application versions, stable source-record references, source-specific values, producer/version identity, and parent-provenance links. The model distinguishes machine-recorded, machine-labeled, OSCAR-normalized, OSCAR-derived, companion-derived, AI-generated, user-reported, and external-sensor information.
-- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S20.
+- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S22.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
@@ -37,6 +37,9 @@
 - Artifact analysis evaluates only continuous 40 ms Flow Rate and Mask Pressure segments. It reconstructs signed raw counts from source gain/offset for digital endpoint clipping and applies the accepted signal-specific isolated-impulse thresholds without crossing segment boundaries or labeling flat flow as artifact.
 - Likely-wake analysis requires an explicit immutable `ValidatedBreathSeries` with detector identity/version and source links. It evaluates five-breath population-CV windows only in continuous prerequisite-clean runs, suppresses source respiratory events and the following three breaths, requires three consecutive irregular windows, and labels a candidate only as a caution—not confirmed wake or sleep stage.
 - `tests/fixtures/signal-quality-v1.json` is a wholly synthetic fixed fixture covering threshold- and event-derived leak, Flow Rate impulse, Mask Pressure clipping, and a seven-breath irregularity candidate with frozen expected intervals.
+- `docs/decisions/0004-initial-objective-metrics.md` accepts `pap-pilot.ps-min-objective-metrics` version 1 with exactly two independently calculated per-night outcomes: time-averaged Mask Pressure above fixed EPAP and the 95th-percentile-to-median ratio of one-minute positive-flow ventilation.
+- Both initial metrics use explicit half-open sample cells, metric-specific quality intersections, at least 300,000 ms of eligible PAP-on evidence, deterministic provenance, and independent insufficient-evidence results. They do not use OSCAR/device summary metrics or turn absent machine events into zero.
+- Likely-wake findings remain disclosed limitations rather than exclusions for these PAP-on metrics because no validated breath detector exists and PAP flow cannot establish sleep. Breath-derived metrics and likely-wake burden remain deferred rather than receiving invented boundaries.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -67,9 +70,14 @@
 
 ## Last completed sprint
 
-S20 — Implement signal quality flags.
+S21 — Choose the initial objective metrics.
 
 ## Validation performed
+
+- Ran a focused S21 documentation check against `docs/decisions/0004-initial-objective-metrics.md`; it confirmed the accepted metric-set identifier/version, exactly two named metrics, complete formulas and units, explicit input/quality/exclusion contracts, deterministic provenance, limitations, insufficient-evidence reasons, and resolvable local references.
+- Reviewed the metric rationale against the ResMed ASV algorithm descriptions and the cited primary ASV studies. The decision defines a within-user engineering comparison and deliberately assigns no clinical normal range, favorable direction, outcome weight, causal claim, or classification threshold.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover -s tests`; all one hundred three tests passed without resource warnings.
+- `git diff --check` passed. Scope inspection confirmed that S21 changes only the methodology decision and governing/tracking/handoff documents; it adds no metric implementation, outcome weighting, classification, persistence, UI, AI, or OSCAR access.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_signal_quality -v`; all twenty-four focused tests passed. The fixed fixture and boundary cases cover inclusive leak/artifact/CV thresholds, sparse final-point behavior, clipped and zero-overlap machine events, missing/unsupported/gapped Leak, both signed clipping endpoints, exact artifact intervals, missing gain/offset, non-40 ms and short segments, no cross-segment impulse, regular breathing, missing/short breath input, respiratory-event recovery suppression, prerequisite intervals, immutable detector input, fixed reason codes, deterministic report identity, rule-set version, and dependency order.
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover -s tests -v`; all one hundred three tests passed without resource warnings.
@@ -169,7 +177,10 @@ S20 — Implement signal quality flags.
 - “Pilot” is a mascot and guidance metaphor only; it does not imply autonomous device control or relax any safety boundary.
 - Final branding, external name clearance, trademark review, domains, and app-store availability remain deferred.
 - A sprint is not complete until its completion check passes, its in-scope changes are committed, and the working tree is clean.
-- Metric-implementation sprints S22–S24 are placeholders until S21 selects the actual initial metric set.
+- Metric set `pap-pilot.ps-min-objective-metrics` version 1 contains exactly `mean_mask_pressure_above_epap` and `minute_ventilation_upper_tail_ratio`, both calculated once per normalized night from PAP Pilot's mapped waveforms rather than OSCAR/device summaries.
+- `mean_mask_pressure_above_epap` is the duration-weighted mean of `max(mask_pressure - fixed_epap, 0)` over synchronized Flow Rate/Mask Pressure/Leak evidence after version-1 quality exclusions. `minute_ventilation_upper_tail_ratio` is the type-7 Q95/Q50 ratio of independently integrated positive Flow Rate in complete one-minute windows stepped every second.
+- Each metric requires at least 300,000 ms of eligible evidence. This is a metric calculation boundary, not a universal valid-night, adherence, or experiment sample-size rule; S29 still owns meaningful-change thresholds, weights, and classifications.
+- Version 1 deliberately does not select machine AHI/event rate, OSCAR/device ventilation summaries, likely-wake burden, or a breath-derived metric. S24 is closed as unnecessary because S21 selected two metrics; S22 and S23 own their implementations independently.
 - Private OSCAR/PAP data and local application databases must remain outside version control; later retained fixtures must follow their sprint's explicit de-identification and validation requirements.
 - Reference night v1 is a wholly synthetic schema-17 surrogate rather than pseudonymized private data. Its source rows are assembled temporarily by `SessionSummaryTests._create_reference_night_v1_database`, and its retained expected-output contract combines readable structure with an exact canonical byte length and SHA-256 digest.
 - A future intentional source, mapping, normalized-format, or expected-output change must receive explicit review and a new reference-fixture version; the version-1 expectation is not silently re-blessed.
@@ -266,12 +277,12 @@ S20 — Implement signal quality flags.
 
 ## Blockers
 
-- No blocker prevents starting S21.
+- No blocker prevents starting S22.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
 - Normalized record version 1 still does not carry a verified device-time-correction collection or corrected timeline. S19 provides a bounded explicit evidence input and returns `correction_input_missing` for corrected wall-clock requests when it is absent; a future version-gated adapter task must map schema-17 correction rows before corrected time can become authoritative.
-- No validated breath detector is implemented yet. S20 accepts explicitly versioned detector output and otherwise returns `wake_prerequisite_missing`; S21 must account for this dependency when selecting initial metrics, and any needed detector implementation remains bounded future work rather than an implicit part of quality evaluation.
+- No validated breath detector is implemented yet. S20 accepts explicitly versioned detector output and otherwise returns `wake_prerequisite_missing`; neither selected initial metric invents or requires breath boundaries, and future breath-derived or sleep-stratified metrics remain bounded future work.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans remain handled explicitly by S12 extraction; reference-night count agreement does not redefine those raw provenance rules.
 - S13–S14C preserve waveform gaps/missing lists and treat `compressed_size` only as validated provenance. Flow Rate, Mask Pressure, and Leak display relationships are cross-checked, and the scoped Leak subtype is resolved as unintentional/excess.
@@ -280,5 +291,5 @@ S20 — Implement signal quality flags.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, STATUS.md, and `docs/decisions/0003-initial-quality-flags.md`. Complete only S21. Select the smallest objective metric set needed for the PS Min retrospective experiment and record a methodology decision defining each metric's formula, units, required inputs, applicable quality exclusions, provenance, limitations, and insufficient-evidence behavior. Do not implement metrics, choose outcome weights or classification thresholds, add persistence, build UI, or add AI. Treat OSCAR summaries and machine labels as comparison/reference inputs rather than PAP Pilot's calculated outcomes, and explicitly account for any unavailable prerequisite such as validated breath boundaries. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, STATUS.md, and `docs/decisions/0004-initial-objective-metrics.md`. Complete only S22. Implement `mean_mask_pressure_above_epap` exactly as metric-set version 1 defines it, including the per-night fixed-EPAP setting contract, left-constant sample-cell weighting, quality intersections/exclusions, metric-specific insufficient-evidence reasons, deterministic companion-derived provenance, and hand-calculated fixed fixtures. Do not implement `minute_ventilation_upper_tail_ratio`, add a breath detector, choose outcome weights or classification thresholds, add persistence, build UI, or add AI. Keep OSCAR/device summaries as comparison evidence only. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

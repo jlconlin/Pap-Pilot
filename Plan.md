@@ -149,6 +149,8 @@ The prototype must include:
 
 The initial metric set should remain deliberately small. A metric is added only when it supports a defined hypothesis or experiment decision.
 
+For the PS Min retrospective experiment, metric-set version 1 contains exactly two companion-derived objective outcomes: time-averaged Mask Pressure above fixed EPAP and an upper-tail-to-median ratio of independently calculated one-minute inspiratory ventilation. `docs/decisions/0004-initial-objective-metrics.md` governs their formulas, units, input and quality contracts, provenance, limitations, and insufficient-evidence behavior. OSCAR/device summary metrics and machine event rates remain reference evidence rather than PAP Pilot outcomes.
+
 ---
 
 ## 7. Experiment and safety model
@@ -301,7 +303,6 @@ These milestones are outcome gates, not a task queue. The current order and stat
 
 - Exact OSCAR 2.0.1 schema subset and read contract.
 - Internal serialization and local database schema.
-- Initial objective metrics and their definitions.
 - Valid-night criteria and minimum baseline/intervention duration.
 - Exact structured morning journal fields and scales, optional-text prompts, and required confounders.
 - Initial settings recommendation allowlist, change bounds, and exclusions.

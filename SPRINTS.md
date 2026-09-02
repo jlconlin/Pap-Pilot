@@ -176,7 +176,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Metric implementation and outcome weighting.
 - Done when: A methodology decision record names and fully defines each initial metric.
 
-### S22 — Implement initial metric 1 — queued
+### S22 — Implement initial metric 1 — done
 
 - Objective: Implement and test only the first metric selected in S21.
 - Excludes: Other metrics, scoring, and classification.

@@ -12,6 +12,7 @@ class PackageImportTests(unittest.TestCase):
             "pap_pilot",
             "pap_pilot.adapter",
             "pap_pilot.engine",
+            "pap_pilot.engine.metrics",
             "pap_pilot.engine.model",
             "pap_pilot.engine.quality",
         ):

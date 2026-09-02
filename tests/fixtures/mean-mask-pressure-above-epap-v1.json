@@ -1,0 +1,64 @@
+{
+  "fixture_id": "pap-pilot-mean-mask-pressure-above-epap",
+  "fixture_version": 1,
+  "source_kind": "wholly_synthetic_hand_calculated_cases",
+  "metric_set_id": "pap-pilot.ps-min-objective-metrics",
+  "metric_set_version": 1,
+  "metric_id": "mean_mask_pressure_above_epap",
+  "algorithm_version": 1,
+  "minimum_eligible_duration_ms": 300000,
+  "cases": {
+    "exact_minimum": {
+      "session_duration_ms": 300000,
+      "epap_cm_h2o": 10.0,
+      "pressure_blocks": [[100000, 10.0], [100000, 12.0], [100000, 8.0]],
+      "hand_calculation": "(0*100000 + 2*100000 + 0*100000) / 300000",
+      "expected_eligible_duration_ms": 300000,
+      "expected_sample_cell_count": 7500,
+      "expected_value_cm_h2o": 0.6666666666666666
+    },
+    "one_ms_below": {
+      "session_duration_ms": 300000,
+      "excluded_interval_ms": [299999, 300000],
+      "hand_calculation": "300000 requested ms - 1 excluded ms",
+      "expected_eligible_duration_ms": 299999,
+      "expected_reason": "eligible_duration_below_300000_ms"
+    },
+    "partial_sample_cell": {
+      "session_duration_ms": 300040,
+      "excluded_interval_ms": [1, 39],
+      "first_cell_pressure_cm_h2o": 14.0,
+      "remaining_pressure_cm_h2o": 12.0,
+      "epap_cm_h2o": 10.0,
+      "hand_calculation": "(4*2 + 2*300000) / 300002",
+      "expected_eligible_duration_ms": 300002,
+      "expected_sample_cell_count": 7501,
+      "expected_value_cm_h2o": 2.000013333244445
+    },
+    "overlapping_leak_and_artifact": {
+      "session_duration_ms": 300120,
+      "artifact_interval_ms": [80, 200],
+      "large_leak_interval_ms": [100, 180],
+      "hand_calculation": "union([80,200), [100,180)) removes 120 ms; all retained pressure excursion is 2",
+      "expected_excluded_interval_ms": [80, 200],
+      "expected_eligible_duration_ms": 300000,
+      "expected_sample_cell_count": 7500,
+      "expected_value_cm_h2o": 2.0
+    },
+    "segment_gap": {
+      "session_duration_ms": 300080,
+      "segment_intervals_ms": [[0, 150000], [150080, 300080]],
+      "hand_calculation": "150000 + 150000 eligible ms; the 80 ms source gap is not bridged",
+      "expected_eligible_duration_ms": 300000,
+      "expected_excluded_interval_ms": [150000, 150080],
+      "expected_value_cm_h2o": 2.0
+    },
+    "split_sessions": {
+      "session_intervals_ms": [[0, 150000], [151000, 301000]],
+      "pressure_excursions_cm_h2o": [1.0, 3.0],
+      "hand_calculation": "(1*150000 + 3*150000) / 300000; the 1000 ms inter-session gap is outside both requested scopes",
+      "expected_eligible_duration_ms": 300000,
+      "expected_value_cm_h2o": 2.0
+    }
+  }
+}

@@ -144,7 +144,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: New OSCAR queries and derived metrics.
 - Done when: A test produces stable normalized output from the disposable reference input.
 
-### S17 — Freeze the first reference fixture — queued
+### S17 — Freeze the first reference fixture — done
 
 - Objective: Create a de-identified/fixed reference-night fixture with expected outputs and documented origin.
 - Excludes: Additional nights and metric expectations.

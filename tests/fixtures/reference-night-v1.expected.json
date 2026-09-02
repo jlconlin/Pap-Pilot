@@ -1,0 +1,69 @@
+{
+  "fixture_id": "pap-pilot-reference-night",
+  "fixture_version": 1,
+  "source_kind": "wholly_synthetic_schema_17_surrogate",
+  "normalized_format_version": 1,
+  "normalized_record_version": 1,
+  "expected_canonical_bytes": 72276,
+  "expected_canonical_sha256": "40245a9dbea450f070b8fe4e56e42fb78951e1cf1c74e50a516fcf37f1bc17fd",
+  "expected_output": {
+    "record_id": "night:oscar:v17:profile-db:1:2027-01-14",
+    "local_date": "2027-01-14",
+    "timezone": "America/Denver",
+    "day_boundary_local_time": "12:00:00",
+    "session_count": 1,
+    "session_record_id": "session:oscar:v17:profile-db:1:machine-db:10:machine-source:42:session-db:100:session-source:7001",
+    "settings": [
+      "epap",
+      "max_ipap",
+      "therapy_mode_code",
+      "ps_max",
+      "ps_min",
+      "loader_mode_code"
+    ],
+    "events": [
+      "obstructive_apnea",
+      "clear_airway_apnea",
+      "unclassified_apnea",
+      "hypopnea",
+      "rera",
+      "hypopnea",
+      "large_leak"
+    ],
+    "signals": [
+      {
+        "signal_kind": "flow_rate",
+        "representation": "uniform_waveform",
+        "unit": "L/min",
+        "value_semantics": null,
+        "segment_count": 2,
+        "sample_counts": [
+          3,
+          2
+        ]
+      },
+      {
+        "signal_kind": "leak_rate",
+        "representation": "timed_updates",
+        "unit": "L/min",
+        "value_semantics": "unintentional",
+        "segment_count": 2,
+        "sample_counts": [
+          3,
+          2
+        ]
+      },
+      {
+        "signal_kind": "mask_pressure",
+        "representation": "uniform_waveform",
+        "unit": "cm H₂O",
+        "value_semantics": null,
+        "segment_count": 2,
+        "sample_counts": [
+          3,
+          2
+        ]
+      }
+    ]
+  }
+}

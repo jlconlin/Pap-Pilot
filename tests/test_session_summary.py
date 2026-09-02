@@ -2,6 +2,7 @@
 
 from contextlib import closing
 from dataclasses import replace
+import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -63,6 +64,11 @@ from pap_pilot.engine import (
 )
 
 
+REFERENCE_NIGHT_V1_EXPECTATION = (
+    Path(__file__).parent / "fixtures" / "reference-night-v1.expected.json"
+)
+
+
 class SessionSummaryTests(unittest.TestCase):
     """Use only a minimal synthetic schema-17 database fixture."""
 
@@ -70,9 +76,9 @@ class SessionSummaryTests(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary_directory.cleanup)
         self.database_path = Path(self.temporary_directory.name) / "oscar.db"
-        self._create_database()
+        self._create_reference_night_v1_database()
 
-    def _create_database(self) -> None:
+    def _create_reference_night_v1_database(self) -> None:
         with closing(sqlite3.connect(self.database_path)) as connection:
             connection.executescript(
                 """
@@ -1313,6 +1319,62 @@ class SessionSummaryTests(unittest.TestCase):
         self.assertEqual(
             signals["leak_rate"].segments[0].interval_closure,
             IntervalClosure.START_AND_END_INCLUSIVE,
+        )
+        self.assertEqual(self.database_path.read_bytes(), original_database)
+
+    def test_reference_night_v1_matches_frozen_expected_output(self) -> None:
+        original_database = self.database_path.read_bytes()
+        summary = extract_session_summary(self.database_path, 100)
+        events = extract_session_events(self.database_path, 100)
+        flow = extract_flow_rate_signal(self.database_path, 100)
+        mask_pressure = extract_mask_pressure_signal(self.database_path, 100)
+        leak = extract_leak_signal(self.database_path, 100)
+
+        night = normalize_oscar_session(summary, events, flow, mask_pressure, leak)
+        canonical_output = serialize_normalized_record(night).encode("utf-8")
+        expectation = json.loads(REFERENCE_NIGHT_V1_EXPECTATION.read_text(encoding="utf-8"))
+        session = night.sessions[0]
+        actual_output = {
+            "record_id": night.record_id,
+            "local_date": night.local_date,
+            "timezone": night.timezone,
+            "day_boundary_local_time": night.day_boundary_local_time,
+            "session_count": len(night.sessions),
+            "session_record_id": session.record_id,
+            "settings": [setting.name for setting in session.settings],
+            "events": [event.event_kind for event in session.events],
+            "signals": [
+                {
+                    "signal_kind": signal.signal_kind,
+                    "representation": signal.representation.value,
+                    "unit": signal.unit,
+                    "value_semantics": signal.value_semantics,
+                    "segment_count": len(signal.segments),
+                    "sample_counts": [len(segment.values) for segment in signal.segments],
+                }
+                for signal in session.signals
+            ],
+        }
+
+        self.assertEqual(expectation["fixture_id"], "pap-pilot-reference-night")
+        self.assertEqual(expectation["fixture_version"], 1)
+        self.assertEqual(expectation["source_kind"], "wholly_synthetic_schema_17_surrogate")
+        self.assertEqual(expectation["normalized_format_version"], 1)
+        self.assertEqual(expectation["normalized_record_version"], night.record_version)
+        self.assertEqual(actual_output, expectation["expected_output"])
+        self.assertEqual(len(canonical_output), expectation["expected_canonical_bytes"])
+        self.assertEqual(
+            hashlib.sha256(canonical_output).hexdigest(),
+            expectation["expected_canonical_sha256"],
+        )
+
+        original_date = b'"local_date":"2027-01-14"'
+        changed_date = b'"local_date":"2027-01-15"'
+        self.assertIn(original_date, canonical_output)
+        intentionally_changed = canonical_output.replace(original_date, changed_date, 1)
+        self.assertNotEqual(
+            hashlib.sha256(intentionally_changed).hexdigest(),
+            expectation["expected_canonical_sha256"],
         )
         self.assertEqual(self.database_path.read_bytes(), original_database)
 

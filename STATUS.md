@@ -2,19 +2,19 @@
 
 **Updated:** September 2, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S17 completed
-**Next sprint:** S18 — Define initial quality flags
+**Current sprint:** None — S18 completed
+**Next sprint:** S19 — Implement structural quality flags
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, and the first fixed reference fixture are implemented, while quality rules, metrics, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, the first fixed reference fixture, and the initial quality methodology are complete, while quality-rule implementation, metrics, web UI, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
 - Normalized provenance preserves canonical source classifications, upstream system/schema/application versions, stable source-record references, source-specific values, producer/version identity, and parent-provenance links. The model distinguishes machine-recorded, machine-labeled, OSCAR-normalized, OSCAR-derived, companion-derived, AI-generated, user-reported, and external-sensor information.
-- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S18.
+- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S19.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
@@ -27,6 +27,7 @@
 - The mapper assigns the local therapy date from the raw session start, profile timezone, and configured day boundary. It canonicalizes OSCAR's valid local-time text for the normalized field while retaining the exact raw preference in provenance; it does not apply device-time corrections or group multiple sessions.
 - Reference night v1 freezes the existing wholly synthetic schema-17 one-session database scenario and its expected normalized structure, canonical byte length, and SHA-256 digest. It contains no row or value derived from the user's OSCAR data and defines no metric or quality expectation.
 - `docs/fixtures/reference-night-v1.md` records the fixture's origin, privacy boundary, purpose, and immutable versioning rule; `tests/fixtures/reference-night-v1.expected.json` holds its versioned expectation.
+- `docs/decisions/0003-initial-quality-flags.md` defines accepted `pap-pilot.quality` rule set version 1, including independent evidence-bearing findings, fixed status/impact vocabularies, stable reason codes, rule inputs and parameters, dependency ordering, and conservative `insufficient_evidence` propagation.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -57,9 +58,15 @@
 
 ## Last completed sprint
 
-S17 — Freeze the first reference fixture.
+S18 — Define initial quality flags.
 
 ## Validation performed
+
+- Ran a focused documentation completion check against `docs/decisions/0003-initial-quality-flags.md`; it confirmed accepted/versioned metadata, all required quality domains, the input/output contract, explicit `insufficient_evidence` behavior, and the experiment sample-size exclusion.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all fifty-eight tests passed without resource warnings.
+- Manual scope review confirmed that S18 defines missing-signal/coverage and flow-pressure-alignment behavior, a five-minute short-session caution, split-session preservation, clock-correction integrity, a ResMed-specific 24 L/min unintentional-leak rule, conservative signal-artifact candidates, and a provisional likely-wake-breathing heuristic.
+- The decision explicitly keeps short/split findings separate from minimum valid-night or experiment sample-size policy, retains raw and corrected time separately, never turns missing leak or absent machine events into pass, and never calls a likely-wake candidate confirmed wake/sleep stage.
+- No production or test code, fixture output, metric, experiment rule, persistence, UI, or AI behavior changed. `git diff --check` and the new Markdown trailing-whitespace scan passed.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_session_summary.SessionSummaryTests.test_reference_night_v1_matches_frozen_expected_output -v`; the focused fixture regression passed.
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all fifty-eight tests passed without resource warnings.
@@ -147,6 +154,12 @@ S17 — Freeze the first reference fixture.
 - Private OSCAR/PAP data and local application databases must remain outside version control; later retained fixtures must follow their sprint's explicit de-identification and validation requirements.
 - Reference night v1 is a wholly synthetic schema-17 surrogate rather than pseudonymized private data. Its source rows are assembled temporarily by `SessionSummaryTests._create_reference_night_v1_database`, and its retained expected-output contract combines readable structure with an exact canonical byte length and SHA-256 digest.
 - A future intentional source, mapping, normalized-format, or expected-output change must receive explicit review and a new reference-fixture version; the version-1 expectation is not silently re-blessed.
+- Quality is represented as independent companion-derived findings, not an opaque score. Version-1 statuses are `pass`, `flagged`, `insufficient_evidence`, and `not_applicable`; impacts are recorded separately, and every later analysis must declare its required quality inputs.
+- Missing coverage remains interval-specific, sparse Leak values are held only between stored updates within one EventList, and signal/session gaps are never filled or bridged. A requested analysis with no common eligible interval returns `insufficient_evidence`.
+- A session shorter than 300,000 ms is a structural caution rather than a claim about sleep adequacy or experiment validity. Multiple sessions flag a split night but remain separate and visible; neither rule silently discards data or sets a universal valid-night duration.
+- Version 1 flags ResMed unintentional Leak at or above 24 L/min and unions threshold-derived intervals with observed machine Large Leak spans while retaining both provenance classes. Missing/gapped leak remains unknown, and unaffected intervals are not invalidated automatically.
+- Version-1 artifact detection is limited to digital clipping and conservative isolated-impulse candidates. Likely-wake breathing uses a provisional multi-breath irregularity heuristic only on eligible data and remains a caution, never confirmed wake, arousal, sleep stage, or proof of sleep.
+- Raw-relative analysis may remain usable when correction status is unresolved, but corrected wall-clock/date analysis is `insufficient_evidence` until version-gated correction inputs and transformations are present and synthetically verified. Raw and corrected timestamps must remain separate.
 - The exact SQL Notes artifact inspected is the OSCAR 2.0.1 `Notes.zip` identified by its recorded SHA-256; the stable release label and the internal schema-document versions are recorded separately rather than conflated.
 - The Python demo has no internal semantic release number. Treat it as a member of the 2.0.1 Notes distribution that explicitly supports schema v13, not as proof of compatibility with schema v16.
 - The upstream archive is not vendored; the repository retains its exact provenance and verification hashes only.
@@ -226,9 +239,12 @@ S17 — Freeze the first reference fixture.
 
 ## Blockers
 
-- No blocker prevents starting S18.
+- No blocker prevents starting S19.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
+- S18 defines quality rule set version 1 but adds no implementation. S19 owns only missing-data, short-session, split-session, and clock-correction findings; leak, artifact, and likely-wake behavior remain excluded until S20.
+- Normalized record version 1 does not yet carry a verified device-time-correction collection or corrected timeline. S19 must either add the smallest bounded versioned input needed by its clock-integrity rule or return explicit `correction_input_missing`; it must not infer that no correction exists.
+- The likely-wake rule depends on validated breath boundaries. That is not a blocker for S19, but S20 must record the breath-detector identity/version or return `wake_prerequisite_missing` rather than invent boundaries silently.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans remain handled explicitly by S12 extraction; reference-night count agreement does not redefine those raw provenance rules.
 - S13–S14C preserve waveform gaps/missing lists and treat `compressed_size` only as validated provenance. Flow Rate, Mask Pressure, and Leak display relationships are cross-checked, and the scoped Leak subtype is resolved as unintentional/excess.
@@ -237,5 +253,5 @@ S17 — Freeze the first reference fixture.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S18. Record versioned methodology rules for missing samples, short or split sessions, large leak, artifacts, clock corrections, and likely wake breathing, including inputs, outputs, and `insufficient evidence` behavior. Do not implement the quality rules, calculate metrics, set experiment sample-size thresholds, add persistence, build UI, or add AI. Add focused documentation validation if appropriate, update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, STATUS.md, and `docs/decisions/0003-initial-quality-flags.md`. Complete only S19. Implement the accepted version-1 missing-data, flow-pressure-alignment, short-session, split-session, and clock-correction structural quality findings with focused passing, failing, insufficient-evidence, and exact-boundary tests. Do not implement large leak, signal artifact, likely-wake detection, metrics, experiment classification, persistence, UI, or AI. Keep raw and corrected time separate; if the correction input contract cannot be added within S19's bounded scope, return `correction_input_missing` and record the needed follow-up rather than guessing. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

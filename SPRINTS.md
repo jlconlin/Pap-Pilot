@@ -150,7 +150,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Additional nights and metric expectations.
 - Done when: The fixture is safe to retain, versioned, and detects an intentional mapping change.
 
-### S18 — Define initial quality flags — queued
+### S18 — Define initial quality flags — done
 
 - Objective: Record versioned rules for missing samples, short/split sessions, large leak, artifacts, clock corrections, and likely wake breathing.
 - Excludes: Implementing every rule and deciding experiment sample-size thresholds.

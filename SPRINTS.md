@@ -200,7 +200,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Persistence implementation and prospective safety rules.
 - Done when: Tests cover valid creation, correction-by-reference, and rejection of destructive replacement.
 
-### S26 — Implement the append-only experiment store — queued
+### S26 — Implement the append-only experiment store — done
 
 - Objective: Persist and replay S25 events in a local SQLite store.
 - Excludes: OSCAR writes, UI, synchronization, and event editing/deletion.

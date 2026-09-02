@@ -423,6 +423,7 @@ def validate_experiment_history(experiment: ExperimentRecord, events: tuple[Expe
     _instance(experiment, ExperimentRecord, "experiment record")
     history = _typed_tuple(events, ExperimentEvent, "experiment event history")
     identifiers: dict[str, ExperimentEvent] = {}
+    corrected_identifiers: set[str] = set()
     for expected_sequence, event in enumerate(history, start=1):
         if event.experiment_record_id != experiment.record_id:
             raise ExperimentModelError("Every event in a history must belong to its experiment.")
@@ -436,6 +437,9 @@ def validate_experiment_history(experiment: ExperimentRecord, events: tuple[Expe
                 raise ExperimentModelError("A correction must reference an earlier event in the same history.")
             if corrected.event_type is not event.event_type:
                 raise ExperimentModelError("A correction must retain the corrected event type.")
+            if event.correction_of_event_id in corrected_identifiers:
+                raise ExperimentModelError("A correction must reference the current event rather than an event already corrected.")
+            corrected_identifiers.add(event.correction_of_event_id)
         if event.event_type is ExperimentEventType.EXPERIMENT_PROPOSED:
             _earlier_event(identifiers, event.payload.proposal.problem_event_id, {ExperimentEventType.PROBLEM_RECORDED}, "A proposal's problem reference")
             _earlier_event(identifiers, event.payload.proposal.hypothesis_event_id, {ExperimentEventType.HYPOTHESIS_DRAFTED}, "A proposal's hypothesis reference")

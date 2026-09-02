@@ -1,27 +1,6 @@
-"""Deterministic PAP analysis independent of data-source and UI code."""
+"""Versioned deterministic quality findings for normalized PAP records."""
 
-from pap_pilot.engine.model import (
-    NORMALIZED_FORMAT,
-    NORMALIZED_FORMAT_VERSION,
-    NORMALIZED_RECORD_VERSION,
-    EventRecord,
-    IntervalClosure,
-    NightRecord,
-    NormalizedModelError,
-    NormalizedRecord,
-    ProvenanceRecord,
-    ProvenanceValue,
-    SessionRecord,
-    SettingRecord,
-    SignalRecord,
-    SignalRepresentation,
-    SignalSegmentRecord,
-    SourceClass,
-    SourceReference,
-    deserialize_normalized_record,
-    serialize_normalized_record,
-)
-from pap_pilot.engine.quality import (
+from pap_pilot.engine.quality.model import (
     QUALITY_ENGINE_VERSION,
     QUALITY_RULE_SET_ID,
     QUALITY_RULE_SET_VERSION,
@@ -36,6 +15,8 @@ from pap_pilot.engine.quality import (
     QualityValue,
     StructuralQualityReport,
     TimeBasis,
+)
+from pap_pilot.engine.quality.structural import (
     evaluate_clock_correction_integrity,
     evaluate_flow_pressure_alignment,
     evaluate_missing_required_signals,
@@ -45,25 +26,6 @@ from pap_pilot.engine.quality import (
 )
 
 __all__ = [
-    "NORMALIZED_FORMAT",
-    "NORMALIZED_FORMAT_VERSION",
-    "NORMALIZED_RECORD_VERSION",
-    "EventRecord",
-    "IntervalClosure",
-    "NightRecord",
-    "NormalizedModelError",
-    "NormalizedRecord",
-    "ProvenanceRecord",
-    "ProvenanceValue",
-    "SessionRecord",
-    "SettingRecord",
-    "SignalRecord",
-    "SignalRepresentation",
-    "SignalSegmentRecord",
-    "SourceClass",
-    "SourceReference",
-    "deserialize_normalized_record",
-    "serialize_normalized_record",
     "QUALITY_ENGINE_VERSION",
     "QUALITY_RULE_SET_ID",
     "QUALITY_RULE_SET_VERSION",

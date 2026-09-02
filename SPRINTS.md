@@ -156,7 +156,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Implementing every rule and deciding experiment sample-size thresholds.
 - Done when: A methodology decision record defines inputs, outputs, and `insufficient evidence` behavior.
 
-### S19 — Implement structural quality flags — queued
+### S19 — Implement structural quality flags — done
 
 - Objective: Implement only missing-data, short-session, split-session, and clock-correction flags.
 - Excludes: Leak, artifact, and wake-breathing detection.

@@ -162,7 +162,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Leak, artifact, and wake-breathing detection.
 - Done when: Focused tests cover passing, failing, and boundary cases for each structural flag.
 
-### S20 — Implement signal quality flags — queued
+### S20 — Implement signal quality flags — done
 
 - Objective: Implement only the initially defined leak, artifact, and likely-wake flags.
 - Excludes: Experiment classification and UI display.

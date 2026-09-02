@@ -2,14 +2,14 @@
 
 **Updated:** September 2, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S19 completed
-**Next sprint:** S20 — Implement signal quality flags
+**Current sprint:** None — S20 completed
+**Next sprint:** S21 — Choose the initial objective metrics
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, the first fixed reference fixture, the initial quality methodology, and the structural quality rules are complete, while signal-quality rules, metrics, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, and all version-1 quality rules are complete, while metrics, experiment logic, web UI, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
@@ -32,6 +32,11 @@
 - Structural coverage is computed independently from normalized source segments. Uniform waveform coverage uses half-open segment bounds; sparse timed-update coverage stops at the next stored update inside the same EventList, never extends the final point, and never crosses a segment or session gap.
 - Structural reports retain exact parameters, measurements, source records, provenance identifiers, limitations, affected capabilities, raw-time intervals, and deterministic identities. They preserve dependency order and keep `pass`, `flagged`, `insufficient_evidence`, and `not_applicable` distinct from impact.
 - Clock-correction evaluation accepts an explicit, version-gated evidence record. Raw-relative work remains separate from corrected wall-clock work; absent correction input blocks only the requested corrected analysis with `correction_input_missing`, and no normalized raw timestamp is changed.
+- `pap_pilot.engine.quality` now implements the three S20 signal rules in dependency order after structural quality: large leak, signal artifact, and likely wake breathing. Every result remains an independent version-1 companion finding rather than an OSCAR summary or opaque score.
+- Large-leak analysis independently evaluates the mapped ResMed unintentional Leak trace at the inclusive 24 L/min threshold, stops sparse holds at the next update within the same EventList, retains a high final update only as point evidence, preserves trace gaps as insufficient evidence, and separately retains each positively overlapping machine-labeled Large Leak span after clipping it to the requested session interval.
+- Artifact analysis evaluates only continuous 40 ms Flow Rate and Mask Pressure segments. It reconstructs signed raw counts from source gain/offset for digital endpoint clipping and applies the accepted signal-specific isolated-impulse thresholds without crossing segment boundaries or labeling flat flow as artifact.
+- Likely-wake analysis requires an explicit immutable `ValidatedBreathSeries` with detector identity/version and source links. It evaluates five-breath population-CV windows only in continuous prerequisite-clean runs, suppresses source respiratory events and the following three breaths, requires three consecutive irregular windows, and labels a candidate only as a caution—not confirmed wake or sleep stage.
+- `tests/fixtures/signal-quality-v1.json` is a wholly synthetic fixed fixture covering threshold- and event-derived leak, Flow Rate impulse, Mask Pressure clipping, and a seven-breath irregularity candidate with frozen expected intervals.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -62,9 +67,14 @@
 
 ## Last completed sprint
 
-S19 — Implement structural quality flags.
+S20 — Implement signal quality flags.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_signal_quality -v`; all twenty-four focused tests passed. The fixed fixture and boundary cases cover inclusive leak/artifact/CV thresholds, sparse final-point behavior, clipped and zero-overlap machine events, missing/unsupported/gapped Leak, both signed clipping endpoints, exact artifact intervals, missing gain/offset, non-40 ms and short segments, no cross-segment impulse, regular breathing, missing/short breath input, respiratory-event recovery suppression, prerequisite intervals, immutable detector input, fixed reason codes, deterministic report identity, rule-set version, and dependency order.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover -s tests -v`; all one hundred three tests passed without resource warnings.
+- Ran the existing wholly synthetic schema-17 reference-night generator through normalization and `evaluate_signal_quality`; the result contained exactly the `large_leak`, `signal_artifact`, and `likely_wake_breathing` rule families, retained version agreement, and returned `wake_prerequisite_missing` because no validated breath series was supplied.
+- `git diff --check`, Python compilation, fixture JSON parsing, and a production dependency scan passed. Signal quality imports no OSCAR adapter, SQLite, metric, experiment, persistence, UI, or AI implementation.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_structural_quality -v`; all twenty-one focused tests passed. They cover complete and gapped uniform coverage, sparse final-point behavior, absent/empty/unsupported signals, no common eligible interval, every alignment result, the exact 300,000 ms short-session boundary, the one-versus-two-session split boundary, every clock-correction evidence state, raw/corrected separation, immutable/versioned results, stable identities, and aggregate dependency order.
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover -s tests -v`; all seventy-nine tests passed without resource warnings.
@@ -167,6 +177,11 @@ S19 — Implement structural quality flags.
 - S19 implements quality from normalized source evidence rather than copying OSCAR quality summaries or treating OSCAR-derived results as companion conclusions. OSCAR records and labels remain inputs with provenance.
 - A structural report is request-specific: required signal kinds, Flow Rate/Mask Pressure alignment need, and raw-relative versus corrected-wall-clock time basis are explicit inputs. Finding and report identities include their deterministic evidence and results.
 - The S19 clock-correction boundary does not add correction fields to normalized record version 1. A caller must supply immutable correction evidence from a future version-gated adapter path; queried states require source-record identifiers, a supported constant correction must reproduce corrected boundaries exactly, and raw/corrected timestamps remain separate.
+- S20 adds the accepted signal rules without changing the version-1 normalized OSCAR record format. Signal-quality reports contain only the three S20 rule families and retain deterministic ordering after structural prerequisites.
+- Machine-labeled Large Leak events remain reference evidence with their own record/provenance identifiers; PAP Pilot's threshold-derived Leak findings remain separately identifiable. Overlap does not erase either evidence class, missing Leak never becomes zero, and a threshold pass does not claim complete machine-event evidence.
+- Digital clipping reconstructs raw signed-16-bit endpoints with a visible `1e-6` raw-count tolerance solely for floating-point reversal of the stored gain/offset transform. Isolated-impulse comparisons use the accepted inclusive thresholds and neighbor tolerances directly.
+- The quality layer does not implement or infer breath boundaries. A `ValidatedBreathSeries` must name its detector and version, match the session and Flow Rate source, remain immutable/non-overlapping, and retain source identifiers; otherwise likely-wake evaluation returns `wake_prerequisite_missing` or rejects inconsistent input.
+- Likely-wake pass means only that the version-1 irregularity candidate was absent in an eligible evaluated interval. It never establishes sleep, wake, arousal, or diagnosis, and prerequisite exclusions remain explicit rather than being overwritten by a candidate or pass.
 - Missing coverage remains interval-specific, sparse Leak values are held only between stored updates within one EventList, and signal/session gaps are never filled or bridged. A requested analysis with no common eligible interval returns `insufficient_evidence`.
 - A session shorter than 300,000 ms is a structural caution rather than a claim about sleep adequacy or experiment validity. Multiple sessions flag a split night but remain separate and visible; neither rule silently discards data or sets a universal valid-night duration.
 - Version 1 flags ResMed unintentional Leak at or above 24 L/min and unions threshold-derived intervals with observed machine Large Leak spans while retaining both provenance classes. Missing/gapped leak remains unknown, and unaffected intervals are not invalidated automatically.
@@ -251,12 +266,12 @@ S19 — Implement structural quality flags.
 
 ## Blockers
 
-- No blocker prevents starting S20.
+- No blocker prevents starting S21.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
-- S18 defines quality rule set version 1, and S19 implements only its structural findings. Leak, artifact, and likely-wake behavior remain excluded until S20.
+- S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
 - Normalized record version 1 still does not carry a verified device-time-correction collection or corrected timeline. S19 provides a bounded explicit evidence input and returns `correction_input_missing` for corrected wall-clock requests when it is absent; a future version-gated adapter task must map schema-17 correction rows before corrected time can become authoritative.
-- The likely-wake rule depends on validated breath boundaries. S20 must record the breath-detector identity/version or return `wake_prerequisite_missing` rather than invent boundaries silently.
+- No validated breath detector is implemented yet. S20 accepts explicitly versioned detector output and otherwise returns `wake_prerequisite_missing`; S21 must account for this dependency when selecting initial metrics, and any needed detector implementation remains bounded future work rather than an implicit part of quality evaluation.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans remain handled explicitly by S12 extraction; reference-night count agreement does not redefine those raw provenance rules.
 - S13–S14C preserve waveform gaps/missing lists and treat `compressed_size` only as validated provenance. Flow Rate, Mask Pressure, and Leak display relationships are cross-checked, and the scoped Leak subtype is resolved as unintentional/excess.
@@ -265,5 +280,5 @@ S19 — Implement structural quality flags.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, STATUS.md, and `docs/decisions/0003-initial-quality-flags.md`. Complete only S20. Implement the accepted version-1 large-leak, signal-artifact, and likely-wake-breathing findings using fixed fixtures and versioned quality results. Do not implement metrics, experiment classification, persistence, UI, or AI, and do not broaden or silently reinterpret the S18 methodology. Treat source events and OSCAR-derived values as reference evidence rather than PAP Pilot conclusions. If validated breath boundaries or another prerequisite are unavailable, return the defined `insufficient_evidence` reason rather than inventing input. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, STATUS.md, and `docs/decisions/0003-initial-quality-flags.md`. Complete only S21. Select the smallest objective metric set needed for the PS Min retrospective experiment and record a methodology decision defining each metric's formula, units, required inputs, applicable quality exclusions, provenance, limitations, and insufficient-evidence behavior. Do not implement metrics, choose outcome weights or classification thresholds, add persistence, build UI, or add AI. Treat OSCAR summaries and machine labels as comparison/reference inputs rather than PAP Pilot's calculated outcomes, and explicitly account for any unavailable prerequisite such as validated breath boundaries. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

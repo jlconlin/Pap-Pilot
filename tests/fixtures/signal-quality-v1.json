@@ -1,0 +1,51 @@
+{
+  "fixture_id": "pap-pilot-signal-quality",
+  "fixture_version": 1,
+  "source_kind": "wholly_synthetic_signal_quality_cases",
+  "rule_set_id": "pap-pilot.quality",
+  "rule_set_version": 1,
+  "large_leak": {
+    "session_end_time_ms": 10000,
+    "updates": [
+      [0, 10.0],
+      [1000, 24.0],
+      [3000, 30.0],
+      [5000, 5.0],
+      [10000, 0.0]
+    ],
+    "machine_events": [
+      [4000, 8000],
+      [10000, 1000]
+    ],
+    "expected_flagged": [
+      ["threshold_exceeded", 1000, 5000],
+      ["machine_large_leak_span", 4000, 10000]
+    ]
+  },
+  "flow_impulse": {
+    "raw_values": [0, 0, 400, 0, 0],
+    "gain": 0.1,
+    "offset": 0.0,
+    "expected_flagged": [
+      ["isolated_impulse", 40, 160]
+    ]
+  },
+  "pressure_clipping": {
+    "raw_values": [-32768, 0, 0],
+    "gain": 0.01,
+    "offset": 10.0,
+    "expected_flagged": [
+      ["digital_clipping", 0, 40]
+    ]
+  },
+  "likely_wake": {
+    "durations_ms": [650, 1350, 1000, 1000, 1000, 650, 1350],
+    "peak_to_trough_l_min": [5.0, 15.0, 10.0, 10.0, 10.0, 5.0, 15.0],
+    "detector_id": "pap-pilot.fixture-breaths",
+    "detector_version": "1",
+    "expected_flagged": [
+      ["irregular_breathing_candidate", 0, 7000]
+    ],
+    "expected_irregular_window_count": 3
+  }
+}

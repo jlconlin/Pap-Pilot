@@ -251,9 +251,25 @@ class StructuralQualityTests(unittest.TestCase):
 
         self.assertEqual(report, repeated)
         self.assertEqual((report.rule_set_id, report.rule_set_version), (QUALITY_RULE_SET_ID, QUALITY_RULE_SET_VERSION))
-        self.assertEqual(set(finding.rule_id for finding in report.findings), set(QualityRule))
+        self.assertEqual(
+            {finding.rule_id for finding in report.findings},
+            {
+                QualityRule.MISSING_REQUIRED_SIGNAL,
+                QualityRule.FLOW_PRESSURE_MISALIGNMENT,
+                QualityRule.SHORT_SESSION,
+                QualityRule.SPLIT_SESSION_NIGHT,
+                QualityRule.CLOCK_CORRECTION_INTEGRITY,
+            },
+        )
         self.assertEqual({finding.source_class for finding in report.findings}, {SourceClass.COMPANION_DERIVED})
-        rule_positions = {rule: min(index for index, finding in enumerate(report.findings) if finding.rule_id is rule) for rule in QualityRule}
+        structural_rules = (
+            QualityRule.SPLIT_SESSION_NIGHT,
+            QualityRule.SHORT_SESSION,
+            QualityRule.MISSING_REQUIRED_SIGNAL,
+            QualityRule.FLOW_PRESSURE_MISALIGNMENT,
+            QualityRule.CLOCK_CORRECTION_INTEGRITY,
+        )
+        rule_positions = {rule: min(index for index, finding in enumerate(report.findings) if finding.rule_id is rule) for rule in structural_rules}
         self.assertLess(rule_positions[QualityRule.MISSING_REQUIRED_SIGNAL], rule_positions[QualityRule.FLOW_PRESSURE_MISALIGNMENT])
         self.assertLess(rule_positions[QualityRule.FLOW_PRESSURE_MISALIGNMENT], rule_positions[QualityRule.CLOCK_CORRECTION_INTEGRITY])
         with self.assertRaises(FrozenInstanceError):

@@ -268,11 +268,47 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: General editing, event deletion, and prospective workflows.
 - Done when: UI/API tests prove history remains visible and replay yields the corrected state.
 
-### S37 — Validate the retrospective vertical slice — queued
+### S37 — Validate the retrospective vertical slice — done
 
 - Objective: Run the complete PS Min flow from disposable OSCAR input through the local UI and document evidence.
 - Excludes: New features, prospective experiments, and AI.
 - Done when: Milestones 1–4 exit criteria pass or every remaining gap is recorded as a bounded sprint.
+
+### S37A — Select and normalize the retrospective OSCAR cohort — queued
+
+- Objective: Add an explicit local selection contract that reads every chosen PS Min candidate session spanning the historical change from a protected OSCAR copy and produces a deterministic multi-night normalized cohort with settings and correction evidence.
+- Excludes: Automatic cohort or change detection, experiment-history mutation, evaluation, UI, prospective workflows, and OSCAR writes.
+- Done when: A synthetic multi-night schema-17 fixture proves selected sessions, split-session grouping, settings, signals, raw/corrected-time evidence, provenance, and missing states are reproducible without modifying the source.
+
+### S37B — Record the retrospective protocol and confirmed boundary — queued
+
+- Objective: Persist the exact accepted retrospective proposal and a user-confirmed applied-change boundary for the selected cohort as append-only experiment events.
+- Excludes: Inferring confirmation from OSCAR settings, general editing, prospective safety policy, evaluation, UI, and device changes.
+- Done when: Replay exposes one effective accepted proposal and confirmed PS Min 2-to-1 boundary linked to the selected cohort while preserving every prior event and refusing unconfirmed or inconsistent input.
+
+### S37C — Link retrospective subjective and confounder evidence — queued
+
+- Objective: Add a bounded local intake/import path for attributable historical journal responses, confounders, and adverse effects, preserving explicit unavailable states and original text.
+- Excludes: Prospective morning forms or reminders, NLP or AI interpretation, clinical advice, and silent conversion of missing evidence to negative answers.
+- Done when: Replay yields the exact effective per-night user evidence supplied for the retrospective cohort and explicitly distinguishes unavailable, not reported, none reported, and reported states.
+
+### S37D — Orchestrate the retrospective evaluation — queued
+
+- Objective: Deterministically run quality assessment, period allocation, both version-1 metrics, and outcome classification from the selected cohort and effective experiment/user history.
+- Excludes: New metrics or thresholds, automatic selection, report presentation, UI, prospective logic, and AI.
+- Done when: One integration fixture produces a stable evidence-linked classification or rules-required inconclusive result whose provenance reaches every selected night, quality finding, metric, and effective user event.
+
+### S37E — Build the complete retrospective report and evidence excerpts — queued
+
+- Objective: Build the versioned retrospective report from an S37D evaluation bundle and explicitly selected bounded baseline/intervention waveform excerpts.
+- Excludes: Automatic interval selection, arbitrary signal exploration, new calculations, UI changes, prospective workflow, and AI prose.
+- Done when: Snapshot tests cover populated and explicitly missing periods, metrics, subjective evidence, quality, classification/action, limitations, and both representative intervals with complete source linkage.
+
+### S37F — Connect and revalidate the retrospective local UI — queued
+
+- Objective: Configure the local API to serve the evaluated retrospective report and effective workspace history, then re-run the Milestone 3 and 4 gates through the packaged localhost UI.
+- Excludes: New analytical methods, general editing, prospective workflows, remote access, and AI.
+- Done when: A protected disposable end-to-end run links selected OSCAR nights through the deterministic evaluation to every populated UI section, retains honest missing states, persists history across restart, and records explicit Milestone 3 and 4 gate decisions.
 
 ## 5 — Prospective experiment support
 

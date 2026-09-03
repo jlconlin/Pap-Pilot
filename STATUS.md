@@ -2,14 +2,15 @@
 
 **Updated:** September 3, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S36 completed
-**Next sprint:** S37 — Validate the retrospective vertical slice
+**Current sprint:** None — S37 completed
+**Next sprint:** S37A — Select and normalize the retrospective OSCAR cohort
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines the installable Python package, FastAPI/Uvicorn runtime dependencies, the `httpx2` test extra, and the `pap-pilot-api` console entry point; `README.md` documents isolated installation, testing, and local API startup.
 - The adapter, deterministic engine, local API, and browser UI are separate package namespaces or assets; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, version-1 sleep-journal records, deterministic outcome classification, safe retrospective fixture reconstruction, the version-1 retrospective evidence report, the localhost-only API shell, the experiment overview, bounded representative-waveform rendering, and the narrowly scoped append-only boundary-correction flow are complete, while general editing and AI implementation have not begun.
+- S37 validated the existing retrospective pieces without adding features. Milestones 1 and 2 pass; Milestones 3 and 4 do not yet pass because selected OSCAR evidence is not orchestrated into the fixed S31/S32 report served by the UI. `docs/validation/retrospective-vertical-slice-s37.md` records the evidence and maps every remaining break to S37A–S37F.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
@@ -48,7 +49,7 @@
 - `tests/fixtures/minute-ventilation-upper-tail-ratio-v1.json` is a wholly synthetic hand-calculated fixture covering exact 300,000 ms and twenty-observation boundaries, a one-millisecond and one-observation shortfall, positive-flow clamping, exact type-7 quantiles, partial sample cells, overlapping exclusions, source gaps, compatible split sessions, and a nonpositive median.
 - `pap_pilot.engine.experiments.model` defines immutable version-1 experiment identities, exact setting values and one-variable changes, evidence-linked representative intervals, complete structural proposals, typed event payloads, and append-only history validation without importing storage, OSCAR, UI, safety-policy, allocation, classification, or AI execution code.
 - The proposal schema carries the problem/hypothesis event links, baseline local dates and exact settings, one proposed setting change, settings held fixed, evidence and waveform intervals, expected objective and subjective effects, minimum valid nights, invalid-night criteria, possible adverse effects, and explicit stop/revert conditions. Actual application, journal content, and evaluations remain additive referenced events rather than mutable fields.
-- The version-1 event vocabulary contains exactly the plan's sixteen minimum types. Every event has a stable experiment identity, contiguous sequence number, timestamp, actor, typed payload, source class, source/provenance links, and independent schema/record versions; correction events retain the event type and reference an earlier event, while identifier or sequence reuse is rejected as destructive replacement.
+- The version-1 event vocabulary contains the plan's sixteen minimum types plus the S36 `note_recorded` type. Every event has a stable experiment identity, contiguous sequence number, timestamp, actor, typed payload, source class, source/provenance links, and independent schema/record versions; correction events retain the event type and reference an earlier event, while identifier or sequence reuse is rejected as destructive replacement.
 - `pap_pilot.engine.experiments.ExperimentStore` persists experiment identities and events in the approved local `pap_pilot.sqlite3` database through create, append, read, and replay operations only. It rejects other filenames, foreign databases, unsupported schema versions, and missing append-only guards before exposing stored records.
 - Experiment identities and events use a strict, versioned canonical JSON envelope inside indexed SQLite rows. Reads reconstruct every S25 typed payload, reject malformed or mismatched records, validate the complete history, and expose both the unchanged ledger and a generic correction-resolved event projection without interpreting allocation, journals, lifecycle, safety, metrics, or classifications.
 - The public store has no update or delete operation. SQLite triggers reject update, delete, and replacement statements for experiment identities and events, while corrections remain new same-type events that reference the current event in a correction chain and retain every prior version.
@@ -110,9 +111,14 @@
 
 ## Last completed sprint
 
-S36 — Add append-only notes and corrections.
+S37 — Validate the retrospective vertical slice.
 
 ## Validation performed
+
+- Ran a temporary, unretained S37 audit against the wholly synthetic schema-17 OSCAR fixture. Guarded extraction and normalization produced one night with Flow Rate, Mask Pressure, and Leak; five structural findings and one signal-quality report were generated; both independent metrics correctly returned `insufficient_evidence` for the fixture's deliberately tiny excerpts; and the disposable OSCAR bytes remained identical.
+- The same audit requested and rendered the actual report/history contracts. The served report remained `not_evaluable_without_fabrication` with all eight missing-input categories, the extracted normalized-night identifier was absent from report provenance, the history contained only two events with no confirmed boundary, and the renderer displayed the non-fabrication state with no waveform SVG. This directly establishes the missing extraction-to-evaluation-to-report seam.
+- Started the installed `pap-pilot-api` command from a temporary directory and verified the health, overview, summary, and history over a real `127.0.0.1:8765` socket. The local `pap_pilot.sqlite3` ledger was created in that working directory, the summary again exposed eight missing inputs, the server stopped cleanly, and all temporary validation files were removed.
+- Ran the focused S37 extraction/quality/metric/allocation/journal/classification/fixture/report/API/UI/correction suite; all one hundred eighty-one tests passed without resource warnings. Ran the complete suite against both the source tree and installed package; all two hundred twenty-five tests passed in each mode. `git diff --check`, JavaScript syntax validation, documentation-style checks, scope inspection, and sensitive-artifact scans passed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_boundary_corrections tests.test_overview_ui tests.test_local_api -v`; all twenty-four focused correction/replay/API/UI tests passed. The four S36 correction tests cover atomic two-event persistence, rollback when either event is invalid, close/reopen durability, full-history retention, effective-boundary replay, note linkage, stale-target rejection, and explicit refusal to invent a boundary for the retained fixture.
 - Ran the complete suite against both the source tree and rebuilt installed wheel with resource warnings treated as errors; all two hundred twenty-five tests passed in each mode. The focused installed-package model/store/correction/API/UI/import run also passed all fifty-one tests.
@@ -267,6 +273,11 @@ S36 — Add append-only notes and corrections.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
+
+- S37 completes through its explicit alternate criterion: Milestones 1 and 2 pass, while every observed gap preventing Milestones 3 and 4 is assigned to S37A–S37F. This is not a claim that the retrospective vertical slice itself is complete.
+- A working local API, honest missing-data report, isolated deterministic components, and individually tested UI sections do not prove an end-to-end retrospective evaluation. Evidence must trace from selected normalized OSCAR nights through quality, allocation, metrics, user evidence, classification, report assembly, and the served UI.
+- The historical journal, confounder, adverse-effect, boundary, and representative-interval inputs remain unknown unless the user supplies attributable records. Their absence must remain explicit and cannot become zero, none, unchanged, or favorable.
+- Retrospective gaps stay ahead of S38 because the governing plan requires the deterministic retrospective evaluation to work end to end before prospective or AI work begins.
 
 - Only one Codex goal/sprint should be active at a time.
 - Sprints deliberately stop at their stated completion check.
@@ -437,9 +448,10 @@ S36 — Add append-only notes and corrections.
 
 ## Blockers
 
-- No product blocker prevents starting S37.
-- The retained S31/S32 fixture still lacks a genuine user-confirmed applied-change boundary. S36 therefore exposes its complete two-event history but does not show an enabled correction form until such a boundary exists; this is an evidence limitation, not a failure of append-only correction behavior.
-- The current S32 report still supplies no attributable baseline or intervention interval or signal excerpt. S35 therefore renders both missing cards without an SVG; its populated checks are wholly synthetic UI-contract fixtures and do not claim that retained private waveform evidence now exists.
+- No product blocker prevents starting S37A.
+- Milestones 3 and 4 remain open. The adapter reads one explicitly identified session at a time, while the retained report is constructed independently from a fixed two-event fixture; no production path selects and normalizes the complete retrospective cohort or carries it through evaluation to the API.
+- The retained S31/S32 fixture still lacks an accepted proposal, a genuine user-confirmed applied-change boundary, attributable baseline/intervention nights, linked quality and metric results, historical journal/confounder/adverse-effect evidence, representative intervals, and an issued classification. S37A–S37E bound those inputs and transformations; S37F owns final UI integration and gate revalidation.
+- S35's populated waveform tests prove the display contract only. The current S32 report supplies no attributable baseline or intervention excerpt, so the real retained UI correctly renders both missing cards without an SVG.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -453,5 +465,5 @@ S36 — Add append-only notes and corrections.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S37. Validate the retained PS Min retrospective vertical slice from its known change through the existing extraction, quality, metric, journal, classification, history, and evidence-display contracts, keeping every unavailable input explicit and producing a reviewable report without fabricating private evidence. Do not add a new analytical method, prospective workflow, AI, automation, device-setting change, general editing, or OSCAR write. Use only a protected disposable OSCAR copy if private validation is necessary, update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S37A. Add an explicit local selection contract that reads chosen PS Min sessions from a protected disposable OSCAR copy and produces a deterministic multi-night normalized cohort with complete settings, signal, correction-evidence, missing-state, and provenance handling. Do not infer the cohort or change boundary, mutate experiment history, run the evaluation, change the UI, begin prospective work or AI, change device settings, or write to OSCAR. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

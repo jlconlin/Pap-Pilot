@@ -32,6 +32,7 @@ from pap_pilot.engine import (
     ExperimentStore,
     ExperimentStoreError,
     HypothesisDraftedPayload,
+    NoteRecordedPayload,
     ObservationRecordedPayload,
     ProblemRecordedPayload,
     SettingChangeConfirmedPayload,
@@ -133,6 +134,7 @@ class ExperimentStoreTests(unittest.TestCase):
             ExperimentEventType.EXPERIMENT_REVERTED: action,
             ExperimentEventType.EVALUATION_ISSUED: EvaluationIssuedPayload("evaluation:one"),
             ExperimentEventType.EVALUATION_SUPERSEDED: EvaluationSupersededPayload("event:evaluation-one", "evaluation:two"),
+            ExperimentEventType.NOTE_RECORDED: NoteRecordedPayload("Retained note", "event:evaluation-one"),
         }
         record_ids = {
             ExperimentEventType.PROBLEM_RECORDED: "event:problem",

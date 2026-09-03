@@ -1,4 +1,4 @@
-"""Local, read-only API boundary for PAP Pilot."""
+"""Local API boundary for reports and tightly scoped append-only events."""
 
 from pap_pilot.api.server import (
     LOCAL_API_DEFAULT_HOST,
@@ -9,6 +9,9 @@ from pap_pilot.api.server import (
     LOCAL_OVERVIEW_SCRIPT_PATH,
     LOCAL_OVERVIEW_STYLES_PATH,
     PS_MIN_EXPERIMENT_SUMMARY_PATH,
+    PS_MIN_EXPERIMENT_HISTORY_PATH,
+    PS_MIN_BOUNDARY_CORRECTION_PATH,
+    BoundaryCorrectionRequest,
     HealthResponse,
     LocalApiConfigurationError,
     LocalApiSettings,
@@ -26,6 +29,9 @@ __all__ = [
     "LOCAL_OVERVIEW_SCRIPT_PATH",
     "LOCAL_OVERVIEW_STYLES_PATH",
     "PS_MIN_EXPERIMENT_SUMMARY_PATH",
+    "PS_MIN_EXPERIMENT_HISTORY_PATH",
+    "PS_MIN_BOUNDARY_CORRECTION_PATH",
+    "BoundaryCorrectionRequest",
     "HealthResponse",
     "LocalApiConfigurationError",
     "LocalApiSettings",

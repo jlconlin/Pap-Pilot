@@ -262,7 +262,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Arbitrary signal exploration and automatic interval selection.
 - Done when: Both periods render correctly and missing signals fail visibly and safely.
 
-### S36 — Add append-only notes and corrections — queued
+### S36 — Add append-only notes and corrections — done
 
 - Objective: Allow a boundary correction and note to be added as new events without erasing history.
 - Excludes: General editing, event deletion, and prospective workflows.

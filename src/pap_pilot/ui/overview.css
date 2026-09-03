@@ -751,6 +751,118 @@ h1 {
   font-weight: 400;
 }
 
+.history-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+  gap: 16px;
+}
+
+.history-unavailable,
+.correction-form,
+.history-ledger {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.history-unavailable p,
+.form-status,
+.history-event span,
+.history-event p {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.correction-form {
+  display: grid;
+  gap: 18px;
+  align-self: start;
+}
+
+.correction-form label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.correction-form input,
+.correction-form textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--ink);
+  background: rgba(7, 17, 15, 0.72);
+  font: inherit;
+}
+
+.correction-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.correction-form button {
+  padding: 11px 16px;
+  border: 1px solid rgba(102, 211, 179, 0.4);
+  border-radius: 8px;
+  color: var(--base);
+  background: var(--mint);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.form-status {
+  min-height: 1.2em;
+  margin: 0;
+}
+
+.history-ledger ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-event {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--mint);
+  border-radius: 9px;
+  background: rgba(7, 17, 15, 0.34);
+}
+
+.history-event-corrected {
+  border-left-color: var(--faint);
+  opacity: 0.72;
+}
+
+.history-event div {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.history-event span {
+  text-align: right;
+}
+
+.history-event p {
+  margin: 9px 0 0;
+}
+
+.history-event code {
+  display: block;
+  margin-top: 9px;
+  color: var(--faint);
+  font-size: 0.62rem;
+  overflow-wrap: anywhere;
+}
+
 .evidence-inventory {
   grid-column: 1 / -1;
 }
@@ -941,6 +1053,7 @@ h1 {
   .period-grid,
   .interval-grid,
   .two-column,
+  .history-layout,
   .missing-list,
   .classification-values {
     grid-template-columns: 1fr;

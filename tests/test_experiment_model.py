@@ -26,6 +26,7 @@ from pap_pilot.engine import (
     ExperimentSetting,
     ExperimentSettingChange,
     HypothesisDraftedPayload,
+    NoteRecordedPayload,
     ObservationRecordedPayload,
     ProblemRecordedPayload,
     SettingChangeConfirmedPayload,
@@ -111,7 +112,7 @@ class ExperimentModelTests(unittest.TestCase):
         self.assertTrue(self.proposal.stop_conditions)
         self.assertTrue(self.proposal.revert_conditions)
 
-    def test_event_vocabulary_exactly_covers_the_plan_minimum(self) -> None:
+    def test_event_vocabulary_covers_the_plan_minimum_and_append_only_notes(self) -> None:
         self.assertEqual(
             {value.value for value in ExperimentEventType},
             {
@@ -131,6 +132,7 @@ class ExperimentModelTests(unittest.TestCase):
                 "experiment_reverted",
                 "evaluation_issued",
                 "evaluation_superseded",
+                "note_recorded",
             },
         )
 
@@ -154,6 +156,7 @@ class ExperimentModelTests(unittest.TestCase):
             ExperimentEventType.EXPERIMENT_REVERTED: action,
             ExperimentEventType.EVALUATION_ISSUED: EvaluationIssuedPayload("evaluation:one"),
             ExperimentEventType.EVALUATION_SUPERSEDED: EvaluationSupersededPayload("event:evaluation-one", "evaluation:two"),
+            ExperimentEventType.NOTE_RECORDED: NoteRecordedPayload("Retained note", "event:evaluation-one"),
         }
         record_ids = {
             ExperimentEventType.PROBLEM_RECORDED: "event:problem",

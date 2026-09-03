@@ -27,6 +27,7 @@ from pap_pilot.engine.experiments.model import (
     ExperimentSetting,
     ExperimentSettingChange,
     HypothesisDraftedPayload,
+    NoteRecordedPayload,
     ObservationRecordedPayload,
     ProblemRecordedPayload,
     SettingChangeConfirmedPayload,
@@ -190,6 +191,28 @@ class ExperimentStore:
                 self._insert_event(connection, event, serialized)
         except (sqlite3.Error, OverflowError, ExperimentModelError) as error:
             raise ExperimentStoreError("The experiment event could not be appended without changing prior history.") from error
+
+    def append_events(self, events: tuple[ExperimentEvent, ...]) -> None:
+        """Atomically validate and append a nonempty sequence of ordinary events."""
+
+        if type(events) is not tuple or not events or any(not isinstance(event, ExperimentEvent) for event in events):
+            raise ExperimentStoreError("A batch append requires a nonempty immutable event tuple.")
+        if any(event.event_type is ExperimentEventType.SLEEP_JOURNAL_ENTRY_RECORDED for event in events):
+            raise ExperimentStoreError("Sleep-journal events require their atomic journal-entry operation.")
+        if len({event.experiment_record_id for event in events}) != 1:
+            raise ExperimentStoreError("A batch append must belong to one experiment.")
+        serialized = tuple(_serialize_record(event) for event in events)
+        connection = self._require_connection()
+        try:
+            with _transaction(connection, immediate=True):
+                experiment = self._load_experiment(connection, events[0].experiment_record_id)
+                history = self._load_history(connection, experiment)
+                for event in events:
+                    history = append_experiment_event(experiment, history, event)
+                for event, encoded in zip(events, serialized):
+                    self._insert_event(connection, event, encoded)
+        except (sqlite3.Error, OverflowError, ExperimentModelError) as error:
+            raise ExperimentStoreError("The experiment events could not be appended atomically without changing prior history.") from error
 
     def append_journal_entry(self, event: ExperimentEvent, entry: SleepJournalEntry) -> None:
         """Atomically append one journal entry and its referencing experiment event."""
@@ -384,6 +407,7 @@ _RECORD_TYPES: Final = {
     "experiment_proposal": ExperimentProposal,
     "problem_recorded_payload": ProblemRecordedPayload,
     "hypothesis_drafted_payload": HypothesisDraftedPayload,
+    "note_recorded_payload": NoteRecordedPayload,
     "experiment_proposed_payload": ExperimentProposedPayload,
     "experiment_decision_payload": ExperimentDecisionPayload,
     "experiment_revised_payload": ExperimentRevisedPayload,

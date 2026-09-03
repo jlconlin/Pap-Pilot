@@ -1,4 +1,6 @@
 const SUMMARY_ENDPOINT = "/api/v1/experiments/ps-min-2-to-1/summary";
+const HISTORY_ENDPOINT = "/api/v1/experiments/ps-min-2-to-1/history";
+const BOUNDARY_CORRECTION_ENDPOINT = "/api/v1/experiments/ps-min-2-to-1/boundary-corrections";
 const REPORT_FORMAT = "pap-pilot.retrospective-evidence-report-json";
 const REPORT_FORMAT_VERSION = 1;
 const WAVEFORM_DISPLAY_CONTRACT_VERSION = 1;
@@ -133,12 +135,45 @@ export function renderOverview(envelope) {
         <div class="content-card">${renderList(limitations)}</div>
       </section>
 
+      <section class="section" aria-labelledby="history-heading">
+        ${sectionHeading("history-heading", "Corrections and notes", "Corrections are appended to the local ledger. Earlier events remain visible; replay marks the corrected boundary as historical and uses the newer boundary as effective state.")}
+        <div id="experiment-history" aria-live="polite"><p class="empty-value">Loading local history…</p></div>
+      </section>
+
       <footer class="report-footer">
         <span>Companion-derived report · Engine ${escapeHtml(text(report.engine_version, "engine version"))} · Schema ${integer(report.schema_version, "schema version")}</span>
         <code>${escapeHtml(text(report.record_id, "report identifier"))}</code>
         <span>${array(provenance.source_record_ids, "source records").length} linked source records</span>
       </footer>
     </article>`;
+}
+
+export function renderExperimentHistory(envelope) {
+  const value = object(envelope, "experiment history envelope");
+  if (value.format !== "pap-pilot.experiment-history-json" || value.format_version !== 1) {
+    throw new Error("The local API returned an unsupported experiment history format.");
+  }
+  const history = array(value.history, "experiment history");
+  const boundary = value.effective_boundary === null ? null : object(value.effective_boundary, "effective boundary");
+  const correctionSurface = boundary === null
+    ? `<div class="history-unavailable"><h3>No confirmed boundary to correct</h3><p>The retained retrospective record does not contain a user-confirmed application timestamp. PAP Pilot will not invent one.</p></div>`
+    : `<form id="boundary-correction-form" class="correction-form" data-corrected-event-id="${escapeHtml(text(boundary.record_id, "boundary event identifier"))}">
+        <div><label for="applied-at">Corrected application time</label><input id="applied-at" name="applied-at" type="datetime-local" required></div>
+        <div><label for="correction-note">Reason or note</label><textarea id="correction-note" name="correction-note" maxlength="4000" required></textarea></div>
+        <button type="submit">Append correction and note</button><p class="form-status" role="status"></p>
+      </form>`;
+  return `<div class="history-layout">${correctionSurface}<div class="history-ledger"><h3>Complete event history</h3><ol>${history.map(renderHistoryEvent).join("")}</ol></div></div>`;
+}
+
+function renderHistoryEvent(value) {
+  const event = object(value, "history event");
+  const eventType = text(event.event_type, "history event type");
+  const effective = event.effective === true;
+  const details = [];
+  if (Number.isInteger(event.applied_at_ms)) details.push(`Boundary: ${new Date(event.applied_at_ms).toLocaleString()}`);
+  if (typeof event.note === "string" && event.note.trim()) details.push(event.note);
+  if (typeof event.correction_of_event_id === "string") details.push(`Corrects ${event.correction_of_event_id}`);
+  return `<li class="history-event ${effective ? "history-event-effective" : "history-event-corrected"}"><div><strong>${escapeHtml(label(eventType))}</strong><span>Event ${integer(event.sequence_number, "event sequence number")} · ${effective ? "effective" : "corrected history"}</span></div>${details.map((detail) => `<p>${escapeHtml(detail)}</p>`).join("")}<code>${escapeHtml(text(event.record_id, "history event identifier"))}</code></li>`;
 }
 
 export function renderOverviewError(message) {
@@ -557,6 +592,7 @@ async function loadOverview() {
     const response = await fetch(SUMMARY_ENDPOINT, {cache: "no-store", headers: {Accept: "application/json"}});
     if (!response.ok) throw new Error(`The local API returned HTTP ${response.status}.`);
     root.innerHTML = renderOverview(await response.json());
+    await loadExperimentHistory();
   } catch (error) {
     root.innerHTML = renderOverviewError(error instanceof Error ? error.message : "The local report could not be loaded.");
   } finally {
@@ -564,8 +600,53 @@ async function loadOverview() {
   }
 }
 
+async function loadExperimentHistory() {
+  const target = document.querySelector("#experiment-history");
+  if (!target) return;
+  try {
+    const response = await fetch(HISTORY_ENDPOINT, {cache: "no-store", headers: {Accept: "application/json"}});
+    if (!response.ok) throw new Error(`History returned HTTP ${response.status}.`);
+    target.innerHTML = renderExperimentHistory(await response.json());
+    bindCorrectionForm(target);
+  } catch (error) {
+    target.innerHTML = `<div class="history-unavailable" role="alert"><h3>Local history unavailable</h3><p>${escapeHtml(error instanceof Error ? error.message : "The history could not be loaded.")}</p></div>`;
+  }
+}
+
+function bindCorrectionForm(target) {
+  const form = target.querySelector("#boundary-correction-form");
+  if (!form) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const status = form.querySelector(".form-status");
+    const appliedAt = form.querySelector("#applied-at");
+    const note = form.querySelector("#correction-note");
+    const appliedAtMs = new Date(appliedAt.value).getTime();
+    if (!Number.isInteger(appliedAtMs)) {
+      status.textContent = "Enter a valid local date and time.";
+      return;
+    }
+    status.textContent = "Saving append-only events…";
+    try {
+      const response = await fetch(BOUNDARY_CORRECTION_ENDPOINT, {
+        method: "POST",
+        headers: {Accept: "application/json", "Content-Type": "application/json"},
+        body: JSON.stringify({corrected_event_id: form.dataset.correctedEventId, applied_at_ms: appliedAtMs, note: note.value}),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : `Save returned HTTP ${response.status}.`);
+      target.innerHTML = renderExperimentHistory(payload);
+      bindCorrectionForm(target);
+      const updatedStatus = target.querySelector(".form-status");
+      if (updatedStatus) updatedStatus.textContent = "Correction and note appended. Earlier history remains below.";
+    } catch (error) {
+      status.textContent = error instanceof Error ? error.message : "The correction could not be saved.";
+    }
+  });
+}
+
 if (typeof document !== "undefined") {
   loadOverview();
 }
 
-export {SUMMARY_ENDPOINT};
+export {BOUNDARY_CORRECTION_ENDPOINT, HISTORY_ENDPOINT, SUMMARY_ENDPOINT};

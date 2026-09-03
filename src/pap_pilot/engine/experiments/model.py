@@ -42,6 +42,7 @@ class ExperimentEventType(StrEnum):
     EXPERIMENT_REVERTED = "experiment_reverted"
     EVALUATION_ISSUED = "evaluation_issued"
     EVALUATION_SUPERSEDED = "evaluation_superseded"
+    NOTE_RECORDED = "note_recorded"
 
 
 @dataclass(frozen=True, slots=True)
@@ -331,6 +332,18 @@ class EvaluationSupersededPayload:
         _text(self.replacement_evaluation_record_id, "replacement evaluation identifier")
 
 
+@dataclass(frozen=True, slots=True)
+class NoteRecordedPayload:
+    """A user note linked to an earlier event without changing that event."""
+
+    note: str
+    related_event_id: str
+
+    def __post_init__(self) -> None:
+        _text(self.note, "experiment note")
+        _text(self.related_event_id, "related experiment-event identifier")
+
+
 ExperimentEventPayload: TypeAlias = (
     ProblemRecordedPayload
     | HypothesisDraftedPayload
@@ -343,6 +356,7 @@ ExperimentEventPayload: TypeAlias = (
     | ExperimentActionPayload
     | EvaluationIssuedPayload
     | EvaluationSupersededPayload
+    | NoteRecordedPayload
 )
 
 _PAYLOAD_BY_EVENT_TYPE: Final = {
@@ -362,6 +376,7 @@ _PAYLOAD_BY_EVENT_TYPE: Final = {
     ExperimentEventType.EXPERIMENT_REVERTED: ExperimentActionPayload,
     ExperimentEventType.EVALUATION_ISSUED: EvaluationIssuedPayload,
     ExperimentEventType.EVALUATION_SUPERSEDED: EvaluationSupersededPayload,
+    ExperimentEventType.NOTE_RECORDED: NoteRecordedPayload,
 }
 
 
@@ -451,6 +466,9 @@ def validate_experiment_history(experiment: ExperimentRecord, events: tuple[Expe
             _earlier_event(identifiers, event.payload.accepted_event_id, {ExperimentEventType.EXPERIMENT_ACCEPTED}, "A setting confirmation's acceptance reference")
         elif event.event_type is ExperimentEventType.EVALUATION_SUPERSEDED:
             _earlier_event(identifiers, event.payload.superseded_evaluation_event_id, {ExperimentEventType.EVALUATION_ISSUED}, "An evaluation supersession reference")
+        elif event.event_type is ExperimentEventType.NOTE_RECORDED:
+            if event.payload.related_event_id not in identifiers:
+                raise ExperimentModelError("An experiment note must reference an earlier event in the same history.")
         identifiers[event.record_id] = event
     return history
 

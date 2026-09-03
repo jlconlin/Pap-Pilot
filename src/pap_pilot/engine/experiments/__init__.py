@@ -38,6 +38,7 @@ from pap_pilot.engine.experiments.classification import (
     SubjectiveDomainState,
     evaluate_outcome_classification,
 )
+from pap_pilot.engine.experiments.corrections import build_boundary_correction_events
 from pap_pilot.engine.experiments.journal import (
     JOURNAL_RATING_MAXIMUM,
     JOURNAL_RATING_MINIMUM,
@@ -73,6 +74,7 @@ from pap_pilot.engine.experiments.model import (
     ExperimentSetting,
     ExperimentSettingChange,
     HypothesisDraftedPayload,
+    NoteRecordedPayload,
     ObservationRecordedPayload,
     ProblemRecordedPayload,
     SettingChangeConfirmedPayload,
@@ -165,6 +167,7 @@ __all__ = [
     "ExperimentStore",
     "ExperimentStoreError",
     "HypothesisDraftedPayload",
+    "NoteRecordedPayload",
     "ObservationRecordedPayload",
     "ProblemRecordedPayload",
     "PSMinRetrospectiveFixture",
@@ -197,6 +200,7 @@ __all__ = [
     "SubjectiveDomainState",
     "allocate_experiment_nights",
     "append_experiment_event",
+    "build_boundary_correction_events",
     "evaluate_outcome_classification",
     "reconstruct_ps_min_experiment_fixture",
     "validate_experiment_history",

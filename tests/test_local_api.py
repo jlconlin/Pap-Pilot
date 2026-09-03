@@ -12,6 +12,8 @@ from pap_pilot.api import (
     LOCAL_API_HEALTH_PATH,
     LOCAL_API_VERSION,
     PS_MIN_EXPERIMENT_SUMMARY_PATH,
+    PS_MIN_BOUNDARY_CORRECTION_PATH,
+    PS_MIN_EXPERIMENT_HISTORY_PATH,
     LocalApiConfigurationError,
     LocalApiSettings,
     app,
@@ -22,7 +24,7 @@ from pap_pilot.engine import build_ps_min_retrospective_evidence_report, seriali
 
 
 class LocalApiTests(unittest.TestCase):
-    """Verify the API is local, read-only, minimal, and lossless."""
+    """Verify the API is local, minimally mutable, and lossless."""
 
     def test_health_endpoint_has_an_explicit_stable_response(self) -> None:
         with TestClient(create_app()) as client:
@@ -55,7 +57,7 @@ class LocalApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_api_exposes_exactly_two_get_routes_and_no_documentation_ui(self) -> None:
+    def test_api_exposes_the_bounded_history_and_correction_routes_and_no_documentation_ui(self) -> None:
         application = create_app()
         routes = {(route.path, frozenset(route.methods)) for route in application.routes if isinstance(route, APIRoute) and route.path.startswith("/api/")}
 
@@ -64,6 +66,8 @@ class LocalApiTests(unittest.TestCase):
             {
                 (LOCAL_API_HEALTH_PATH, frozenset({"GET"})),
                 (PS_MIN_EXPERIMENT_SUMMARY_PATH, frozenset({"GET"})),
+                (PS_MIN_EXPERIMENT_HISTORY_PATH, frozenset({"GET"})),
+                (PS_MIN_BOUNDARY_CORRECTION_PATH, frozenset({"POST"})),
             },
         )
         with TestClient(application) as client:

@@ -22,7 +22,7 @@ from pap_pilot.ui import OVERVIEW_ASSET_NAMES, load_overview_asset
 
 
 class ExperimentOverviewTests(unittest.TestCase):
-    """Verify the overview and bounded waveform display are local and read-only."""
+    """Verify the overview is local and exposes only the bounded correction form."""
 
     def test_overview_shell_and_assets_are_served_locally(self) -> None:
         with TestClient(create_app()) as client:
@@ -45,7 +45,7 @@ class ExperimentOverviewTests(unittest.TestCase):
             self.assertEqual(response.headers["referrer-policy"], "no-referrer")
             self.assertIn("connect-src 'self'", response.headers["content-security-policy"])
 
-    def test_shell_loads_only_local_assets_and_contains_no_editing_surface(self) -> None:
+    def test_shell_loads_only_local_assets_and_contains_only_the_bounded_correction_surface(self) -> None:
         shell = load_overview_asset("overview.html")
         script = load_overview_asset("overview.mjs")
         combined = f"{shell}\n{script}".lower()
@@ -58,9 +58,11 @@ class ExperimentOverviewTests(unittest.TestCase):
         self.assertNotIn("https://", combined)
         self.assertIn("display_contract_version", script)
         self.assertIn("<svg", script)
-        for element in ("form", "input", "textarea", "select", "button", "canvas"):
-            with self.subTest(element=element):
-                self.assertNotIn(f"<{element}", combined)
+        self.assertIn("boundary-corrections", script)
+        self.assertIn("<form", script)
+        self.assertIn("<textarea", script)
+        self.assertNotIn("<select", combined)
+        self.assertNotIn("<canvas", combined)
 
     def test_ui_surface_is_exactly_three_get_routes(self) -> None:
         application = create_app()
@@ -214,6 +216,30 @@ class ExperimentOverviewTests(unittest.TestCase):
         self.assertIn("&lt;b&gt;offline&lt;/b&gt;", error)
         self.assertNotIn("<b>offline</b>", error)
 
+    @unittest.skipUnless(shutil.which("node"), "Node.js is required for the focused history-renderer check.")
+    def test_history_renderer_shows_corrected_and_effective_events_with_the_bounded_form(self) -> None:
+        payload = {
+            "format": "pap-pilot.experiment-history-json",
+            "format_version": 1,
+            "experiment_record_id": "experiment:test",
+            "can_correct_boundary": True,
+            "effective_boundary": {"record_id": "event:boundary-new", "applied_at_ms": 2_000, "setting_name": "ps_min", "previous_value": 2, "corrected_value": 1, "unit": "cm H₂O"},
+            "history": [
+                {"record_id": "event:boundary-old", "sequence_number": 1, "event_type": "setting_change_confirmed_applied", "recorded_at_ms": 1_000, "recorded_by": "user:local", "correction_of_event_id": None, "effective": False, "applied_at_ms": 1_500},
+                {"record_id": "event:boundary-new", "sequence_number": 2, "event_type": "setting_change_confirmed_applied", "recorded_at_ms": 2_500, "recorded_by": "user:local", "correction_of_event_id": "event:boundary-old", "effective": True, "applied_at_ms": 2_000},
+                {"record_id": "event:note", "sequence_number": 3, "event_type": "note_recorded", "recorded_at_ms": 2_500, "recorded_by": "user:local", "correction_of_event_id": None, "effective": True, "note": "From <paper> log", "related_event_id": "event:boundary-new"},
+            ],
+        }
+
+        rendered = self._render_history_with_node(json.dumps(payload).encode("utf-8"))
+
+        self.assertIn('id="boundary-correction-form"', rendered)
+        self.assertIn('data-corrected-event-id="event:boundary-new"', rendered)
+        self.assertIn("corrected history", rendered)
+        self.assertIn("Append correction and note", rendered)
+        self.assertIn("From &lt;paper&gt; log", rendered)
+        self.assertNotIn("From <paper> log", rendered)
+
     def test_asset_loader_is_allowlisted(self) -> None:
         self.assertEqual(OVERVIEW_ASSET_NAMES, frozenset({"overview.css", "overview.html", "overview.mjs"}))
         with self.assertRaises(ValueError):
@@ -231,6 +257,13 @@ class ExperimentOverviewTests(unittest.TestCase):
         module_uri = files("pap_pilot.ui").joinpath("overview.mjs").as_uri()
         program = f'import {{renderOverviewError}} from {json.dumps(module_uri)}; process.stdout.write(renderOverviewError({json.dumps(message)}));'
         result = subprocess.run(("node", "--input-type=module", "--eval", program), capture_output=True, check=True)
+        return result.stdout.decode("utf-8")
+
+    @staticmethod
+    def _render_history_with_node(payload: bytes) -> str:
+        module_uri = files("pap_pilot.ui").joinpath("overview.mjs").as_uri()
+        program = f'import {{renderExperimentHistory}} from {json.dumps(module_uri)}; let source = ""; for await (const chunk of process.stdin) source += chunk; process.stdout.write(renderExperimentHistory(JSON.parse(source)));'
+        result = subprocess.run(("node", "--input-type=module", "--eval", program), input=payload, capture_output=True, check=True)
         return result.stdout.decode("utf-8")
 
     @staticmethod

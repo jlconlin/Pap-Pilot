@@ -236,7 +236,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Polished presentation and prospective recommendations.
 - Done when: The fixture evaluates reproducibly with linked evidence and documented missing inputs.
 
-### S32 — Produce the retrospective evidence report — queued
+### S32 — Produce the retrospective evidence report — done
 
 - Objective: Generate a deterministic structured report for S31 with metrics, uncertainty, limitations, and representative intervals.
 - Excludes: Web UI and AI-written prose.

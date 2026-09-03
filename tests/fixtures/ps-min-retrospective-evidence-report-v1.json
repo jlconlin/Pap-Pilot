@@ -1,0 +1,573 @@
+{
+  "format": "pap-pilot.retrospective-evidence-report-json",
+  "format_version": 1,
+  "report": {
+    "adverse_effect_evidence": {
+      "availability": "missing",
+      "reason_codes": [
+        "confounder_adverse_effect_evidence_missing"
+      ],
+      "record_count": 0,
+      "record_ids": [],
+      "source_record_ids": [
+        "docs/decisions/0005-sleep-journal-schema.md",
+        "docs/decisions/0006-outcome-classification-rules.md"
+      ]
+    },
+    "classification": {
+      "action": null,
+      "availability": "not_issued",
+      "classification": null,
+      "classification_record_id": null,
+      "reason_codes": [
+        "accepted_proposal_missing",
+        "applied_change_boundary_missing",
+        "baseline_intervention_nights_missing",
+        "confounder_adverse_effect_evidence_missing",
+        "objective_metric_results_missing",
+        "outcome_classification_not_issued",
+        "quality_reports_missing",
+        "representative_intervals_missing",
+        "structured_journal_reports_missing"
+      ],
+      "source_record_ids": [
+        "Plan.md#part-i-section-2",
+        "Plan.md#part-i-section-9",
+        "STATUS.md#blockers",
+        "docs/decisions/0004-initial-objective-metrics.md",
+        "docs/decisions/0005-sleep-journal-schema.md",
+        "docs/decisions/0006-outcome-classification-rules.md",
+        "event:ps-min-retrospective:hypothesis",
+        "event:ps-min-retrospective:problem",
+        "experiment:ps-min-2-to-1:retrospective-v1",
+        "fact:analysis-contract",
+        "fact:informal-impression",
+        "fact:ps-min-change"
+      ]
+    },
+    "confounder_evidence": {
+      "availability": "missing",
+      "reason_codes": [
+        "confounder_adverse_effect_evidence_missing"
+      ],
+      "record_count": 0,
+      "record_ids": [],
+      "source_record_ids": [
+        "docs/decisions/0005-sleep-journal-schema.md",
+        "docs/decisions/0006-outcome-classification-rules.md"
+      ]
+    },
+    "engine_version": "0.1.0",
+    "evaluation_record_id": "retrospective-fixture-evaluation:9d6a7017cc7b683ae248",
+    "evaluation_status": "not_evaluable_without_fabrication",
+    "experiment_record_id": "experiment:ps-min-2-to-1:retrospective-v1",
+    "fixture_record_id": "retrospective-fixture:ps-min-2-to-1:v1",
+    "history": [
+      {
+        "event_type": "problem_recorded",
+        "record_id": "event:ps-min-retrospective:problem",
+        "sequence_number": 1,
+        "source_class": "companion_derived",
+        "source_provenance_ids": [
+          "provenance:decision:initial-objective-metrics-v1",
+          "provenance:decision:outcome-classification-v1",
+          "provenance:plan:personal-prototype"
+        ],
+        "source_record_ids": [
+          "Plan.md#part-i-section-2",
+          "Plan.md#part-i-section-9",
+          "experiment:ps-min-2-to-1:retrospective-v1"
+        ]
+      },
+      {
+        "event_type": "hypothesis_drafted",
+        "record_id": "event:ps-min-retrospective:hypothesis",
+        "sequence_number": 2,
+        "source_class": "companion_derived",
+        "source_provenance_ids": [
+          "provenance:decision:initial-objective-metrics-v1",
+          "provenance:decision:outcome-classification-v1",
+          "provenance:plan:personal-prototype"
+        ],
+        "source_record_ids": [
+          "Plan.md#part-i-section-2",
+          "docs/decisions/0004-initial-objective-metrics.md",
+          "experiment:ps-min-2-to-1:retrospective-v1"
+        ]
+      }
+    ],
+    "known_change": {
+      "baseline_value": 2.0,
+      "intervention_value": 1.0,
+      "setting_name": "ps_min",
+      "source_record_ids": [
+        "Plan.md#part-i-section-2",
+        "docs/decisions/0006-outcome-classification-rules.md",
+        "fact:ps-min-change"
+      ],
+      "unit": "cm H₂O"
+    },
+    "known_facts": [
+      {
+        "record_id": "fact:analysis-contract",
+        "source_record_ids": [
+          "docs/decisions/0004-initial-objective-metrics.md",
+          "docs/decisions/0006-outcome-classification-rules.md"
+        ],
+        "statement": "The accepted deterministic analysis uses pap-pilot.ps-min-objective-metrics version 1 and the version-1 outcome-classification rules."
+      },
+      {
+        "record_id": "fact:informal-impression",
+        "source_record_ids": [
+          "Plan.md#part-i-section-2",
+          "docs/decisions/0005-sleep-journal-schema.md"
+        ],
+        "statement": "The governing record describes the earlier interpretation only as subjectively meaningful; it supplies no attributable per-night structured journal observations."
+      },
+      {
+        "record_id": "fact:ps-min-change",
+        "source_record_ids": [
+          "Plan.md#part-i-section-2",
+          "docs/decisions/0006-outcome-classification-rules.md"
+        ],
+        "statement": "The governing record identifies an informal fixed-EPAP ASV PS Min change from 2 to 1 cm H₂O."
+      }
+    ],
+    "limitations": [
+      "An OutcomeClassificationResult must not be issued until every required source record can be linked without fabricated values.",
+      "No private OSCAR identifier, date, session, signal, metric, journal response, confounder, or adverse-effect value is retained.",
+      "The earlier informal subjective impression is retained only as a planning fact and is not converted into a structured journal response.",
+      "The fixed zero and low integer event timestamps are deterministic repository-fixture metadata sentinels, not therapy, report, or observation times.",
+      "This fixture is a reconstruction inventory, not a clinical conclusion or causal analysis.",
+      "This report is a structured evidence inventory; it contains no generated interpretation, clinical conclusion, or device-setting instruction."
+    ],
+    "missing_inputs": [
+      {
+        "blocks": [
+          "classification",
+          "proposal acceptance replay"
+        ],
+        "description": "The retained record has no exact accepted proposal containing baseline dates, complete baseline settings, invalid-night criteria, and evidence links.",
+        "input_id": "accepted_proposal",
+        "source_record_ids": [
+          "Plan.md#part-i-section-9",
+          "STATUS.md#blockers"
+        ]
+      },
+      {
+        "blocks": [
+          "baseline/intervention allocation",
+          "classification"
+        ],
+        "description": "The retained record has no user-confirmed application timestamp for the intended sustained change; an observed settings transition must not silently become a confirmation event.",
+        "input_id": "applied_change_boundary",
+        "source_record_ids": [
+          "Plan.md#part-i-section-9",
+          "STATUS.md#blockers"
+        ]
+      },
+      {
+        "blocks": [
+          "allocation",
+          "classification",
+          "metric calculation"
+        ],
+        "description": "No private normalized-night cohort or explicit baseline/intervention date selection is retained in the repository.",
+        "input_id": "baseline_intervention_nights",
+        "source_record_ids": [
+          "Plan.md#part-i-section-9",
+          "STATUS.md#blockers"
+        ]
+      },
+      {
+        "blocks": [
+          "adverse-effect precedence",
+          "classification",
+          "confounder assessment"
+        ],
+        "description": "No linked per-night confounder or adverse-effect records are retained; their absence cannot be interpreted as none reported.",
+        "input_id": "confounder_adverse_effect_evidence",
+        "source_record_ids": [
+          "docs/decisions/0005-sleep-journal-schema.md",
+          "docs/decisions/0006-outcome-classification-rules.md"
+        ]
+      },
+      {
+        "blocks": [
+          "classification"
+        ],
+        "description": "Neither version-1 objective metric has been calculated for linked baseline and intervention nights.",
+        "input_id": "objective_metric_results",
+        "source_record_ids": [
+          "STATUS.md#blockers",
+          "docs/decisions/0004-initial-objective-metrics.md"
+        ]
+      },
+      {
+        "blocks": [
+          "allocation",
+          "metric calculation"
+        ],
+        "description": "No structural or signal-quality reports exist for an explicitly selected retrospective cohort.",
+        "input_id": "quality_reports",
+        "source_record_ids": [
+          "Plan.md#part-i-section-9"
+        ]
+      },
+      {
+        "blocks": [
+          "accepted proposal",
+          "later evidence report"
+        ],
+        "description": "No baseline or intervention waveform interval has been selected and linked to retained source records.",
+        "input_id": "representative_intervals",
+        "source_record_ids": [
+          "Plan.md#part-i-section-9"
+        ]
+      },
+      {
+        "blocks": [
+          "classification",
+          "subjective aggregation"
+        ],
+        "description": "No attributable per-night awakenings, sleep-quality, morning-energy, or daytime-tiredness entries are retained for the retrospective periods.",
+        "input_id": "structured_journal_reports",
+        "source_record_ids": [
+          "STATUS.md#blockers",
+          "docs/decisions/0005-sleep-journal-schema.md"
+        ]
+      }
+    ],
+    "objective_metrics": [
+      {
+        "availability": "missing",
+        "baseline": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "baseline"
+        },
+        "favorable_direction": "lower",
+        "intervention": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "intervention"
+        },
+        "intervention_minus_baseline": null,
+        "outcome_id": "mean_mask_pressure_above_epap",
+        "outcome_state": null,
+        "prespecified_threshold": 0.5,
+        "reason_codes": [
+          "objective_metric_results_missing"
+        ],
+        "source_record_ids": [
+          "STATUS.md#blockers",
+          "docs/decisions/0004-initial-objective-metrics.md"
+        ],
+        "unit": "cm H₂O"
+      },
+      {
+        "availability": "missing",
+        "baseline": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "baseline"
+        },
+        "favorable_direction": "lower",
+        "intervention": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "intervention"
+        },
+        "intervention_minus_baseline": null,
+        "outcome_id": "minute_ventilation_upper_tail_ratio",
+        "outcome_state": null,
+        "prespecified_threshold": 0.1,
+        "reason_codes": [
+          "objective_metric_results_missing"
+        ],
+        "source_record_ids": [
+          "STATUS.md#blockers",
+          "docs/decisions/0004-initial-objective-metrics.md"
+        ],
+        "unit": "1"
+      }
+    ],
+    "periods": [
+      {
+        "availability": "missing",
+        "night_count": 0,
+        "night_record_ids": [],
+        "period": "baseline",
+        "reason_codes": [
+          "applied_change_boundary_missing",
+          "baseline_intervention_nights_missing",
+          "quality_reports_missing"
+        ],
+        "signal_quality_report_ids": [],
+        "source_record_ids": [
+          "Plan.md#part-i-section-9",
+          "STATUS.md#blockers"
+        ],
+        "structural_quality_report_ids": []
+      },
+      {
+        "availability": "missing",
+        "night_count": 0,
+        "night_record_ids": [],
+        "period": "intervention",
+        "reason_codes": [
+          "applied_change_boundary_missing",
+          "baseline_intervention_nights_missing",
+          "quality_reports_missing"
+        ],
+        "signal_quality_report_ids": [],
+        "source_record_ids": [
+          "Plan.md#part-i-section-9",
+          "STATUS.md#blockers"
+        ],
+        "structural_quality_report_ids": []
+      }
+    ],
+    "provenance": {
+      "producer_id": "pap-pilot.retrospective-evidence-report",
+      "producer_version": "0.1.0",
+      "source_class": "companion_derived",
+      "source_provenance_ids": [
+        "provenance:decision:initial-objective-metrics-v1",
+        "provenance:decision:outcome-classification-v1",
+        "provenance:plan:personal-prototype"
+      ],
+      "source_record_ids": [
+        "Plan.md#part-i-section-2",
+        "Plan.md#part-i-section-9",
+        "STATUS.md#blockers",
+        "docs/decisions/0004-initial-objective-metrics.md",
+        "docs/decisions/0005-sleep-journal-schema.md",
+        "docs/decisions/0006-outcome-classification-rules.md",
+        "event:ps-min-retrospective:hypothesis",
+        "event:ps-min-retrospective:problem",
+        "experiment:ps-min-2-to-1:retrospective-v1",
+        "fact:analysis-contract",
+        "fact:informal-impression",
+        "fact:ps-min-change",
+        "retrospective-fixture-evaluation:9d6a7017cc7b683ae248",
+        "retrospective-fixture:ps-min-2-to-1:v1"
+      ]
+    },
+    "quality_evidence": {
+      "availability": "missing",
+      "reason_codes": [
+        "quality_reports_missing"
+      ],
+      "record_count": 0,
+      "record_ids": [],
+      "source_record_ids": [
+        "Plan.md#part-i-section-9"
+      ]
+    },
+    "record_id": "retrospective-evidence-report:9fea573d7f88ea9206c0",
+    "record_version": 1,
+    "representative_intervals": [
+      {
+        "availability": "missing",
+        "end_ms": null,
+        "interval_record_id": null,
+        "period": "baseline",
+        "reason_codes": [
+          "representative_intervals_missing"
+        ],
+        "source_record_ids": [
+          "Plan.md#part-i-section-9"
+        ],
+        "start_ms": null
+      },
+      {
+        "availability": "missing",
+        "end_ms": null,
+        "interval_record_id": null,
+        "period": "intervention",
+        "reason_codes": [
+          "representative_intervals_missing"
+        ],
+        "source_record_ids": [
+          "Plan.md#part-i-section-9"
+        ],
+        "start_ms": null
+      }
+    ],
+    "schema_id": "pap-pilot.retrospective-evidence-report",
+    "schema_version": 1,
+    "subjective_outcomes": [
+      {
+        "availability": "missing",
+        "baseline": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "baseline"
+        },
+        "favorable_direction": "lower",
+        "intervention": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "intervention"
+        },
+        "intervention_minus_baseline": null,
+        "outcome_id": "awakenings_count",
+        "outcome_state": null,
+        "prespecified_threshold": 1.0,
+        "reason_codes": [
+          "structured_journal_reports_missing"
+        ],
+        "source_record_ids": [
+          "STATUS.md#blockers",
+          "docs/decisions/0005-sleep-journal-schema.md"
+        ],
+        "unit": "awakening"
+      },
+      {
+        "availability": "missing",
+        "baseline": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "baseline"
+        },
+        "favorable_direction": "higher",
+        "intervention": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "intervention"
+        },
+        "intervention_minus_baseline": null,
+        "outcome_id": "sleep_quality",
+        "outcome_state": null,
+        "prespecified_threshold": 1.0,
+        "reason_codes": [
+          "structured_journal_reports_missing"
+        ],
+        "source_record_ids": [
+          "STATUS.md#blockers",
+          "docs/decisions/0005-sleep-journal-schema.md"
+        ],
+        "unit": "scale point"
+      },
+      {
+        "availability": "missing",
+        "baseline": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "baseline"
+        },
+        "favorable_direction": "higher",
+        "intervention": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "intervention"
+        },
+        "intervention_minus_baseline": null,
+        "outcome_id": "morning_energy",
+        "outcome_state": null,
+        "prespecified_threshold": 1.0,
+        "reason_codes": [
+          "structured_journal_reports_missing"
+        ],
+        "source_record_ids": [
+          "STATUS.md#blockers",
+          "docs/decisions/0005-sleep-journal-schema.md"
+        ],
+        "unit": "scale point"
+      },
+      {
+        "availability": "missing",
+        "baseline": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "baseline"
+        },
+        "favorable_direction": "lower",
+        "intervention": {
+          "availability": "missing",
+          "count": 0,
+          "evidence_record_ids": [],
+          "maximum": null,
+          "median": null,
+          "median_absolute_deviation": null,
+          "minimum": null,
+          "period": "intervention"
+        },
+        "intervention_minus_baseline": null,
+        "outcome_id": "daytime_tiredness",
+        "outcome_state": null,
+        "prespecified_threshold": 1.0,
+        "reason_codes": [
+          "structured_journal_reports_missing"
+        ],
+        "source_record_ids": [
+          "STATUS.md#blockers",
+          "docs/decisions/0005-sleep-journal-schema.md"
+        ],
+        "unit": "scale point"
+      }
+    ],
+    "title": "Retrospective PS Min 2-to-1 evidence report",
+    "uncertainty": [
+      "Absence of retained observations means unknown, not zero, unchanged, favorable, or safe.",
+      "Missing quality, metric, journal, confounder, adverse-effect, and waveform evidence prevents quantitative comparison.",
+      "The retained record does not establish the intended application boundary or identify baseline and intervention cohorts."
+    ]
+  }
+}

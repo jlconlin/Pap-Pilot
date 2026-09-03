@@ -1,6 +1,18 @@
 const SUMMARY_ENDPOINT = "/api/v1/experiments/ps-min-2-to-1/summary";
 const REPORT_FORMAT = "pap-pilot.retrospective-evidence-report-json";
 const REPORT_FORMAT_VERSION = 1;
+const WAVEFORM_DISPLAY_CONTRACT_VERSION = 1;
+const MAX_WAVEFORM_SIGNALS = 3;
+const MAX_WAVEFORM_POINTS = 2000;
+const WAVEFORM_WIDTH = 800;
+const WAVEFORM_HEIGHT = 190;
+const WAVEFORM_PADDING = Object.freeze({top: 18, right: 18, bottom: 30, left: 62});
+
+const SIGNAL_SPECS = Object.freeze({
+  flow_rate: Object.freeze({label: "Flow Rate", unit: "L/min", representation: "uniform_waveform", colorClass: "waveform-flow"}),
+  mask_pressure: Object.freeze({label: "Mask Pressure", unit: "cm H₂O", representation: "uniform_waveform", colorClass: "waveform-pressure"}),
+  leak: Object.freeze({label: "Leak", unit: "L/min", representation: "timed_updates", colorClass: "waveform-leak"}),
+});
 
 const LABELS = Object.freeze({
   ps_min: "PS Min",
@@ -32,6 +44,7 @@ export function renderOverview(envelope) {
   const limitations = array(report.limitations, "limitations");
   const classification = object(report.classification, "classification");
   const provenance = object(report.provenance, "provenance");
+  const evidence = evidenceIndex(provenance.source_record_ids);
 
   return `
     <article class="overview-report" data-report-id="${escapeHtml(text(report.record_id, "report identifier"))}">
@@ -82,8 +95,8 @@ export function renderOverview(envelope) {
       </section>
 
       <section class="section" aria-labelledby="intervals-heading">
-        ${sectionHeading("intervals-heading", "Representative intervals", "The report reserves one evidence slot for each period. Waveforms are not rendered when no attributable interval is available.")}
-        <div class="interval-grid">${representativeIntervals.map(renderInterval).join("")}</div>
+        ${sectionHeading("intervals-heading", "Representative intervals", "Only preselected report excerpts are displayed. Samples are plotted without smoothing or interval selection, and unavailable signal evidence stays visibly missing.")}
+        <div class="interval-grid">${representativeIntervals.map((interval) => renderInterval(interval, evidence.targets)).join("")}</div>
       </section>
 
       <section class="section" aria-labelledby="evaluation-heading">
@@ -101,6 +114,11 @@ export function renderOverview(envelope) {
           <div class="content-card">
             <h3>Uncertainty</h3>
             ${renderList(uncertainty)}
+          </div>
+          <div class="content-card evidence-inventory" id="report-evidence">
+            <h3>Linked evidence</h3>
+            <p>Waveform references resolve to the report’s retained source-record inventory.</p>
+            ${renderEvidenceInventory(evidence.records)}
           </div>
         </div>
       </section>
@@ -215,16 +233,170 @@ function renderEvidenceCard(key, value) {
     </article>`;
 }
 
-function renderInterval(value) {
+function renderInterval(value, evidenceTargets) {
   const interval = object(value, "representative interval");
   const state = text(interval.availability, "interval availability");
+  const period = text(interval.period, "interval period");
+  if (!(period === "baseline" || period === "intervention")) {
+    throw new Error("A representative interval has an unsupported period.");
+  }
+  const sourceRecordIds = textArray(interval.source_record_ids, "interval source identifiers");
+  if (state === "missing") {
+    if (interval.interval_record_id !== null || interval.start_ms !== null || interval.end_ms !== null) {
+      throw new Error("A missing representative interval cannot contain bounds or an identifier.");
+    }
+    return `
+      <article class="interval-card interval-card-missing" data-period="${escapeHtml(period)}">
+        <small>${escapeHtml(label(period))}</small>
+        <div class="card-row"><h3>Waveform interval</h3>${badge(state)}</div>
+        <p class="empty-value">Not available</p>
+        <p class="waveform-missing-copy">No attributable interval or signal excerpt was supplied, so no waveform is drawn.</p>
+        ${reasonLine(interval.reason_codes)}
+        ${renderEvidenceLinks(sourceRecordIds, evidenceTargets)}
+      </article>`;
+  }
+  if (state !== "available") {
+    throw new Error("A representative interval has an unsupported availability state.");
+  }
+
+  const intervalRecordId = text(interval.interval_record_id, "interval identifier");
+  const startMs = finiteNumber(interval.start_ms, "interval start");
+  const endMs = finiteNumber(interval.end_ms, "interval end");
+  const durationMs = endMs - startMs;
+  if (startMs >= endMs || !Number.isFinite(durationMs)) {
+    throw new Error("A representative interval must have positive half-open bounds.");
+  }
+  if (interval.display_contract_version !== WAVEFORM_DISPLAY_CONTRACT_VERSION) {
+    throw new Error("A representative interval has an unsupported waveform display contract.");
+  }
+  const signals = array(interval.signals, "representative interval signals");
+  if (!signals.length || signals.length > MAX_WAVEFORM_SIGNALS) {
+    throw new Error("A representative interval requires one to three bounded signal excerpts.");
+  }
+  const signalKinds = signals.map((signal) => text(object(signal, "waveform signal").signal_kind, "signal kind"));
+  if (new Set(signalKinds).size !== signalKinds.length) {
+    throw new Error("A representative interval cannot repeat a signal kind.");
+  }
+  const allEvidenceIds = [...new Set([intervalRecordId, ...sourceRecordIds, ...signals.flatMap((signal) => textArray(object(signal, "waveform signal").source_record_ids, "signal source identifiers"))])];
   return `
-    <article class="interval-card">
-      <small>${escapeHtml(label(interval.period))}</small>
+    <article class="interval-card interval-card-available" data-period="${escapeHtml(period)}">
+      <small>${escapeHtml(label(period))}</small>
       <div class="card-row"><h3>Waveform interval</h3>${badge(state)}</div>
-      <p class="empty-value">${interval.start_ms === null && interval.end_ms === null ? "Not available" : `${escapeHtml(number(interval.start_ms))}–${escapeHtml(number(interval.end_ms))} ms`}</p>
+      <p class="interval-window"><span>${escapeHtml(formatTimestamp(startMs))}</span><span aria-hidden="true">→</span><span>${escapeHtml(formatTimestamp(endMs))}</span></p>
+      <p class="interval-duration">${escapeHtml(formatDuration(endMs - startMs))} preselected window · raw-relative milliseconds</p>
       ${reasonLine(interval.reason_codes)}
+      <div class="waveform-stack">${signals.map((signal, index) => renderSignalSafely(signal, period, index, startMs, endMs, evidenceTargets)).join("")}</div>
+      ${renderEvidenceLinks(allEvidenceIds, evidenceTargets)}
     </article>`;
+}
+
+function renderSignalSafely(value, period, index, intervalStartMs, intervalEndMs, evidenceTargets) {
+  try {
+    return renderSignal(value, period, index, intervalStartMs, intervalEndMs, evidenceTargets);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The signal excerpt is invalid.";
+    return `<section class="waveform-failure" role="alert"><h4>Signal unavailable</h4><p>${escapeHtml(message)} No values were estimated or drawn.</p></section>`;
+  }
+}
+
+function renderSignal(value, period, index, intervalStartMs, intervalEndMs, evidenceTargets) {
+  const signal = object(value, "waveform signal");
+  const signalKind = text(signal.signal_kind, "signal kind");
+  const spec = SIGNAL_SPECS[signalKind];
+  if (!spec) {
+    throw new Error("The signal kind is unsupported.");
+  }
+  const state = text(signal.availability, "signal availability");
+  const unit = text(signal.unit, "signal unit");
+  if (unit !== spec.unit) {
+    throw new Error(`${spec.label} must retain its ${spec.unit} unit.`);
+  }
+  const sourceRecordIds = textArray(signal.source_record_ids, "signal source identifiers");
+  const reasonCodes = array(signal.reason_codes, "signal reason codes");
+  if (state === "missing") {
+    if (signal.signal_record_id !== null || signal.representation !== null || array(signal.sample_times_ms, "signal sample times").length || array(signal.values, "signal values").length) {
+      throw new Error("A missing signal cannot contain an identifier, representation, or samples.");
+    }
+    return `
+      <section class="waveform-panel waveform-panel-missing" data-signal-kind="${escapeHtml(signalKind)}">
+        <div class="waveform-heading"><div><h4>${escapeHtml(spec.label)}</h4><p>${escapeHtml(unit)}</p></div>${badge(state)}</div>
+        <p class="empty-value">Not available</p>
+        <p class="waveform-missing-copy">This signal excerpt was not supplied and no trace was inferred.</p>
+        ${reasonLine(reasonCodes)}
+        ${renderEvidenceLinks(sourceRecordIds, evidenceTargets)}
+      </section>`;
+  }
+  if (state !== "available") {
+    throw new Error(`${spec.label} has an unsupported availability state.`);
+  }
+
+  const signalRecordId = text(signal.signal_record_id, "signal identifier");
+  const representation = text(signal.representation, "signal representation");
+  if (representation !== spec.representation) {
+    throw new Error(`${spec.label} has an unsupported sample representation.`);
+  }
+  const times = numericArray(signal.sample_times_ms, "signal sample times");
+  const values = numericArray(signal.values, "signal values");
+  if (times.length < 2 || times.length > MAX_WAVEFORM_POINTS || times.length !== values.length) {
+    throw new Error(`The ${spec.label} excerpt must contain two to ${MAX_WAVEFORM_POINTS} paired samples.`);
+  }
+  if (times.some((time, sampleIndex) => time < intervalStartMs || time >= intervalEndMs || (sampleIndex > 0 && time <= times[sampleIndex - 1]))) {
+    throw new Error(`The ${spec.label} sample times must be strictly increasing inside the selected interval.`);
+  }
+
+  const plot = waveformPlot(times, values, intervalStartMs, intervalEndMs, representation);
+  const titleId = `waveform-title-${period}-${signalKind}-${index}`;
+  const signalEvidenceIds = [...new Set([signalRecordId, ...sourceRecordIds])];
+  return `
+    <section class="waveform-panel" data-signal-kind="${escapeHtml(signalKind)}" data-unit="${escapeHtml(unit)}">
+      <div class="waveform-heading"><div><h4>${escapeHtml(spec.label)}</h4><p>${escapeHtml(unit)} · ${times.length} supplied samples</p></div>${badge(state)}</div>
+      <svg class="waveform-chart ${escapeHtml(spec.colorClass)}" viewBox="0 0 ${WAVEFORM_WIDTH} ${WAVEFORM_HEIGHT}" role="img" aria-labelledby="${titleId}">
+        <title id="${titleId}">${escapeHtml(`${label(period)} ${spec.label}, ${unit}, ${times.length} supplied samples`)}</title>
+        <line class="waveform-axis" x1="${WAVEFORM_PADDING.left}" y1="${WAVEFORM_PADDING.top}" x2="${WAVEFORM_PADDING.left}" y2="${WAVEFORM_HEIGHT - WAVEFORM_PADDING.bottom}"></line>
+        <line class="waveform-axis" x1="${WAVEFORM_PADDING.left}" y1="${WAVEFORM_HEIGHT - WAVEFORM_PADDING.bottom}" x2="${WAVEFORM_WIDTH - WAVEFORM_PADDING.right}" y2="${WAVEFORM_HEIGHT - WAVEFORM_PADDING.bottom}"></line>
+        ${plot.zeroY === null ? "" : `<line class="waveform-zero" x1="${WAVEFORM_PADDING.left}" y1="${plot.zeroY}" x2="${WAVEFORM_WIDTH - WAVEFORM_PADDING.right}" y2="${plot.zeroY}"></line>`}
+        <path class="waveform-trace" d="${plot.path}"></path>
+        <text class="waveform-axis-label" x="${WAVEFORM_PADDING.left - 8}" y="${WAVEFORM_PADDING.top + 4}" text-anchor="end">${escapeHtml(formatValue(plot.maximum))}</text>
+        <text class="waveform-axis-label" x="${WAVEFORM_PADDING.left - 8}" y="${WAVEFORM_HEIGHT - WAVEFORM_PADDING.bottom + 4}" text-anchor="end">${escapeHtml(formatValue(plot.minimum))}</text>
+        <text class="waveform-axis-label" x="${WAVEFORM_PADDING.left}" y="${WAVEFORM_HEIGHT - 8}">0 s</text>
+        <text class="waveform-axis-label" x="${WAVEFORM_WIDTH - WAVEFORM_PADDING.right}" y="${WAVEFORM_HEIGHT - 8}" text-anchor="end">${escapeHtml(formatDuration(intervalEndMs - intervalStartMs))}</text>
+      </svg>
+      <p class="waveform-contract">${representation === "timed_updates" ? "Stored updates shown as steps" : "Supplied samples connected without smoothing"} · display range ${escapeHtml(formatValue(plot.minimum))}–${escapeHtml(formatValue(plot.maximum))} ${escapeHtml(unit)}</p>
+      ${reasonLine(reasonCodes)}
+      ${renderEvidenceLinks(signalEvidenceIds, evidenceTargets)}
+    </section>`;
+}
+
+function waveformPlot(times, values, intervalStartMs, intervalEndMs, representation) {
+  const left = WAVEFORM_PADDING.left;
+  const right = WAVEFORM_WIDTH - WAVEFORM_PADDING.right;
+  const top = WAVEFORM_PADDING.top;
+  const bottom = WAVEFORM_HEIGHT - WAVEFORM_PADDING.bottom;
+  const rawMinimum = Math.min(...values);
+  const rawMaximum = Math.max(...values);
+  const rawRange = rawMaximum - rawMinimum;
+  if (!Number.isFinite(rawRange)) {
+    throw new Error("The signal value range cannot be plotted safely.");
+  }
+  const padding = rawMaximum === rawMinimum ? Math.max(Math.abs(rawMaximum) * 0.05, 1) : rawRange * 0.08;
+  const minimum = rawMinimum - padding;
+  const maximum = rawMaximum + padding;
+  if (!Number.isFinite(minimum) || !Number.isFinite(maximum) || minimum >= maximum) {
+    throw new Error("The signal display range cannot be plotted safely.");
+  }
+  const x = (time) => left + ((time - intervalStartMs) / (intervalEndMs - intervalStartMs)) * (right - left);
+  const y = (value) => top + ((maximum - value) / (maximum - minimum)) * (bottom - top);
+  const coordinates = times.map((time, index) => [rounded(x(time)), rounded(y(values[index]))]);
+  if (coordinates.some(([horizontal, vertical]) => !Number.isFinite(horizontal) || !Number.isFinite(vertical))) {
+    throw new Error("The signal coordinates cannot be plotted safely.");
+  }
+  let path = `M ${coordinates[0][0]} ${coordinates[0][1]}`;
+  for (let index = 1; index < coordinates.length; index += 1) {
+    const [nextX, nextY] = coordinates[index];
+    path += representation === "timed_updates" ? ` H ${nextX} V ${nextY}` : ` L ${nextX} ${nextY}`;
+  }
+  const zeroY = minimum <= 0 && maximum >= 0 ? rounded(y(0)) : null;
+  return {path, zeroY, minimum: rawMinimum, maximum: rawMaximum};
 }
 
 function renderClassification(value) {
@@ -255,6 +427,34 @@ function renderMissingInput(value) {
 function renderList(values) {
   const entries = array(values, "list entries");
   return `<ul class="evidence-list">${entries.map((value) => `<li>${escapeHtml(text(value, "list entry"))}</li>`).join("")}</ul>`;
+}
+
+function evidenceIndex(values) {
+  const records = textArray(values, "source records");
+  if (new Set(records).size !== records.length) {
+    throw new Error("The report source-record inventory contains duplicates.");
+  }
+  return {records, targets: new Map(records.map((recordId, index) => [recordId, `evidence-source-${index + 1}`]))};
+}
+
+function renderEvidenceInventory(records) {
+  return `<ol class="evidence-source-list">${records.map((recordId, index) => `<li id="evidence-source-${index + 1}"><code>${escapeHtml(recordId)}</code></li>`).join("")}</ol>`;
+}
+
+function renderEvidenceLinks(sourceRecordIds, evidenceTargets) {
+  if (!sourceRecordIds.length) {
+    return `<p class="evidence-links evidence-links-missing"><strong>Evidence links</strong><span>Not available</span></p>`;
+  }
+  return `
+    <div class="evidence-links">
+      <strong>Evidence links</strong>
+      <ul>${sourceRecordIds.map((recordId) => {
+        const target = evidenceTargets.get(recordId);
+        return target
+          ? `<li><a href="#${target}"><code>${escapeHtml(recordId)}</code></a></li>`
+          : `<li><span class="evidence-link-unresolved" title="This identifier is absent from the report provenance inventory"><code>${escapeHtml(recordId)}</code> · unresolved</span></li>`;
+      }).join("")}</ul>
+    </div>`;
 }
 
 function reasonLine(values) {
@@ -293,6 +493,14 @@ function array(value, labelName) {
   return value;
 }
 
+function textArray(value, labelName) {
+  return array(value, labelName).map((entry) => text(entry, labelName));
+}
+
+function numericArray(value, labelName) {
+  return array(value, labelName).map((entry) => finiteNumber(entry, labelName));
+}
+
 function text(value, labelName) {
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`The ${labelName} is missing or invalid.`);
@@ -312,6 +520,30 @@ function number(value) {
     throw new Error("A numeric report value is missing or invalid.");
   }
   return String(value);
+}
+
+function finiteNumber(value, labelName) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`The ${labelName} is missing or invalid.`);
+  }
+  return value;
+}
+
+function rounded(value) {
+  const result = Math.round(value * 100) / 100;
+  return Object.is(result, -0) ? 0 : result;
+}
+
+function formatTimestamp(value) {
+  return `${String(value)} ms`;
+}
+
+function formatDuration(milliseconds) {
+  return `${formatValue(milliseconds / 1000)} s`;
+}
+
+function formatValue(value) {
+  return Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000);
 }
 
 function escapeHtml(value) {

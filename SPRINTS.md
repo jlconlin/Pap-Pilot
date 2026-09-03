@@ -256,7 +256,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Waveform rendering and editing.
 - Done when: The PS Min overview renders from the API and has a focused UI test or captured verification.
 
-### S35 — Add representative waveform display — queued
+### S35 — Add representative waveform display — done
 
 - Objective: Display the preselected baseline/intervention waveform intervals with units and evidence links.
 - Excludes: Arbitrary signal exploration and automatic interval selection.

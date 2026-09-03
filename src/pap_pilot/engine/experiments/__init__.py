@@ -1,5 +1,17 @@
 """Versioned experiment and append-only event records."""
 
+from pap_pilot.engine.experiments.allocation import (
+    EXPERIMENT_ALLOCATION_ENGINE_VERSION,
+    EXPERIMENT_ALLOCATION_RULE_SET_ID,
+    EXPERIMENT_ALLOCATION_RULE_SET_VERSION,
+    AllocationInterval,
+    ExperimentAllocationError,
+    ExperimentNightAllocation,
+    ExperimentPeriod,
+    NightAllocation,
+    NightAllocationStatus,
+    allocate_experiment_nights,
+)
 from pap_pilot.engine.experiments.model import (
     EXPERIMENT_EVENT_RECORD_VERSION,
     EXPERIMENT_EVENT_SCHEMA_ID,
@@ -43,6 +55,9 @@ from pap_pilot.engine.experiments.storage import (
 )
 
 __all__ = [
+    "EXPERIMENT_ALLOCATION_ENGINE_VERSION",
+    "EXPERIMENT_ALLOCATION_RULE_SET_ID",
+    "EXPERIMENT_ALLOCATION_RULE_SET_VERSION",
     "EXPERIMENT_EVENT_RECORD_VERSION",
     "EXPERIMENT_EVENT_SCHEMA_ID",
     "EXPERIMENT_EVENT_SCHEMA_VERSION",
@@ -53,16 +68,20 @@ __all__ = [
     "EXPERIMENT_STORE_RECORD_FORMAT_VERSION",
     "EXPERIMENT_STORE_SCHEMA_ID",
     "EXPERIMENT_STORE_SCHEMA_VERSION",
+    "AllocationInterval",
     "EvaluationIssuedPayload",
     "EvaluationSupersededPayload",
     "ExperimentActionPayload",
+    "ExperimentAllocationError",
     "ExperimentDecisionPayload",
     "ExperimentEvent",
     "ExperimentEventPayload",
     "ExperimentEventType",
     "ExperimentEvidenceInterval",
     "ExperimentModelError",
+    "ExperimentNightAllocation",
     "ExperimentNotFoundError",
+    "ExperimentPeriod",
     "ExperimentProposal",
     "ExperimentProposedPayload",
     "ExperimentRecord",
@@ -78,6 +97,9 @@ __all__ = [
     "SettingChangeConfirmedPayload",
     "SleepJournalEntryRecordedPayload",
     "LOCAL_EXPERIMENT_DATABASE_FILENAME",
+    "NightAllocation",
+    "NightAllocationStatus",
+    "allocate_experiment_nights",
     "append_experiment_event",
     "validate_experiment_history",
 ]

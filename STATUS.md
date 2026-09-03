@@ -2,19 +2,19 @@
 
 **Updated:** September 2, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S26 completed
-**Next sprint:** S27 — Allocate baseline and intervention nights
+**Current sprint:** None — S27 completed
+**Next sprint:** S28 — Define sleep-journal outcomes and confounders
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, and local append-only experiment persistence/replay are complete, while allocation, classification, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, and baseline/intervention night allocation are complete, while journal records, classification, web UI, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
 - Normalized provenance preserves canonical source classifications, upstream system/schema/application versions, stable source-record references, source-specific values, producer/version identity, and parent-provenance links. The model distinguishes machine-recorded, machine-labeled, OSCAR-normalized, OSCAR-derived, companion-derived, AI-generated, user-reported, and external-sensor information.
-- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API; neither changes the next sprint, S26.
+- The personal-prototype scope now explicitly requires a daily sleep journal: a brief structured morning check-in for comparable subjective outcomes and confounders, optional original free-text notes for context, and a link from each entry to the relevant therapy night. S28 owns the journal data definition and S41 owns its local form/API.
 - `pap_pilot.adapter.open_oscar_database` opens SQLite through a `mode=ro` URI, enables `query_only`, begins an explicit read transaction, validates schema identity, and always closes the connection.
 - Schema version 17 is the only supported OSCAR schema; missing metadata and all other versions fail before the connection is exposed to extraction code.
 - `pap_pilot.adapter.extract_session_summary` returns one immutable raw adapter record containing schema, profile, machine, session-boundary, six-setting, and profile-scoped channel provenance.
@@ -52,6 +52,9 @@
 - `pap_pilot.engine.experiments.ExperimentStore` persists experiment identities and events in the approved local `pap_pilot.sqlite3` database through create, append, read, and replay operations only. It rejects other filenames, foreign databases, unsupported schema versions, and missing append-only guards before exposing stored records.
 - Experiment identities and events use a strict, versioned canonical JSON envelope inside indexed SQLite rows. Reads reconstruct every S25 typed payload, reject malformed or mismatched records, validate the complete history, and expose both the unchanged ledger and a generic correction-resolved event projection without interpreting allocation, journals, lifecycle, safety, metrics, or classifications.
 - The public store has no update or delete operation. SQLite triggers reject update, delete, and replacement statements for experiment identities and events, while corrections remain new same-type events that reference the current event in a correction chain and retain every prior version.
+- `pap_pilot.engine.experiments.allocate_experiment_nights` assigns normalized nights from an explicit `setting_change_confirmed_applied` event without detecting settings changes. A night ending exactly at the confirmed application timestamp is baseline, a night starting exactly then is intervention, and a night spanning the timestamp is excluded from both periods.
+- Version-1 allocation consumes one consistently configured structural-quality report per night and either complete per-session signal-quality evidence or none. Existing `block_requested_analysis`, `exclude_session`, and `exclude_interval` impacts are applied directly; overlapping intervals are unioned, partial usable intervals keep their period membership, and cautions remain visible without becoming exclusions.
+- Immutable companion-derived allocation results retain requested, eligible, and excluded session intervals, report and finding identifiers, reason codes, the confirmed event and timestamp, allocation rule-set/engine versions, and deterministic identities. S27 defines no minimum valid-night duration, metric, classification, automatic boundary detection, or parsing of proposal free text.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -82,9 +85,13 @@
 
 ## Last completed sprint
 
-S26 — Implement the append-only experiment store.
+S27 — Allocate baseline and intervention nights.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_experiment_allocation tests.test_experiment_model tests.test_experiment_store tests.test_package_imports -v`; all thirty-six focused allocation/model/store/package tests passed. The eight S27 tests cover exact baseline-end and intervention-start boundary membership, canonical date ordering, boundary-spanning exclusion, structural and signal quality interval exclusions, whole-night quality blocking, caution retention, explicit confirmed-change input, complete matching quality evidence, consistent quality-request contracts, deterministic identity, and immutability.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover -s tests -v`; all one hundred sixty-seven tests passed without resource warnings.
+- `git diff --check`, Python compilation, package imports, production dependency inspection, and a local-database artifact scan passed. S27 imports only normalized experiment/quality engine records and adds no OSCAR adapter/database access, automatic settings-change detection, metric calculation, final classification, journal definition, persistence change, UI, synchronization, AI, or safety-policy behavior.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_experiment_store -v`; all twelve focused persistence tests passed. They cover database creation and reopen, exact identity/history round trips, all sixteen S25 payload types, canonical JSON metadata, correction replay with complete retained history, chained correction of the current event, rejection of a second correction against a stale event, atomic rollback, duplicate identity/event rejection, closed and missing-store behavior, foreign-database non-modification, exact filename enforcement, unsupported schemas, and missing mutation guards.
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_experiment_model tests.test_experiment_store tests.test_package_imports -v`; all twenty-eight focused model/store/package tests passed.
@@ -212,7 +219,11 @@ S26 — Implement the append-only experiment store.
 - The local experiment store accepts only the approved `pap_pilot.sqlite3` filename and identifies its schema independently from OSCAR. An empty approved database is initialized transactionally; any nonempty database must match the supported PAP Pilot tables, metadata version, columns, and append-only trigger set.
 - Stored experiment records use a deterministic strict JSON representation with explicit format and record-type tags. Indexed SQL identity, ordering, event type, timestamp, and correction columns are checked against the reconstructed immutable records on every read.
 - Destructive experiment mutation is unavailable through both the public API and row-level SQLite triggers. Corrections must append a same-type event targeting the currently effective version; later corrections form a reference chain rather than repeatedly targeting an already-corrected stale event.
-- S26 replay deliberately resolves only generic corrections. S27 owns baseline/intervention allocation, S28 owns journal content, S29–S30 own outcome classification, and later sprints own lifecycle and safety interpretation.
+- S26 replay deliberately resolves only generic corrections. S27 consumes the effective confirmed-change event for baseline/intervention allocation, while S28 owns journal content, S29–S30 own outcome classification, and later sprints own lifecycle and safety interpretation.
+- S27 uses the user-confirmed application timestamp carried by the effective `setting_change_confirmed_applied` event and never infers a boundary from observed settings. Whole-night membership is baseline when every session ends at or before the boundary, intervention when every session begins at or after it, and excluded from both when the normalized night spans the boundary.
+- Allocation applies the quality layer's existing impact semantics rather than creating a universal valid-night score. `block_requested_analysis` excludes the whole night for that quality request, `exclude_session` removes its session, `exclude_interval` removes only its clipped half-open interval, and `caution` remains evidence without exclusion; a night is quality-excluded only when a blocker exists or no eligible interval remains.
+- All nights in one allocation must use the same structural-quality request. Signal-quality reports, when supplied, must cover every allocated session, preventing uneven evidence from silently biasing baseline/intervention membership.
+- S27 deliberately sets no minimum night duration or sample-size rule and does not interpret the proposal's human-readable invalid-night criteria. Those decisions remain with later methodology/classification work; S27 only assigns membership and applies already-versioned quality impacts.
 - A structurally complete proposal is a typed payload rather than an unvalidated dictionary. It expresses the entire plan-level experiment design and exactly one changed setting, but it applies no allowed-setting, range, clinical eligibility, prospective stop, or reversion policy; S38–S40 retain those decisions and behaviors.
 - Event sequence is explicit and contiguous within an experiment. Corrections append a new event of the same type and point to an earlier event in that history; the prior event remains present, and reusing an existing sequence or identifier is a destructive replacement error.
 - S25 defines only a sleep-journal event reference and an evaluation event reference. S28 still owns journal fields/scales and S29 still owns classifications, outcome weights, and next-action rules; the schema does not preempt either decision.
@@ -320,8 +331,8 @@ S26 — Implement the append-only experiment store.
 
 ## Blockers
 
-- No blocker prevents starting S27.
-- S26 provides durable experiment/event history and correction-aware replay only. It does not assign nights to baseline or intervention periods or apply quality exclusions; those boundaries remain intact for S27.
+- No blocker prevents starting S28.
+- S27 allocates normalized nights and retains quality exclusions but does not define journal fields, scales, prompts, free-text handling, or confounder vocabulary; those boundaries remain intact for S28.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -335,5 +346,5 @@ S26 — Implement the append-only experiment store.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S27. Assign nights around a confirmed settings-change boundary and apply the existing quality exclusions. Prove period membership at the boundary and for excluded nights. Do not add automatic change detection, metrics, final classification, journal contents, UI, synchronization, OSCAR writes, or prospective lifecycle/safety behavior. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S28. Define the structured sleep-journal outcomes, optional original free-text notes, and confounders needed by the retrospective fixture. Prove entries are append-only, timestamped, attributable, linked to the relevant therapy night, and replay correctly. Do not add forms/UI, automated interpretation of free text, prospective reminders, classification, or AI behavior. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

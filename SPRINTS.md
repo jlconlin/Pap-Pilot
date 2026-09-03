@@ -206,7 +206,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: OSCAR writes, UI, synchronization, and event editing/deletion.
 - Done when: Replay reconstructs state, corrections preserve history, and destructive mutation is unavailable.
 
-### S27 — Allocate baseline and intervention nights — queued
+### S27 — Allocate baseline and intervention nights — done
 
 - Objective: Assign nights around a confirmed settings-change boundary and apply existing quality exclusions.
 - Excludes: Automatic change detection, metrics, and final classification.

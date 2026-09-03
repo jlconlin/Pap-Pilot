@@ -212,7 +212,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Automatic change detection, metrics, and final classification.
 - Done when: Boundary and exclusion tests reproduce expected period membership.
 
-### S28 — Define sleep-journal outcomes and confounders — queued
+### S28 — Define sleep-journal outcomes and confounders — done
 
 - Objective: Represent the structured sleep-journal responses, optional original free-text notes, and confounders needed by the retrospective fixture.
 - Excludes: Forms/UI, automated interpretation of free text, and prospective daily reminders.

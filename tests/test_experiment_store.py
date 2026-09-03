@@ -14,6 +14,7 @@ from pap_pilot.engine import (
     EXPERIMENT_STORE_SCHEMA_ID,
     EXPERIMENT_STORE_SCHEMA_VERSION,
     LOCAL_EXPERIMENT_DATABASE_FILENAME,
+    ConfounderReportStatus,
     EvaluationIssuedPayload,
     EvaluationSupersededPayload,
     ExperimentActionPayload,
@@ -35,6 +36,7 @@ from pap_pilot.engine import (
     ProblemRecordedPayload,
     SettingChangeConfirmedPayload,
     SleepJournalEntryRecordedPayload,
+    SleepJournalEntry,
     SourceClass,
     validate_experiment_history,
 )
@@ -147,7 +149,26 @@ class ExperimentStoreTests(unittest.TestCase):
         with ExperimentStore(self.database_path) as store:
             store.create_experiment(self.experiment)
             for event in expected:
-                store.append_event(event)
+                if event.event_type is ExperimentEventType.SLEEP_JOURNAL_ENTRY_RECORDED:
+                    store.append_journal_entry(
+                        event,
+                        SleepJournalEntry(
+                            record_id="journal:one",
+                            night_record_id="night:intervention",
+                            reported_at_ms=1_788_355_000_000,
+                            reported_by="user:local",
+                            awakenings_count=2,
+                            sleep_quality=4,
+                            morning_energy=4,
+                            daytime_tiredness=2,
+                            confounder_status=ConfounderReportStatus.NONE_REPORTED,
+                            confounders=(),
+                            original_note=None,
+                            source_provenance_ids=("provenance:user",),
+                        ),
+                    )
+                else:
+                    store.append_event(event)
             self.assertEqual(store.read_history(self.experiment.record_id), expected)
             self.assertEqual(store.replay(self.experiment.record_id).effective_events, expected)
 
@@ -253,7 +274,7 @@ class ExperimentStoreTests(unittest.TestCase):
         with ExperimentStore(self.database_path):
             pass
         with closing(sqlite3.connect(self.database_path)) as connection:
-            connection.execute("UPDATE pap_pilot_metadata SET value = '2' WHERE key = 'schema_version'")
+            connection.execute("UPDATE pap_pilot_metadata SET value = '999' WHERE key = 'schema_version'")
             connection.commit()
         with self.assertRaisesRegex(ExperimentStoreError, "unsupported"):
             ExperimentStore(self.database_path)

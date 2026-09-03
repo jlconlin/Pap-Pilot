@@ -2,14 +2,14 @@
 
 **Updated:** September 2, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S27 completed
-**Next sprint:** S28 — Define sleep-journal outcomes and confounders
+**Current sprint:** None — S28 completed
+**Next sprint:** S29 — Define outcome classification rules
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, and baseline/intervention night allocation are complete, while journal records, classification, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, and version-1 sleep-journal records are complete, while classification, web UI, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
@@ -55,6 +55,9 @@
 - `pap_pilot.engine.experiments.allocate_experiment_nights` assigns normalized nights from an explicit `setting_change_confirmed_applied` event without detecting settings changes. A night ending exactly at the confirmed application timestamp is baseline, a night starting exactly then is intervention, and a night spanning the timestamp is excluded from both periods.
 - Version-1 allocation consumes one consistently configured structural-quality report per night and either complete per-session signal-quality evidence or none. Existing `block_requested_analysis`, `exclude_session`, and `exclude_interval` impacts are applied directly; overlapping intervals are unioned, partial usable intervals keep their period membership, and cautions remain visible without becoming exclusions.
 - Immutable companion-derived allocation results retain requested, eligible, and excluded session intervals, report and finding identifiers, reason codes, the confirmed event and timestamp, allocation rule-set/engine versions, and deterministic identities. S27 defines no minimum valid-night duration, metric, classification, automatic boundary detection, or parsing of proposal free text.
+- `pap_pilot.engine.experiments.SleepJournalEntry` is an immutable, versioned, user-reported record linked to one therapy night with reporter, report timestamp, provenance, estimated awakenings, explicit 1–5 sleep-quality/morning-energy/daytime-tiredness ratings, an explicit confounder-report state, typed confounders, and optional exact original text.
+- `docs/decisions/0005-sleep-journal-schema.md` defines every scale and missing-value meaning. Null outcomes mean not reported; confounders distinguish not reported, none reported, and reported; optional notes and confounder details preserve whitespace and line breaks and are never silently promoted into structured facts.
+- Experiment-store schema version 2 adds an append-only journal table and an atomic `append_journal_entry` operation. It migrates an intact schema-version-1 store transactionally, rejects update/delete/replacement journal SQL, prevents dangling event references, and replays both complete and correction-resolved journal sequences.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -85,9 +88,13 @@
 
 ## Last completed sprint
 
-S27 — Allocate baseline and intervention nights.
+S28 — Define sleep-journal outcomes and confounders.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_sleep_journal tests.test_experiment_store tests.test_experiment_model tests.test_package_imports -v`; all thirty-four focused journal/store/model/package tests passed. The six S28 tests cover explicit scales and missing meanings, exact multiline free-text preservation, immutable entries, confounder states and vocabulary, invalid values, atomic event/entry append, dangling-reference rejection, correction replay retaining original and replacement entries, reopen persistence, raw SQLite mutation resistance, and lossless schema-version-1 migration.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover -s tests -q`; all one hundred seventy-three tests passed without resource warnings.
+- Python compilation, `git diff --check`, dependency/scope inspection, and local-database artifact scanning passed. S28 adds no OSCAR access or write, form/UI, automated free-text interpretation, reminder, classification, metric, AI, synchronization, or prospective lifecycle behavior.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_experiment_allocation tests.test_experiment_model tests.test_experiment_store tests.test_package_imports -v`; all thirty-six focused allocation/model/store/package tests passed. The eight S27 tests cover exact baseline-end and intervention-start boundary membership, canonical date ordering, boundary-spanning exclusion, structural and signal quality interval exclusions, whole-night quality blocking, caution retention, explicit confirmed-change input, complete matching quality evidence, consistent quality-request contracts, deterministic identity, and immutability.
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover -s tests -v`; all one hundred sixty-seven tests passed without resource warnings.
@@ -224,6 +231,11 @@ S27 — Allocate baseline and intervention nights.
 - Allocation applies the quality layer's existing impact semantics rather than creating a universal valid-night score. `block_requested_analysis` excludes the whole night for that quality request, `exclude_session` removes its session, `exclude_interval` removes only its clipped half-open interval, and `caution` remains evidence without exclusion; a night is quality-excluded only when a blocker exists or no eligible interval remains.
 - All nights in one allocation must use the same structural-quality request. Signal-quality reports, when supplied, must cover every allocated session, preventing uneven evidence from silently biasing baseline/intervention membership.
 - S27 deliberately sets no minimum night duration or sample-size rule and does not interpret the proposal's human-readable invalid-night criteria. Those decisions remain with later methodology/classification work; S27 only assigns membership and applies already-versioned quality impacts.
+- Sleep-journal schema version 1 uses an estimated nonnegative awakenings count and three optional 1–5 ratings: sleep quality from very poor to very good, morning energy from very low to very high, and daytime tiredness from not at all tired to extremely tired. Missing is explicit and never imputed.
+- Confounder status is independently `not_reported`, `none_reported`, or `reported`; reported categories are travel, illness, alcohol, medication change, unusual sleep schedule, mask/equipment change, stress, and other. `other` requires original detail, categories are unique per entry, and the vocabulary records observations without asserting causality.
+- A sleep-journal entry and its matching `sleep_journal_entry_recorded` event commit in one transaction or neither does. Corrections append a new entry and same-type correction event; replay retains every original record and exposes only the correction-resolved entries as effective.
+- Existing experiment-store schema version 1 migrates transactionally to version 2 by adding the protected journal table. A pre-S28 journal-reference event without recoverable journal content remains an explicit dangling-reference error rather than receiving invented content.
+- S28 does not decide outcome weights, meaningful-change thresholds, classification, prospective required responses, prompt wording, NLP interpretation, UI, or reminders. Those remain assigned to S29 and later sprints.
 - A structurally complete proposal is a typed payload rather than an unvalidated dictionary. It expresses the entire plan-level experiment design and exactly one changed setting, but it applies no allowed-setting, range, clinical eligibility, prospective stop, or reversion policy; S38–S40 retain those decisions and behaviors.
 - Event sequence is explicit and contiguous within an experiment. Corrections append a new event of the same type and point to an earlier event in that history; the prior event remains present, and reusing an existing sequence or identifier is a destructive replacement error.
 - S25 defines only a sleep-journal event reference and an evaluation event reference. S28 still owns journal fields/scales and S29 still owns classifications, outcome weights, and next-action rules; the schema does not preempt either decision.
@@ -331,8 +343,8 @@ S27 — Allocate baseline and intervention nights.
 
 ## Blockers
 
-- No blocker prevents starting S28.
-- S27 allocates normalized nights and retains quality exclusions but does not define journal fields, scales, prompts, free-text handling, or confounder vocabulary; those boundaries remain intact for S28.
+- No blocker prevents starting S29.
+- S28 supplies versioned subjective evidence and confounders but assigns no favorable direction, weight, threshold, causal adjustment, classification, or next action; those decisions remain intact for S29.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -346,5 +358,5 @@ S27 — Allocate baseline and intervention nights.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S28. Define the structured sleep-journal outcomes, optional original free-text notes, and confounders needed by the retrospective fixture. Prove entries are append-only, timestamped, attributable, linked to the relevant therapy night, and replay correctly. Do not add forms/UI, automated interpretation of free text, prospective reminders, classification, or AI behavior. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S29. Define deterministic thresholds and evidence rules for the six outcome classifications plus keep, revert, extend, and inconclusive actions. Record the methodology with boundary examples and insufficient-evidence cases. Do not implement the classifier, add AI judgment, change journal meanings, build UI, or add prospective lifecycle behavior. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

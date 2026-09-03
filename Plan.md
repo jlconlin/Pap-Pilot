@@ -149,6 +149,8 @@ The prototype must include:
 
 The initial metric set should remain deliberately small. A metric is added only when it supports a defined hypothesis or experiment decision.
 
+Sleep-journal schema version 1 uses an estimated nonnegative awakening count plus explicit 1–5 ratings for sleep quality, morning energy, and daytime tiredness; null means not reported. Confounders distinguish not reported, none reported, and reported typed categories. Optional original notes and confounder details are preserved exactly and are never silently converted into structured facts. `docs/decisions/0005-sleep-journal-schema.md` governs the complete field meanings, persistence, correction, and replay contract.
+
 For the PS Min retrospective experiment, metric-set version 1 contains exactly two companion-derived objective outcomes: time-averaged Mask Pressure above fixed EPAP and an upper-tail-to-median ratio of independently calculated one-minute inspiratory ventilation. `docs/decisions/0004-initial-objective-metrics.md` governs their formulas, units, input and quality contracts, provenance, limitations, and insufficient-evidence behavior. OSCAR/device summary metrics and machine event rates remain reference evidence rather than PAP Pilot outcomes.
 
 ---
@@ -304,7 +306,7 @@ These milestones are outcome gates, not a task queue. The current order and stat
 - Exact OSCAR 2.0.1 schema subset and read contract.
 - Internal serialization and local database schema.
 - Valid-night criteria and minimum baseline/intervention duration.
-- Exact structured morning journal fields and scales, optional-text prompts, and required confounders.
+- Optional sleep-journal prompt wording and whether later prospective use requires any currently optional response.
 - Initial settings recommendation allowlist, change bounds, and exclusions.
 - Outcome weighting and classification thresholds.
 - Choice of the first AI provider and whether health data may be sent to a hosted service.

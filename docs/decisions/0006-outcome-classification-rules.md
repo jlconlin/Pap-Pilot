@@ -114,7 +114,7 @@ These are evidence-record actions for the retrospective report. They never alter
 | Pressure just inside neutral | Pressure delta `-0.499999` | neutral |
 | Ventilation adverse equality | Ratio delta `+0.10`, consistent on four of six intervention nights | adverse ventilation |
 | Rating threshold equality | Sleep-quality delta `+1.0`, consistent on two of three intervention nights | favorable sleep quality |
-| Median without consistency | Sleep-quality delta `+1.0`, but only one of three intervention values is above the baseline median | unstable subjective evidence, therefore `inconclusive`; `extend` if this is the only insufficiency |
+| Median without consistency | Sleep-quality delta `+1.0`, but only two of four intervention values are above the baseline median | unstable subjective evidence, therefore `inconclusive`; `extend` if this is the only insufficiency |
 | Clear improvement | Expected pressure mechanism, neutral ventilation, favorable subjective domain, complete confounder reporting without imbalance, no adverse effect | `clear_improvement` plus `keep` |
 | Probable improvement | Expected pressure mechanism and favorable ventilation, subjective domain neutral, no adverse signals or confounder imbalance | `probable_improvement` plus `keep` |
 | Mixed tradeoff | Expected pressure mechanism and favorable sleep quality, but adverse ventilation | `mixed_tradeoff` plus `inconclusive` |

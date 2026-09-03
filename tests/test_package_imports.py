@@ -13,6 +13,7 @@ class PackageImportTests(unittest.TestCase):
             "pap_pilot.adapter",
             "pap_pilot.engine",
             "pap_pilot.engine.experiments",
+            "pap_pilot.engine.experiments.classification",
             "pap_pilot.engine.metrics",
             "pap_pilot.engine.model",
             "pap_pilot.engine.quality",

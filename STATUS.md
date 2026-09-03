@@ -2,14 +2,14 @@
 
 **Updated:** September 2, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S29 completed
-**Next sprint:** S30 — Implement outcome classification
+**Current sprint:** None — S30 completed
+**Next sprint:** S31 — Reconstruct the PS Min experiment fixture
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, version-1 sleep-journal records, and outcome-classification methodology are complete, while classifier implementation, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, version-1 sleep-journal records, and deterministic outcome classification are complete, while retrospective fixture reconstruction, web UI, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
@@ -60,6 +60,9 @@
 - Experiment-store schema version 2 adds an append-only journal table and an atomic `append_journal_entry` operation. It migrates an intact schema-version-1 store transactionally, rejects update/delete/replacement journal SQL, prevents dangling event references, and replays both complete and correction-resolved journal sequences.
 - `docs/decisions/0006-outcome-classification-rules.md` accepts `pap-pilot.ps-min-outcome-classification` version 1 for the retrospective PS Min 2-to-1 experiment. It defines per-arm evidence minimums, median summaries and variability, exact favorable/adverse boundaries, direction consistency, subjective-domain aggregation, confounder uncertainty, adverse-effect precedence, the six classifications, and the four analytical next actions.
 - Classification requires `max(3, proposal.minimum_valid_nights)` included nights per arm, both objective metrics at that count, and at least two journal outcomes at that count including sleep quality or morning energy. Pressure change is mechanism evidence rather than benefit; journal prose is never parsed; engineering thresholds are not clinical cutoffs; and no result claims causality.
+- `pap_pilot.engine.experiments.evaluate_outcome_classification` implements the accepted rule set from an effective proposed or revised proposal event, its acceptance and confirmed-change events, the S27 allocation, version-1 metric results, effective journal entries with their matching append-only reference events, and effective confounder/adverse-effect events. It verifies experiment links, the exact PS Min 2-to-1 fixed-EPAP ASV scope, metric-to-night linkage, and the per-arm metric setting snapshots before interpreting values.
+- Immutable classification results retain every threshold and outcome state, nightly values, per-arm minimum/median/maximum/count/median-absolute-deviation summaries, exact direction-consistency counts, subjective aggregation, confounder fractions/status, adverse-effect identifiers, insufficiency reasons, limitations, and all allocation, metric, journal, event, quality, source-record, and provenance identifiers.
+- The implementation uses decimal text representations for exact threshold comparisons and integer arithmetic for the two-thirds direction and one-third confounder boundaries. Only included allocation nights supply values; excluded nights remain disclosed; free text is never parsed; and malformed linkage or unsupported scope becomes a nonresolvable inconclusive result rather than being ignored.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -90,9 +93,13 @@
 
 ## Last completed sprint
 
-S29 — Define outcome classification rules.
+S30 — Implement outcome classification.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_outcome_classification tests.test_experiment_allocation tests.test_sleep_journal tests.test_pressure_metric tests.test_ventilation_metric tests.test_package_imports -v`; all fifty-six focused classifier/allocation/journal/metric/package tests passed. The twelve classifier test groups table-drive all six classifications, all four actions, both sides and neutral interiors of every threshold, exact two-thirds consistency, all subjective aggregation states, confounder boundaries and downgrades, adverse-effect precedence, per-arm sample minimums, objective and journal insufficiency, excluded-night behavior, effective revisions, linkage failures, setting-context mismatch, deterministic identity, complete evidence retention, immutability, and free-text noninterpretation.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover -s tests -q`; all one hundred eighty-five tests passed without resource warnings.
+- `git diff --check` passed. Python import/contract checks confirmed exactly six classifications, four actions, and six versioned outcome thresholds. Dependency and artifact scans found no adapter, OSCAR, SQLite, UI, network/AI dependency, database, EDF, or private-data artifact in S30 scope.
 
 - Ran a focused S29 decision check against `docs/decisions/0006-outcome-classification-rules.md`; it confirmed the rule-set identifier/version, exactly six classification precedence rows, all four action values, both objective metrics, all four journal outcomes, per-arm minimums, threshold equality examples, direction consistency, confounder and adverse-effect rules, insufficient-evidence cases, reproducibility fields, and resolvable versus nonresolvable inconclusive actions. All cited local decision files resolve.
 - Reviewed the methodology against the CENT 2015 N-of-1 explanation/reporting guidance and the FDA fit-for-purpose clinical outcome assessment guidance. The decision reports each period, retains nightly observations and variability, prespecifies contextual engineering thresholds, and explicitly avoids clinical meaningful-change or causal claims.
@@ -248,6 +255,11 @@ S29 — Define outcome classification rules.
 - Actions map clear/probable improvement to `keep`, probable worsening and no meaningful change to `revert`, resolvable evidence insufficiency without an adverse effect to `extend`, and mixed or nonresolvable uncertainty to `inconclusive`. These are retrospective evidence-record actions only and never control a device or replace later safety review.
 - Confounders are not numerically adjusted away. A one-third arm-fraction imbalance downgrades an otherwise clear improvement and makes other directional patterns inconclusive; more than one-third `not_reported` confounder entries makes the result inconclusive. Any adverse-effect event is an adverse domain and prevents an improvement or no-change conclusion.
 - S29 defines methodology only. S30 owns implementation and table-driven boundary fixtures; any change to thresholds, evidence counts, consistency, confounder handling, precedence, classifications, or actions requires a new rule-set version.
+- S30 implements rule-set version 1 without changing its thresholds, evidence counts, precedence, classifications, or actions. The accepted unstable-median example now uses two of four intervention values on the shifted side because the earlier one-of-three example was mathematically impossible for a three-value median; this correction does not change the two-thirds rule.
+- The classifier consumes explicitly effective proposal, acceptance, confirmed-change, journal, journal-reference, and observation records. Generic correction replay remains owned by the store; the classifier validates the supplied effective records' links and does not choose among competing history events.
+- A night-scoped standalone confounder event supplements the structured confounder answer only when the same included night has an effective journal entry. An unlinked confounder event, an event naming an unknown night, or an included-night confounder event without its journal record makes the result nonresolvably inconclusive rather than inventing a denominator.
+- Subjective `mixed` evidence contributes both a favorable and an adverse domain signal, so genuine within-journal discordance reaches `mixed_tradeoff`; weak subjective evidence contributes neither directional signal. Excluded allocation nights never supply objective, subjective, or confounder values but remain in the result's evidence chain.
+- S30 does not persist or issue an evaluation event, reconstruct the known experiment, produce report prose, add UI/AI judgment, define prospective lifecycle or safety behavior, access OSCAR, or write any database. S31 owns the replayable retrospective fixture.
 - A structurally complete proposal is a typed payload rather than an unvalidated dictionary. It expresses the entire plan-level experiment design and exactly one changed setting, but it applies no allowed-setting, range, clinical eligibility, prospective stop, or reversion policy; S38–S40 retain those decisions and behaviors.
 - Event sequence is explicit and contiguous within an experiment. Corrections append a new event of the same type and point to an earlier event in that history; the prior event remains present, and reusing an existing sequence or identifier is a destructive replacement error.
 - S25 defines only a sleep-journal event reference and an evaluation event reference. S28 still owns journal fields/scales and S29 still owns classifications, outcome weights, and next-action rules; the schema does not preempt either decision.
@@ -355,8 +367,8 @@ S29 — Define outcome classification rules.
 
 ## Blockers
 
-- No blocker prevents starting S30.
-- S29 defines the complete deterministic classification contract but adds no result model or evaluator. S30 must implement it without changing the accepted thresholds, precedence, insufficiency behavior, confounder treatment, or journal meanings.
+- No blocker prevents starting S31.
+- S30 supplies the deterministic result model and evaluator, but no known PS Min baseline/intervention dataset has been assembled into a replayable experiment. S31 must use the accepted allocation, metric, journal, event, and classification contracts and must document genuinely missing retrospective inputs rather than fabricate them.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -370,5 +382,5 @@ S29 — Define outcome classification rules.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S30. Implement the deterministic S29 classification rules using normalized metrics, allocation, journal evidence, and experiment events. Add table-driven tests for every classification, action, exact threshold, consistency, confounder, adverse-effect, and insufficient-evidence path. Do not change the accepted methodology, add UI or AI interpretation, reconstruct the retrospective fixture, or implement prospective lifecycle/safety behavior. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S31. Assemble the known PS Min 2-to-1 baseline and intervention evidence as a safe replayable experiment fixture using the existing event, allocation, metric, journal, and classification contracts. Keep every source and missing input explicit and produce a reproducible deterministic evaluation. Do not add polished report presentation, UI, AI interpretation, prospective recommendations, lifecycle/safety behavior, private OSCAR data, or invented retrospective observations. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

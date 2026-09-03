@@ -224,7 +224,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: AI judgment and implementation.
 - Done when: A methodology decision record includes boundary examples and `insufficient evidence` cases.
 
-### S30 — Implement outcome classification — queued
+### S30 — Implement outcome classification — done
 
 - Objective: Implement the deterministic S29 rules using normalized metrics, quality, and reports.
 - Excludes: UI and AI-generated interpretation.

@@ -230,7 +230,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: UI and AI-generated interpretation.
 - Done when: Table-driven tests cover every classification, action, and insufficient-evidence path.
 
-### S31 — Reconstruct the PS Min experiment fixture — queued
+### S31 — Reconstruct the PS Min experiment fixture — done
 
 - Objective: Assemble the known PS Min 2-to-1 baseline, intervention, reports, and confounders as a replayable experiment.
 - Excludes: Polished presentation and prospective recommendations.

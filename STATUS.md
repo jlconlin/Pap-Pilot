@@ -1,15 +1,15 @@
 # PAP Pilot — session handoff
 
-**Updated:** September 2, 2026
+**Updated:** September 3, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S30 completed
-**Next sprint:** S31 — Reconstruct the PS Min experiment fixture
+**Current sprint:** None — S31 completed
+**Next sprint:** S32 — Produce the retrospective evidence report
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, version-1 sleep-journal records, and deterministic outcome classification are complete, while retrospective fixture reconstruction, web UI, and AI implementation have not begun.
+- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, version-1 sleep-journal records, deterministic outcome classification, and safe retrospective fixture reconstruction are complete, while the structured retrospective report, web UI, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
@@ -63,6 +63,9 @@
 - `pap_pilot.engine.experiments.evaluate_outcome_classification` implements the accepted rule set from an effective proposed or revised proposal event, its acceptance and confirmed-change events, the S27 allocation, version-1 metric results, effective journal entries with their matching append-only reference events, and effective confounder/adverse-effect events. It verifies experiment links, the exact PS Min 2-to-1 fixed-EPAP ASV scope, metric-to-night linkage, and the per-arm metric setting snapshots before interpreting values.
 - Immutable classification results retain every threshold and outcome state, nightly values, per-arm minimum/median/maximum/count/median-absolute-deviation summaries, exact direction-consistency counts, subjective aggregation, confounder fractions/status, adverse-effect identifiers, insufficiency reasons, limitations, and all allocation, metric, journal, event, quality, source-record, and provenance identifiers.
 - The implementation uses decimal text representations for exact threshold comparisons and integer arithmetic for the two-thirds direction and one-third confounder boundaries. Only included allocation nights supply values; excluded nights remain disclosed; free text is never parsed; and malformed linkage or unsupported scope becomes a nonresolvable inconclusive result rather than being ignored.
+- `pap_pilot.engine.experiments.reconstruct_ps_min_experiment_fixture` now returns immutable fixture version 1 containing only the PS Min 2-to-1 fact, the accepted deterministic analysis contracts, a replayable experiment identity with problem and hypothesis events, and a complete source-linked missing-input inventory.
+- The S31 fixture deliberately retains no normalized night, quality report, allocation, metric result, journal entry, confounder/adverse-effect event, representative waveform interval, or outcome classification. Its deterministic readiness result is `not_evaluable_without_fabrication`; this prevents the governing plan's vague informal impression from becoming invented per-night evidence.
+- `docs/fixtures/ps-min-retrospective-v1.md` records the fixture's known facts, every unavailable input, deterministic result, privacy boundary, and scope boundary. Fixed low integer event timestamps are explicitly repository-fixture metadata sentinels rather than historical therapy or report times.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -93,9 +96,14 @@
 
 ## Last completed sprint
 
-S30 — Implement outcome classification.
+S31 — Reconstruct the PS Min experiment fixture.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_ps_min_retrospective_fixture tests.test_experiment_store tests.test_outcome_classification tests.test_package_imports -v`; all thirty-three focused fixture/store/classifier/package tests passed. The eight S31 fixture tests independently cover exact fixture/version identity, the known PS Min 2-to-1 change, append-only store close/reopen replay, every missing input and reason, refusal to invent observations or issue a classification, deterministic evaluation identity, complete resolvable document links, absence of private dates/source identities, and deep immutability.
+- Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover -s tests -q`; all one hundred ninety-three tests passed without resource warnings after the final S31 test addition.
+- With OSCAR closed, copied the database as one protected disposable set, verified source/copy SHA-256 equality before access, and inspected only settings-transition structure through the guarded `mode=ro&immutable=1` path. The inspection established that an observed PS Min transition is not a unique substitute for a user-confirmed intended boundary. The source and copy remained byte-identical afterward, no sidecars were created, and the disposable copy was removed; no private date, identifier, setting history, metric, report, or signal value was retained.
+- `git diff --check`, public-export checks, source-link checks, and dependency/artifact scans passed. The S31 production module imports no OSCAR adapter, SQLite store, UI, network, or AI implementation, and the repository contains no SQLite, database, or EDF artifact.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_outcome_classification tests.test_experiment_allocation tests.test_sleep_journal tests.test_pressure_metric tests.test_ventilation_metric tests.test_package_imports -v`; all fifty-six focused classifier/allocation/journal/metric/package tests passed. The twelve classifier test groups table-drive all six classifications, all four actions, both sides and neutral interiors of every threshold, exact two-thirds consistency, all subjective aggregation states, confounder boundaries and downgrades, adverse-effect precedence, per-arm sample minimums, objective and journal insufficiency, excluded-night behavior, effective revisions, linkage failures, setting-context mismatch, deterministic identity, complete evidence retention, immutability, and free-text noninterpretation.
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover -s tests -q`; all one hundred eighty-five tests passed without resource warnings.
@@ -260,6 +268,11 @@ S30 — Implement outcome classification.
 - A night-scoped standalone confounder event supplements the structured confounder answer only when the same included night has an effective journal entry. An unlinked confounder event, an event naming an unknown night, or an included-night confounder event without its journal record makes the result nonresolvably inconclusive rather than inventing a denominator.
 - Subjective `mixed` evidence contributes both a favorable and an adverse domain signal, so genuine within-journal discordance reaches `mixed_tradeoff`; weak subjective evidence contributes neither directional signal. Excluded allocation nights never supply objective, subjective, or confounder values but remain in the result's evidence chain.
 - S30 does not persist or issue an evaluation event, reconstruct the known experiment, produce report prose, add UI/AI judgment, define prospective lifecycle or safety behavior, access OSCAR, or write any database. S31 owns the replayable retrospective fixture.
+- S31 treats the governing plan, accepted metric/journal/classification decisions, and current handoff as the only retainable sources for the retrospective fixture. The exact PS Min 2-to-1 change is known; exact cohort dates, complete setting context, the intended applied boundary, quality reports, metric results, structured journal entries, confounders/adverse effects, and representative intervals are not retained facts.
+- An observed settings transition is machine/OSCAR evidence, not a user-confirmed application event. The fixture therefore stops before proposal acceptance, setting confirmation, allocation, metric aggregation, or outcome classification instead of creating placeholder dates, nights, or values.
+- `not_evaluable_without_fabrication` is a fixture-readiness result, not a seventh outcome classification. The six S29/S30 outcome classifications remain unchanged, and an `OutcomeClassificationResult` is null until genuine linked inputs can be passed to the accepted classifier.
+- The replayable partial history contains only companion-derived problem and hypothesis records sourced from governing documents. Its zero and low integer timestamps are stable repository-fixture sentinels and do not claim historical therapy or user-report times.
+- Fixture version 1 is immutable evidence of the current reconstruction boundary. Supplying genuine private/local inputs later requires a new fixture version or a local evidence bundle; version 1 is not silently populated or reinterpreted.
 - A structurally complete proposal is a typed payload rather than an unvalidated dictionary. It expresses the entire plan-level experiment design and exactly one changed setting, but it applies no allowed-setting, range, clinical eligibility, prospective stop, or reversion policy; S38–S40 retain those decisions and behaviors.
 - Event sequence is explicit and contiguous within an experiment. Corrections append a new event of the same type and point to an earlier event in that history; the prior event remains present, and reusing an existing sequence or identifier is a destructive replacement error.
 - S25 defines only a sleep-journal event reference and an evaluation event reference. S28 still owns journal fields/scales and S29 still owns classifications, outcome weights, and next-action rules; the schema does not preempt either decision.
@@ -367,8 +380,8 @@ S30 — Implement outcome classification.
 
 ## Blockers
 
-- No blocker prevents starting S31.
-- S30 supplies the deterministic result model and evaluator, but no known PS Min baseline/intervention dataset has been assembled into a replayable experiment. S31 must use the accepted allocation, metric, journal, event, and classification contracts and must document genuinely missing retrospective inputs rather than fabricate them.
+- No blocker prevents starting S32.
+- S31 proves that the retained public reconstruction cannot issue an outcome classification without fabricating source evidence. S32 must report that deterministic insufficiency transparently and must not turn absent retrospective dates, metrics, journal responses, confounders, adverse effects, or intervals into authored findings.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -382,5 +395,5 @@ S30 — Implement outcome classification.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S31. Assemble the known PS Min 2-to-1 baseline and intervention evidence as a safe replayable experiment fixture using the existing event, allocation, metric, journal, and classification contracts. Keep every source and missing input explicit and produce a reproducible deterministic evaluation. Do not add polished report presentation, UI, AI interpretation, prospective recommendations, lifecycle/safety behavior, private OSCAR data, or invented retrospective observations. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S32. Generate a deterministic structured evidence report from the S31 retrospective fixture, including its retained facts, partial replay history, explicit missing inputs, non-evaluable status, uncertainty, limitations, and source links. Keep the report honest about the absence of an outcome classification and representative intervals; do not invent evidence, add web UI or AI prose, access private OSCAR data, or add prospective recommendations. Add a stable snapshot test, update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

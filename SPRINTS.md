@@ -244,7 +244,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 
 ## 4 — Local web interface
 
-### S33 — Add the local API shell — queued
+### S33 — Add the local API shell — done
 
 - Objective: Expose a health endpoint and read-only experiment-summary endpoint bound to localhost.
 - Excludes: Browser UI, mutation endpoints, authentication, and deployment.

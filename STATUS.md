@@ -2,14 +2,14 @@
 
 **Updated:** September 3, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S32 completed
-**Next sprint:** S33 — Add the local API shell
+**Current sprint:** None — S33 completed
+**Next sprint:** S34 — Add the experiment overview page
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
-- `pyproject.toml` defines an installable, dependency-free Python package, and `README.md` documents the isolated editable-install and smoke-test commands.
-- The adapter and deterministic engine are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, version-1 sleep-journal records, deterministic outcome classification, safe retrospective fixture reconstruction, and the version-1 retrospective evidence report are complete, while the local API, web UI, and AI implementation have not begun.
+- `pyproject.toml` defines the installable Python package, FastAPI/Uvicorn runtime dependencies, the `httpx2` test extra, and the `pap-pilot-api` console entry point; `README.md` documents isolated installation, testing, and local API startup.
+- The adapter, deterministic engine, and local API are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, version-1 sleep-journal records, deterministic outcome classification, safe retrospective fixture reconstruction, the version-1 retrospective evidence report, and the localhost-only read API shell are complete, while the browser UI and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
@@ -69,6 +69,9 @@
 - `pap_pilot.engine.reports.build_ps_min_retrospective_evidence_report` converts the immutable S31 fixture into one immutable, versioned, companion-derived report without accessing OSCAR or persistence. The report retains the known setting change, source-linked facts and replay history, baseline/intervention inventories, both accepted objective metrics, all four journal outcomes, quality/confounder/adverse-effect inventories, representative-interval slots, every missing input, uncertainty, limitations, provenance, and an explicit classification section.
 - The report preserves the accepted outcome units, directions, and thresholds while leaving every unavailable count at zero and every unavailable summary, delta, interval bound, outcome state, classification, and action null. Its status remains `not_evaluable_without_fabrication`, and its classification availability is `not_issued`; absence is stated as unknown rather than zero, unchanged, favorable, or safe.
 - `serialize_retrospective_evidence_report` produces stable canonical compact JSON or indented review JSON in the version-1 `pap-pilot.retrospective-evidence-report-json` envelope. `tests/fixtures/ps-min-retrospective-evidence-report-v1.json` freezes the complete reviewable output, and `docs/fixtures/ps-min-retrospective-evidence-report-v1.md` records its review, stability, privacy, and scope contracts.
+- `pap_pilot.api` is a FastAPI boundary with exactly two version-1 GET routes: `/api/v1/health` returns the explicit health response model, and `/api/v1/experiments/ps-min-2-to-1/summary` returns the exact canonical S32 report bytes. The report is built and serialized once when the application is created, so a request performs no experiment reconstruction, metric calculation, classification, OSCAR access, or persistence.
+- `LocalApiSettings` accepts only numeric IPv4 or IPv6 loopback addresses and valid ports. The `pap-pilot-api` command has no host override and starts Uvicorn on `127.0.0.1:8765`; wildcard, LAN, hostname, malformed, and out-of-range configurations are rejected by the public settings contract.
+- FastAPI's OpenAPI, Swagger, and ReDoc routes are disabled. Both API routes are GET-only, mutation methods are unavailable, and responses carry `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`; S33 adds no browser UI, mutation endpoint, authentication, deployment configuration, AI, or database access.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -99,9 +102,14 @@
 
 ## Last completed sprint
 
-S32 — Produce the retrospective evidence report.
+S33 — Add the local API shell.
 
 ## Validation performed
+
+- Created a clean `.venv` and installed the package with its `test` extra. The installed metadata contains the `pap-pilot-api = pap_pilot.api:main` console entry point, FastAPI and Uvicorn runtime requirements, and the supported Starlette `httpx2` test transport.
+- Ran `.venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_local_api tests.test_retrospective_evidence_report tests.test_package_imports -v`; all eighteen focused API/report/package tests passed. The nine S33 tests cover exact health content, byte-identical S32 report delivery, one-time report construction, the exact two-route GET surface, absent documentation UI, unavailable mutation methods, fixed command binding, rejection of public/non-numeric hosts, and port validation.
+- Ran the complete suite against both the installed wheel and the source tree; all two hundred ten tests passed in each mode without resource warnings. Python compilation, `git diff --check`, package metadata/entry-point inspection, API route inspection, dependency/scope scans, and sensitive-artifact scans also passed.
+- Started the installed `pap-pilot-api` command and verified over a real local socket that Uvicorn bound to `127.0.0.1:8765`, health returned HTTP 200 with API version 1 and the no-store/nosniff headers, and the summary returned the canonical report identifier with `not_evaluable_without_fabrication`, `not_issued`, and null action. The temporary server shut down cleanly afterward; no OSCAR database was accessed.
 
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest tests.test_retrospective_evidence_report tests.test_ps_min_retrospective_fixture tests.test_package_imports -v`; all seventeen focused report/fixture/package tests passed. The eight S32 report tests cover exact schema/record/engine identity, the PS Min change, complete period/metric/subjective/quality/confounder/adverse-effect/interval/missing-input sections, accepted threshold visibility, null analytical results, absence of classification/action, complete source linkage, deterministic canonical serialization, exact full-output snapshot equality, privacy, and deep immutability.
 - Ran `PYTHONPATH=src python3 -B -W error::ResourceWarning -m unittest discover --start-directory tests -q`; all two hundred one tests passed without resource warnings.
@@ -284,6 +292,9 @@ S32 — Produce the retrospective evidence report.
 - S32 reports exactly the evidence state supplied by the S31 fixture. Prespecified units, directions, and thresholds describe the accepted analysis contract, not observed results; missing arm summaries, deltas, outcome states, intervals, classifications, and actions remain null rather than receiving defaults.
 - Report schema version 1 and JSON format version 1 are independent explicit contracts. Compact output uses sorted keys, UTF-8 text without ASCII escaping, finite numbers only, and compact separators; the indented form represents the same data and ends with one newline for direct review and snapshot comparison.
 - The report layer is deterministic engine code. It does not query OSCAR, load a local experiment database, persist an artifact, render a web view, generate prose with AI, issue a clinical conclusion, infer causality, recommend a setting, or change a PAP device.
+- Local API version 1 exposes only health and the fixed PS Min experiment summary. The summary response is the engine's canonical S32 JSON envelope rather than an API-owned reinterpretation or a second calculation path; future UI work must consume the returned missing/null states as written.
+- The server defaults to and is restricted to numeric loopback addresses. Version 1 deliberately offers no environment variable or command-line host override, preventing an accidental wildcard or LAN binding while authentication and deployment remain excluded.
+- FastAPI's generated documentation routes are browser UI and therefore remain disabled in S33. The API has no root page, OpenAPI route, mutation operation, CORS configuration, OSCAR adapter dependency, local database access, or AI integration.
 - A structurally complete proposal is a typed payload rather than an unvalidated dictionary. It expresses the entire plan-level experiment design and exactly one changed setting, but it applies no allowed-setting, range, clinical eligibility, prospective stop, or reversion policy; S38–S40 retain those decisions and behaviors.
 - Event sequence is explicit and contiguous within an experiment. Corrections append a new event of the same type and point to an earlier event in that history; the prior event remains present, and reusing an existing sequence or identifier is a destructive replacement error.
 - S25 defines only a sleep-journal event reference and an evaluation event reference. S28 still owns journal fields/scales and S29 still owns classifications, outcome weights, and next-action rules; the schema does not preempt either decision.
@@ -391,8 +402,8 @@ S32 — Produce the retrospective evidence report.
 
 ## Blockers
 
-- No blocker prevents starting S33.
-- S32 exposes the retained public reconstruction as `not_evaluable_without_fabrication` and leaves its classification and action unissued. Genuine local cohort, quality, metric, journal, confounder/adverse-effect, and representative-interval evidence is still required before the retrospective experiment can be evaluated; the local API and UI must preserve these missing/null states.
+- No blocker prevents starting S34.
+- S33 exposes S32 without altering it: the public summary remains `not_evaluable_without_fabrication`, with missing cohort/evidence sections and no classification or action. S34 must display those missing/null states visibly and must not turn them into defaults, derived conclusions, or recommendations.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -406,5 +417,5 @@ S32 — Produce the retrospective evidence report.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S33. Add a localhost-only local API shell with a health endpoint and a read-only experiment-summary endpoint that exposes the S32 structured report without recalculating or rewriting it. Do not add browser UI, mutation endpoints, authentication, deployment, AI prose, OSCAR access, or public binding. Add focused API/configuration tests, update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S34. Add the experiment overview page using the S33 read-only API, displaying the S32 status, periods, known setting change, objective metrics, subjective outcomes, evidence-report states, classification, uncertainty, and limitations without recalculating or filling missing values. Do not add waveform rendering, editing, mutation endpoints, AI prose, OSCAR access, or prospective recommendations. Add a focused UI test or captured verification, update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

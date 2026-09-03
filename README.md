@@ -8,8 +8,8 @@ Create an isolated environment, install the package, and run the smoke test:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install --editable .
+.venv/bin/python -m pip install '.[test]'
 .venv/bin/python -m unittest discover --start-directory tests --verbose
 ```
 
-The package currently has no runtime dependencies. It includes a guarded schema-17 OSCAR adapter and versioned normalized engine records; adapter-to-model mapping, persistence, derived analysis, the web interface, and AI integration remain later work.
+The package includes a guarded schema-17 OSCAR adapter, versioned normalized engine records, deterministic experiment analysis, and a local read-only API shell. Run the API with `.venv/bin/pap-pilot-api`; it binds only to `127.0.0.1:8765` and exposes `GET /api/v1/health` plus `GET /api/v1/experiments/ps-min-2-to-1/summary`. Browser UI and AI integration remain later work.

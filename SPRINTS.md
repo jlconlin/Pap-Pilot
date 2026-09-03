@@ -218,7 +218,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Forms/UI, automated interpretation of free text, and prospective daily reminders.
 - Done when: Structured responses and original notes are append-only, timestamped, attributable, linked to the relevant therapy night, and replay correctly.
 
-### S29 — Define outcome classification rules — queued
+### S29 — Define outcome classification rules — done
 
 - Objective: Define thresholds and evidence rules for the six classifications plus keep/revert/extend/inconclusive actions.
 - Excludes: AI judgment and implementation.

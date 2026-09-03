@@ -24,3 +24,6 @@ pap-pilot-api = "pap_pilot.api:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["pap_pilot*"]
+
+[tool.setuptools.package-data]
+"pap_pilot.ui" = ["*.css", "*.html", "*.mjs"]

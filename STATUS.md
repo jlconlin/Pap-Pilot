@@ -2,14 +2,14 @@
 
 **Updated:** September 3, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S33 completed
-**Next sprint:** S34 — Add the experiment overview page
+**Current sprint:** None — S34 completed
+**Next sprint:** S35 — Add representative waveform display
 
 ## Current state
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines the installable Python package, FastAPI/Uvicorn runtime dependencies, the `httpx2` test extra, and the `pap-pilot-api` console entry point; `README.md` documents isolated installation, testing, and local API startup.
-- The adapter, deterministic engine, and local API are separate package namespaces; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, version-1 sleep-journal records, deterministic outcome classification, safe retrospective fixture reconstruction, the version-1 retrospective evidence report, and the localhost-only read API shell are complete, while the browser UI and AI implementation have not begun.
+- The adapter, deterministic engine, local API, and browser UI are separate package namespaces or assets; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, version-1 sleep-journal records, deterministic outcome classification, safe retrospective fixture reconstruction, the version-1 retrospective evidence report, the localhost-only read API shell, and the read-only experiment overview are complete, while waveform display, editing, and AI implementation have not begun.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
@@ -72,6 +72,10 @@
 - `pap_pilot.api` is a FastAPI boundary with exactly two version-1 GET routes: `/api/v1/health` returns the explicit health response model, and `/api/v1/experiments/ps-min-2-to-1/summary` returns the exact canonical S32 report bytes. The report is built and serialized once when the application is created, so a request performs no experiment reconstruction, metric calculation, classification, OSCAR access, or persistence.
 - `LocalApiSettings` accepts only numeric IPv4 or IPv6 loopback addresses and valid ports. The `pap-pilot-api` command has no host override and starts Uvicorn on `127.0.0.1:8765`; wildcard, LAN, hostname, malformed, and out-of-range configurations are rejected by the public settings contract.
 - FastAPI's OpenAPI, Swagger, and ReDoc routes are disabled. Both API routes are GET-only, mutation methods are unavailable, and responses carry `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`; S33 adds no browser UI, mutation endpoint, authentication, deployment configuration, AI, or database access.
+- `pap_pilot.ui` packages the S34 overview HTML, CSS, and JavaScript module inside the installable wheel. The root page loads only same-origin assets and fetches only the S33 PS Min summary endpoint; the renderer validates the version-1 report envelope, escapes every API-supplied string, and has a visible failure state that does not estimate missing values.
+- The overview displays the S32 status and report identity, known PS Min 2-to-1 change, both period inventories, both independently defined objective metrics, all four structured subjective outcomes, quality/confounder/adverse-effect report inventories, both representative-interval states, classification and action availability, retained facts, uncertainty, every missing input, limitations, and provenance count.
+- All unavailable medians, changes, and interval bounds render as `Not available`; the evaluation remains `Not evaluable without fabrication`; classification and action render as `Not issued`; and zero counts are labeled as retained nights, observations, or records. The page adds no chart, waveform, form, editing control, mutation route, remote asset, AI prose, OSCAR access, or analytical calculation.
+- The responsive local-only visual treatment uses semantic sections and tables, system fonts, high-contrast missing-state badges, reduced-motion support, no-store/nosniff headers, a same-origin content-security policy, and a no-referrer policy. `README.md` now identifies the root overview URL, and package-data configuration ensures the three UI assets survive wheel installation.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -102,9 +106,14 @@
 
 ## Last completed sprint
 
-S33 — Add the local API shell.
+S34 — Add the experiment overview page.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_overview_ui tests.test_local_api tests.test_package_imports -v`; all sixteen focused overview/API/package tests passed. The six S34 tests cover installed asset delivery and media types, local-only asset references, security headers, the exact three-route GET-only UI surface, absence of editing and waveform elements, API-response rendering of every required section and every retained uncertainty/limitation/missing-input statement, visible null/missing states, output escaping, visible load failure, and the asset allowlist.
+- Rebuilt and installed the wheel with its test extra, then reran the focused tests against that installed copy. `importlib.resources` resolved all three packaged assets with exact nonzero content, proving that the overview does not depend on the source checkout.
+- Ran the complete suite against both the installed wheel and the source tree; all two hundred sixteen tests passed in each mode without resource warnings. Python compilation, JavaScript syntax validation, `git diff --check`, dependency/scope scans, sensitive-artifact scans, and the stopped-server check also passed.
+- Started the installed `pap-pilot-api` command on `127.0.0.1:8765`, fetched the page, stylesheet, script, and S32 report over the real local socket, and executed the served renderer against the served API response. All four GETs returned HTTP 200, POST to the summary remained HTTP 405, the content-security policy remained same-origin, and the rendered output contained status, settings, objective and subjective sections, report states, unissued classification, limitations, visible missing values, and no waveform markup. The temporary server was stopped and its listening socket was confirmed absent; no OSCAR database was accessed.
 
 - Created a clean `.venv` and installed the package with its `test` extra. The installed metadata contains the `pap-pilot-api = pap_pilot.api:main` console entry point, FastAPI and Uvicorn runtime requirements, and the supported Starlette `httpx2` test transport.
 - Ran `.venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_local_api tests.test_retrospective_evidence_report tests.test_package_imports -v`; all eighteen focused API/report/package tests passed. The nine S33 tests cover exact health content, byte-identical S32 report delivery, one-time report construction, the exact two-route GET surface, absent documentation UI, unavailable mutation methods, fixed command binding, rejection of public/non-numeric hosts, and port validation.
@@ -294,7 +303,11 @@ S33 — Add the local API shell.
 - The report layer is deterministic engine code. It does not query OSCAR, load a local experiment database, persist an artifact, render a web view, generate prose with AI, issue a clinical conclusion, infer causality, recommend a setting, or change a PAP device.
 - Local API version 1 exposes only health and the fixed PS Min experiment summary. The summary response is the engine's canonical S32 JSON envelope rather than an API-owned reinterpretation or a second calculation path; future UI work must consume the returned missing/null states as written.
 - The server defaults to and is restricted to numeric loopback addresses. Version 1 deliberately offers no environment variable or command-line host override, preventing an accidental wildcard or LAN binding while authentication and deployment remain excluded.
-- FastAPI's generated documentation routes are browser UI and therefore remain disabled in S33. The API has no root page, OpenAPI route, mutation operation, CORS configuration, OSCAR adapter dependency, local database access, or AI integration.
+- FastAPI's generated documentation routes remain disabled. S33 introduced no root page; S34 adds the root only as the packaged read-only experiment overview. The application still has no OpenAPI route, mutation operation, CORS configuration, OSCAR adapter dependency, local database access, or AI integration.
+- S34 is a thin browser projection of the version-1 S32 report. The client fetches the canonical same-origin summary and formats only its supplied fields; it does not import engine logic, recalculate a metric, infer a classification, replace nulls, or parse report prose into data.
+- Missing remains a first-class visual state. Null observations and intervals say `Not available`, an unissued result/action says `Not issued`, and zero retained-record counts remain paired with the report's missing availability and reason codes so they cannot be read as measured zero effects or affirmative absence.
+- The overview assets are packaged resources rather than an external CDN or build-time dependency. S34 introduces no JavaScript framework, remote font, telemetry, CORS, external request, browser storage, cookie, form, mutation path, waveform element, or UI-to-OSCAR access.
+- UI strings explain the meaning of the deterministic fields and are fixed application copy, not AI-written interpretation. The report's uncertainty, limitations, facts, reasons, identifiers, and source count remain supplied by the API and are HTML-escaped before insertion.
 - A structurally complete proposal is a typed payload rather than an unvalidated dictionary. It expresses the entire plan-level experiment design and exactly one changed setting, but it applies no allowed-setting, range, clinical eligibility, prospective stop, or reversion policy; S38–S40 retain those decisions and behaviors.
 - Event sequence is explicit and contiguous within an experiment. Corrections append a new event of the same type and point to an earlier event in that history; the prior event remains present, and reusing an existing sequence or identifier is a destructive replacement error.
 - S25 defines only a sleep-journal event reference and an evaluation event reference. S28 still owns journal fields/scales and S29 still owns classifications, outcome weights, and next-action rules; the schema does not preempt either decision.
@@ -402,8 +415,8 @@ S33 — Add the local API shell.
 
 ## Blockers
 
-- No blocker prevents starting S34.
-- S33 exposes S32 without altering it: the public summary remains `not_evaluable_without_fabrication`, with missing cohort/evidence sections and no classification or action. S34 must display those missing/null states visibly and must not turn them into defaults, derived conclusions, or recommendations.
+- No blocker prevents starting S35.
+- S34 displays both representative-interval slots as missing and renders no waveform. S35 must preserve that visible failure state for the current report while adding the bounded display contract needed when attributable baseline/intervention signal excerpts eventually exist; it must not auto-select an interval or invent a signal.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -417,5 +430,5 @@ S33 — Add the local API shell.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S34. Add the experiment overview page using the S33 read-only API, displaying the S32 status, periods, known setting change, objective metrics, subjective outcomes, evidence-report states, classification, uncertainty, and limitations without recalculating or filling missing values. Do not add waveform rendering, editing, mutation endpoints, AI prose, OSCAR access, or prospective recommendations. Add a focused UI test or captured verification, update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S35. Add the bounded representative waveform display for the baseline and intervention interval records supplied by the report, preserving units and evidence links and rendering a clear missing state when a signal or interval is unavailable. Do not add arbitrary signal exploration, automatic interval selection, editing, mutation endpoints, AI prose, OSCAR access, or new metric calculations. Add focused rendering tests for both populated synthetic intervals and the current missing S32 fixture, update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

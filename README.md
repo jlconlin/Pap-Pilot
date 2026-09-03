@@ -12,4 +12,4 @@ python3 -m venv .venv
 .venv/bin/python -m unittest discover --start-directory tests --verbose
 ```
 
-The package includes a guarded schema-17 OSCAR adapter, versioned normalized engine records, deterministic experiment analysis, and a local read-only API shell. Run the API with `.venv/bin/pap-pilot-api`; it binds only to `127.0.0.1:8765` and exposes `GET /api/v1/health` plus `GET /api/v1/experiments/ps-min-2-to-1/summary`. Browser UI and AI integration remain later work.
+The package includes a guarded schema-17 OSCAR adapter, versioned normalized engine records, deterministic experiment analysis, and a local read-only web application. Run it with `.venv/bin/pap-pilot-api`; it binds only to `127.0.0.1:8765`. Open `http://127.0.0.1:8765/` for the experiment overview. The service also exposes `GET /api/v1/health` and `GET /api/v1/experiments/ps-min-2-to-1/summary`. Waveform display, editing, and AI integration remain later work.

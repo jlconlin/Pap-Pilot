@@ -57,7 +57,7 @@ class LocalApiTests(unittest.TestCase):
 
     def test_api_exposes_exactly_two_get_routes_and_no_documentation_ui(self) -> None:
         application = create_app()
-        routes = {(route.path, frozenset(route.methods)) for route in application.routes if isinstance(route, APIRoute)}
+        routes = {(route.path, frozenset(route.methods)) for route in application.routes if isinstance(route, APIRoute) and route.path.startswith("/api/")}
 
         self.assertEqual(
             routes,
@@ -67,7 +67,7 @@ class LocalApiTests(unittest.TestCase):
             },
         )
         with TestClient(application) as client:
-            for path in ("/", "/docs", "/redoc", "/openapi.json"):
+            for path in ("/docs", "/redoc", "/openapi.json"):
                 with self.subTest(path=path):
                     self.assertEqual(client.get(path).status_code, 404)
 

@@ -250,7 +250,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Browser UI, mutation endpoints, authentication, and deployment.
 - Done when: API tests pass and configuration cannot bind publicly by default.
 
-### S34 — Add the experiment overview page — queued
+### S34 — Add the experiment overview page — done
 
 - Objective: Display S32 status, periods, settings, metrics, reports, classification, and limitations.
 - Excludes: Waveform rendering and editing.

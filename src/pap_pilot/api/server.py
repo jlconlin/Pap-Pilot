@@ -5,6 +5,7 @@ from ipaddress import ip_address
 from typing import Final, Literal
 
 from fastapi import FastAPI, Response
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict
 import uvicorn
 
@@ -13,6 +14,7 @@ from pap_pilot.engine.reports import (
     build_ps_min_retrospective_evidence_report,
     serialize_retrospective_evidence_report,
 )
+from pap_pilot.ui import load_overview_asset
 
 
 LOCAL_API_VERSION: Final = 1
@@ -20,9 +22,17 @@ LOCAL_API_DEFAULT_HOST: Final = "127.0.0.1"
 LOCAL_API_DEFAULT_PORT: Final = 8765
 LOCAL_API_HEALTH_PATH: Final = "/api/v1/health"
 PS_MIN_EXPERIMENT_SUMMARY_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/summary"
+LOCAL_OVERVIEW_PATH: Final = "/"
+LOCAL_OVERVIEW_STYLES_PATH: Final = "/assets/overview.css"
+LOCAL_OVERVIEW_SCRIPT_PATH: Final = "/assets/overview.mjs"
 _JSON_RESPONSE_HEADERS: Final = {
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
+}
+_UI_RESPONSE_HEADERS: Final = {
+    **_JSON_RESPONSE_HEADERS,
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+    "Referrer-Policy": "no-referrer",
 }
 
 
@@ -67,6 +77,9 @@ def create_app(report: RetrospectiveEvidenceReport | None = None) -> FastAPI:
     if not isinstance(selected_report, RetrospectiveEvidenceReport):
         raise LocalApiConfigurationError("The experiment-summary endpoint requires a retrospective evidence report.")
     summary_json = serialize_retrospective_evidence_report(selected_report)
+    overview_html = load_overview_asset("overview.html")
+    overview_styles = load_overview_asset("overview.css")
+    overview_script = load_overview_asset("overview.mjs")
     application = FastAPI(
         title="PAP Pilot local API",
         version=str(LOCAL_API_VERSION),
@@ -83,6 +96,18 @@ def create_app(report: RetrospectiveEvidenceReport | None = None) -> FastAPI:
     @application.get(PS_MIN_EXPERIMENT_SUMMARY_PATH, response_class=Response)
     def ps_min_experiment_summary() -> Response:
         return Response(content=summary_json, media_type="application/json", headers=_JSON_RESPONSE_HEADERS)
+
+    @application.get(LOCAL_OVERVIEW_PATH, response_class=HTMLResponse)
+    def experiment_overview() -> HTMLResponse:
+        return HTMLResponse(content=overview_html, headers=_UI_RESPONSE_HEADERS)
+
+    @application.get(LOCAL_OVERVIEW_STYLES_PATH, response_class=Response)
+    def experiment_overview_styles() -> Response:
+        return Response(content=overview_styles, media_type="text/css", headers=_UI_RESPONSE_HEADERS)
+
+    @application.get(LOCAL_OVERVIEW_SCRIPT_PATH, response_class=Response)
+    def experiment_overview_script() -> Response:
+        return Response(content=overview_script, media_type="text/javascript", headers=_UI_RESPONSE_HEADERS)
 
     return application
 

@@ -292,7 +292,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Prospective morning forms or reminders, NLP or AI interpretation, clinical advice, and silent conversion of missing evidence to negative answers.
 - Done when: Replay yields the exact effective per-night user evidence supplied for the retrospective cohort and explicitly distinguishes unavailable, not reported, none reported, and reported states.
 
-### S37D — Orchestrate the retrospective evaluation — queued
+### S37D — Orchestrate the retrospective evaluation — done
 
 - Objective: Deterministically run quality assessment, period allocation, both version-1 metrics, and outcome classification from the selected cohort and effective experiment/user history.
 - Excludes: New metrics or thresholds, automatic selection, report presentation, UI, prospective logic, and AI.

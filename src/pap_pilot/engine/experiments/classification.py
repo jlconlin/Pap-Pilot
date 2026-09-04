@@ -10,7 +10,11 @@ from statistics import median
 from typing import Final
 
 from pap_pilot.engine.experiments.allocation import ExperimentNightAllocation, ExperimentPeriod
-from pap_pilot.engine.experiments.journal import ConfounderReportStatus, SleepJournalEntry
+from pap_pilot.engine.experiments.journal import (
+    RetrospectiveEvidenceStatus,
+    RetrospectiveNightEvidence,
+    SleepJournalEntry,
+)
 from pap_pilot.engine.experiments.model import (
     ExperimentDecisionPayload,
     ExperimentEvent,
@@ -405,6 +409,7 @@ def evaluate_outcome_classification(
     metric_results: tuple[MetricResult, ...],
     journal_entries: tuple[SleepJournalEntry, ...],
     evidence_events: tuple[ExperimentEvent, ...] = (),
+    retrospective_evidence: tuple[RetrospectiveNightEvidence, ...] = (),
 ) -> OutcomeClassificationResult:
     """Apply the accepted retrospective PS Min 2-to-1 classification contract."""
 
@@ -416,6 +421,7 @@ def evaluate_outcome_classification(
     metrics = _typed_tuple(metric_results, MetricResult, "metric results")
     journals = _typed_tuple(journal_entries, SleepJournalEntry, "journal entries")
     evidence = _typed_tuple(evidence_events, ExperimentEvent, "evidence events")
+    manifests = _typed_tuple(retrospective_evidence, RetrospectiveNightEvidence, "retrospective night evidence")
     allowed_evidence_types = {ExperimentEventType.SLEEP_JOURNAL_ENTRY_RECORDED, ExperimentEventType.CONFOUNDER_RECORDED, ExperimentEventType.ADVERSE_EFFECT_RECORDED}
     if any(value.event_type not in allowed_evidence_types for value in evidence):
         raise OutcomeClassificationError("Classification evidence events must contain only journal references, confounders, or adverse effects.")
@@ -435,6 +441,10 @@ def evaluate_outcome_classification(
         reasons.append("duplicate_metric_result_id")
     if len({value.record_id for value in journals}) != len(journals):
         reasons.append("duplicate_journal_entry_id")
+    if len({value.record_id for value in manifests}) != len(manifests):
+        reasons.append("duplicate_retrospective_evidence_id")
+    if len({value.night_record_id for value in manifests}) != len(manifests):
+        reasons.append("duplicate_retrospective_evidence_night")
 
     experiment_ids = {proposal_event.experiment_record_id, acceptance_event.experiment_record_id, setting_change_event.experiment_record_id, *(value.experiment_record_id for value in evidence)}
     if len(experiment_ids) != 1:
@@ -476,6 +486,18 @@ def evaluate_outcome_classification(
             reasons.append("duplicate_journal_entry")
         journal_by_night[entry.night_record_id] = entry
 
+    manifest_by_night = {value.night_record_id: value for value in manifests}
+    if manifests and set(manifest_by_night) != allocated_ids:
+        reasons.append("retrospective_evidence_allocation_mismatch")
+    if any(
+        value.experiment_record_id != proposal_event.experiment_record_id
+        for value in manifests
+    ):
+        reasons.append("retrospective_evidence_experiment_mismatch")
+    for night_id, manifest in manifest_by_night.items():
+        if manifest.journal_entry != journal_by_night.get(night_id):
+            reasons.append("retrospective_evidence_journal_mismatch")
+
     journal_by_id = {value.record_id: value for value in journals}
     journal_event_counts: dict[str, int] = {}
     for event in journal_events:
@@ -503,7 +525,15 @@ def evaluate_outcome_classification(
         elif event.payload.night_record_id not in allocated_ids:
             reasons.append("observation_night_not_allocated")
         elif event.payload.night_record_id in included_by_id and event.payload.night_record_id not in journal_by_night:
-            reasons.append("confounder_event_without_journal")
+            manifest = manifest_by_night.get(event.payload.night_record_id)
+            if (
+                manifest is None
+                or manifest.confounder_status is not RetrospectiveEvidenceStatus.REPORTED
+                or event.record_id not in manifest.confounder_event_ids
+            ):
+                reasons.append("confounder_event_without_journal")
+                continue
+            confounder_events_by_night.setdefault(event.payload.night_record_id, []).append(event)
         else:
             confounder_events_by_night.setdefault(event.payload.night_record_id, []).append(event)
 
@@ -534,7 +564,23 @@ def evaluate_outcome_classification(
         if outcome.state is OutcomeState.UNSTABLE:
             reasons.append(f"unstable_{outcome.outcome_id.value}")
 
-    confounders = _confounder_evidence(baseline_nights, intervention_nights, journal_by_night, confounder_events_by_night)
+    confounder_status_by_night = (
+        {
+            night_id: value.confounder_status
+            for night_id, value in manifest_by_night.items()
+        }
+        if manifests
+        else {
+            night_id: RetrospectiveEvidenceStatus(value.confounder_status.value)
+            for night_id, value in journal_by_night.items()
+        }
+    )
+    confounders = _confounder_evidence(
+        baseline_nights,
+        intervention_nights,
+        confounder_status_by_night,
+        confounder_events_by_night,
+    )
     if confounders.status is ConfounderEvidenceStatus.INSUFFICIENT_REPORTING:
         reasons.append("confounder_reporting_insufficient")
 
@@ -556,10 +602,12 @@ def evaluate_outcome_classification(
         *(value.night_record_id for value in allocation.nights),
         *(value.record_id for value in metrics),
         *(value.record_id for value in journals),
+        *(value.record_id for value in manifests),
         *(value.record_id for value in evidence),
         *(identifier for event in (proposal_event, acceptance_event, setting_change_event, *evidence) for identifier in event.source_record_ids),
         *(identifier for result in metrics for identifier in result.source_record_ids),
         *(value.night_record_id for value in journals),
+        *(identifier for value in manifests for identifier in value.source_record_ids),
         *proposal.evidence_record_ids,
         *quality_report_ids,
         *quality_finding_ids,
@@ -568,6 +616,7 @@ def evaluate_outcome_classification(
         *(identifier for event in (proposal_event, acceptance_event, setting_change_event, *evidence) for identifier in event.source_provenance_ids),
         *(identifier for result in metrics for identifier in result.source_provenance_ids),
         *(identifier for entry in journals for identifier in entry.source_provenance_ids),
+        *(identifier for value in manifests for identifier in value.source_provenance_ids),
     }
     identity = (
         proposal_event.record_id,
@@ -579,6 +628,7 @@ def evaluate_outcome_classification(
         subjective,
         confounders,
         tuple(sorted(value.record_id for value in adverse_events)),
+        tuple(sorted(value.record_id for value in manifests)),
         classification,
         action,
         final_reasons,
@@ -752,9 +802,9 @@ def _subjective_domain(outcomes: tuple[OutcomeEvidence, ...]) -> tuple[Subjectiv
     return SubjectiveDomainState.INSUFFICIENT_EVIDENCE, ("unmatched_subjective_pattern",)
 
 
-def _confounder_evidence(baseline_nights, intervention_nights, entries: dict[str, SleepJournalEntry], events: dict[str, list[ExperimentEvent]]) -> ConfounderEvidence:
-    baseline = _arm_confounders(ExperimentPeriod.BASELINE, baseline_nights, entries, events)
-    intervention = _arm_confounders(ExperimentPeriod.INTERVENTION, intervention_nights, entries, events)
+def _confounder_evidence(baseline_nights, intervention_nights, statuses: dict[str, RetrospectiveEvidenceStatus], events: dict[str, list[ExperimentEvent]]) -> ConfounderEvidence:
+    baseline = _arm_confounders(ExperimentPeriod.BASELINE, baseline_nights, statuses, events)
+    intervention = _arm_confounders(ExperimentPeriod.INTERVENTION, intervention_nights, statuses, events)
     if baseline.journaled_night_count == 0 or intervention.journaled_night_count == 0:
         status = ConfounderEvidenceStatus.UNAVAILABLE
     elif 3 * baseline.not_reported_night_count > baseline.journaled_night_count or 3 * intervention.not_reported_night_count > intervention.journaled_night_count:
@@ -765,10 +815,15 @@ def _confounder_evidence(baseline_nights, intervention_nights, entries: dict[str
     return ConfounderEvidence(baseline, intervention, status)
 
 
-def _arm_confounders(period: ExperimentPeriod, nights, entries: dict[str, SleepJournalEntry], events: dict[str, list[ExperimentEvent]]) -> ArmConfounderSummary:
-    journaled = tuple(night.night_record_id for night in nights if night.night_record_id in entries)
-    confounded = sum(bool(entries[night_id].confounders) or bool(events.get(night_id)) for night_id in journaled)
-    not_reported = sum(entries[night_id].confounder_status is ConfounderReportStatus.NOT_REPORTED and not events.get(night_id) for night_id in journaled)
+def _arm_confounders(period: ExperimentPeriod, nights, statuses: dict[str, RetrospectiveEvidenceStatus], events: dict[str, list[ExperimentEvent]]) -> ArmConfounderSummary:
+    journaled = tuple(
+        night.night_record_id
+        for night in nights
+        if statuses.get(night.night_record_id) is not None
+        and statuses[night.night_record_id] is not RetrospectiveEvidenceStatus.UNAVAILABLE
+    )
+    confounded = sum(statuses[night_id] is RetrospectiveEvidenceStatus.REPORTED or bool(events.get(night_id)) for night_id in journaled)
+    not_reported = sum(statuses[night_id] is RetrospectiveEvidenceStatus.NOT_REPORTED and not events.get(night_id) for night_id in journaled)
     total = len(journaled)
     return ArmConfounderSummary(period, total, confounded, not_reported, None if total == 0 else confounded / total, None if total == 0 else not_reported / total)
 

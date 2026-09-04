@@ -1,0 +1,18 @@
+{
+  "action": "keep",
+  "allocation_record_id": "experiment-night-allocation:843f8ac18a5413c96d94",
+  "allocation_structural_report_count": 6,
+  "baseline_included_night_count": 3,
+  "classification": "clear_improvement",
+  "classification_record_id": "outcome-classification:75828ea8c0df3791ff29",
+  "effective_event_count": 11,
+  "evaluation_record_id": "retrospective-evaluation:7074f4134015eafb179a",
+  "intervention_included_night_count": 3,
+  "metric_result_count": 12,
+  "metric_structural_report_count": 12,
+  "retrospective_night_evidence_count": 6,
+  "schema_id": "pap-pilot.retrospective-evaluation",
+  "schema_version": 1,
+  "selected_night_count": 6,
+  "signal_quality_report_count": 6
+}

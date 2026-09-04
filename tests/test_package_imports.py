@@ -19,6 +19,7 @@ class PackageImportTests(unittest.TestCase):
             "pap_pilot.engine.experiments.classification",
             "pap_pilot.engine.experiments.retrospective_fixture",
             "pap_pilot.engine.experiments.retrospective_evidence",
+            "pap_pilot.engine.experiments.retrospective_evaluation",
             "pap_pilot.engine.experiments.retrospective_protocol",
             "pap_pilot.engine.metrics",
             "pap_pilot.engine.model",
@@ -26,6 +27,8 @@ class PackageImportTests(unittest.TestCase):
             "pap_pilot.engine.reports",
             "pap_pilot.engine.reports.retrospective",
             "pap_pilot.ui",
+            "pap_pilot.workflow",
+            "pap_pilot.workflow.retrospective",
         ):
             with self.subTest(module_name=module_name):
                 module = import_module(module_name)

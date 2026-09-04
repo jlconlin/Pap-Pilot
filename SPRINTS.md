@@ -280,7 +280,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Automatic cohort or change detection, experiment-history mutation, evaluation, UI, prospective workflows, and OSCAR writes.
 - Done when: A synthetic multi-night schema-17 fixture proves selected sessions, split-session grouping, settings, signals, raw/corrected-time evidence, provenance, and missing states are reproducible without modifying the source.
 
-### S37B — Record the retrospective protocol and confirmed boundary — queued
+### S37B — Record the retrospective protocol and confirmed boundary — done
 
 - Objective: Persist the exact accepted retrospective proposal and a user-confirmed applied-change boundary for the selected cohort as append-only experiment events.
 - Excludes: Inferring confirmation from OSCAR settings, general editing, prospective safety policy, evaluation, UI, and device changes.

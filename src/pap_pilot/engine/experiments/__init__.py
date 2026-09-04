@@ -96,6 +96,14 @@ from pap_pilot.engine.experiments.retrospective_fixture import (
     RetrospectiveMissingInputId,
     reconstruct_ps_min_experiment_fixture,
 )
+from pap_pilot.engine.experiments.retrospective_protocol import (
+    RETROSPECTIVE_PROTOCOL_RECORD_VERSION,
+    RetrospectiveCohortEvidence,
+    RetrospectiveProtocolError,
+    RetrospectiveProtocolInput,
+    build_retrospective_protocol_events,
+    record_retrospective_protocol,
+)
 from pap_pilot.engine.experiments.storage import (
     EXPERIMENT_STORE_RECORD_FORMAT,
     EXPERIMENT_STORE_RECORD_FORMAT_VERSION,
@@ -178,6 +186,10 @@ __all__ = [
     "RetrospectiveKnownFact",
     "RetrospectiveMissingInput",
     "RetrospectiveMissingInputId",
+    "RETROSPECTIVE_PROTOCOL_RECORD_VERSION",
+    "RetrospectiveCohortEvidence",
+    "RetrospectiveProtocolError",
+    "RetrospectiveProtocolInput",
     "SettingChangeConfirmedPayload",
     "SleepJournalEntryRecordedPayload",
     "SleepJournalConfounder",
@@ -201,7 +213,9 @@ __all__ = [
     "allocate_experiment_nights",
     "append_experiment_event",
     "build_boundary_correction_events",
+    "build_retrospective_protocol_events",
     "evaluate_outcome_classification",
     "reconstruct_ps_min_experiment_fixture",
+    "record_retrospective_protocol",
     "validate_experiment_history",
 ]

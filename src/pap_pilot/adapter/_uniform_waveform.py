@@ -118,36 +118,53 @@ def extract_uniform_waveform(
             connection,
             session_database_id,
         )
-        channel_id = _extract_channel_id(
+        return _extract_uniform_waveform(
             connection,
             session_summary,
             spec=spec,
             error_type=error_type,
         )
-        if channel_id is None:
-            return _missing_waveform(
-                session_summary,
-                UniformWaveformAvailability.CHANNEL_MISSING,
-                source_channel_id=None,
-                spec=spec,
-            )
 
-        rows = _extract_rows(connection, session_summary, channel_id)
-        if not rows:
-            return _missing_waveform(
-                session_summary,
-                UniformWaveformAvailability.DATA_MISSING,
-                source_channel_id=channel_id,
-                spec=spec,
-            )
 
-        segments = _segments_from_rows(
-            rows,
+def _extract_uniform_waveform(
+    connection: sqlite3.Connection,
+    session_summary: OscarSessionSummary,
+    *,
+    spec: UniformWaveformSpec,
+    error_type: type[OscarDatabaseError],
+) -> DecodedUniformWaveform:
+    """Extract one waveform inside an existing guarded read transaction."""
+
+    channel_id = _extract_channel_id(
+        connection,
+        session_summary,
+        spec=spec,
+        error_type=error_type,
+    )
+    if channel_id is None:
+        return _missing_waveform(
             session_summary,
-            channel_id,
+            UniformWaveformAvailability.CHANNEL_MISSING,
+            source_channel_id=None,
             spec=spec,
-            error_type=error_type,
         )
+
+    rows = _extract_rows(connection, session_summary, channel_id)
+    if not rows:
+        return _missing_waveform(
+            session_summary,
+            UniformWaveformAvailability.DATA_MISSING,
+            source_channel_id=channel_id,
+            spec=spec,
+        )
+
+    segments = _segments_from_rows(
+        rows,
+        session_summary,
+        channel_id,
+        spec=spec,
+        error_type=error_type,
+    )
 
     return DecodedUniformWaveform(
         session_summary=session_summary,

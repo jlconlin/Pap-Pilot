@@ -11,6 +11,7 @@ class PackageImportTests(unittest.TestCase):
         for module_name in (
             "pap_pilot",
             "pap_pilot.adapter",
+            "pap_pilot.adapter.cohort",
             "pap_pilot.api",
             "pap_pilot.api.server",
             "pap_pilot.engine",

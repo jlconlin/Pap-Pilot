@@ -274,7 +274,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: New features, prospective experiments, and AI.
 - Done when: Milestones 1–4 exit criteria pass or every remaining gap is recorded as a bounded sprint.
 
-### S37A — Select and normalize the retrospective OSCAR cohort — queued
+### S37A — Select and normalize the retrospective OSCAR cohort — done
 
 - Objective: Add an explicit local selection contract that reads every chosen PS Min candidate session spanning the historical change from a protected OSCAR copy and produces a deterministic multi-night normalized cohort with settings and correction evidence.
 - Excludes: Automatic cohort or change detection, experiment-history mutation, evaluation, UI, prospective workflows, and OSCAR writes.

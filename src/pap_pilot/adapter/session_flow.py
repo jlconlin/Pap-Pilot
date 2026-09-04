@@ -3,13 +3,16 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+import sqlite3
 from typing import Final
 
 from pap_pilot.adapter._uniform_waveform import (
+    DecodedUniformWaveform,
     DecodedUniformWaveformSegment,
     OscarSignalSourceClass,
     OscarSignalStorage,
     UniformWaveformSpec,
+    _extract_uniform_waveform,
     extract_uniform_waveform,
 )
 from pap_pilot.adapter.oscar import OscarDatabaseError
@@ -114,6 +117,26 @@ def extract_flow_rate_signal(
         error_type=InvalidFlowSignalError,
         trusted_immutable_copy=trusted_immutable_copy,
     )
+    return _flow_signal(waveform)
+
+
+def _extract_flow_rate_signal(
+    connection: sqlite3.Connection,
+    session_summary: OscarSessionSummary,
+) -> OscarFlowSignal:
+    """Extract Flow Rate inside an existing guarded read transaction."""
+
+    return _flow_signal(
+        _extract_uniform_waveform(
+            connection,
+            session_summary,
+            spec=_FLOW_RATE_SPEC,
+            error_type=InvalidFlowSignalError,
+        )
+    )
+
+
+def _flow_signal(waveform: DecodedUniformWaveform) -> OscarFlowSignal:
     return OscarFlowSignal(
         session_summary=waveform.session_summary,
         availability=OscarFlowAvailability(waveform.availability.value),

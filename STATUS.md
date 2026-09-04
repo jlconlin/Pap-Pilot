@@ -2,8 +2,8 @@
 
 **Updated:** September 3, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S37 completed
-**Next sprint:** S37A — Select and normalize the retrospective OSCAR cohort
+**Current sprint:** None — S37A completed
+**Next sprint:** S37B — Record the retrospective protocol and confirmed boundary
 
 ## Current state
 
@@ -11,6 +11,8 @@
 - `pyproject.toml` defines the installable Python package, FastAPI/Uvicorn runtime dependencies, the `httpx2` test extra, and the `pap-pilot-api` console entry point; `README.md` documents isolated installation, testing, and local API startup.
 - The adapter, deterministic engine, local API, and browser UI are separate package namespaces or assets; one-session extraction, normalized core records, deterministic adapter-to-model mapping, fixed reference fixtures, the initial quality methodology, all version-1 quality rules, both initial objective metrics, the version-1 experiment/event schemas, local append-only experiment persistence/replay, baseline/intervention night allocation, version-1 sleep-journal records, deterministic outcome classification, safe retrospective fixture reconstruction, the version-1 retrospective evidence report, the localhost-only API shell, the experiment overview, bounded representative-waveform rendering, and the narrowly scoped append-only boundary-correction flow are complete, while general editing and AI implementation have not begun.
 - S37 validated the existing retrospective pieces without adding features. Milestones 1 and 2 pass; Milestones 3 and 4 do not yet pass because selected OSCAR evidence is not orchestrated into the fixed S31/S32 report served by the UI. `docs/validation/retrospective-vertical-slice-s37.md` records the evidence and maps every remaining break to S37A–S37F.
+- S37A adds `pap_pilot.adapter.extract_normalized_oscar_cohort`, an explicit ID-only, read-only selection contract that extracts every chosen session inside one guarded transaction, rejects mixed profile/machine/local-day contexts, groups split sessions by normalized OSCAR local date, preserves per-session settings/events/signals and missing states, and returns a deterministic multi-night cohort with a complete source-record inventory.
+- The S37A schema-17 correction contract retains raw session bounds unchanged and records corrected display bounds separately. It supports inclusive date ranges, null and `2099-12-31` open ends, stacked active constant offsets with documented sign behavior, retained-but-inactive undone rows, an explicit confirmed-none state after querying the table, and an unsupported-drift state that refuses to derive corrected bounds.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
@@ -111,9 +113,13 @@
 
 ## Last completed sprint
 
-S37 — Validate the retrospective vertical slice.
+S37A — Select and normalize the retrospective OSCAR cohort.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_oscar_cohort -v`; all nine focused S37A tests passed. They cover explicit nonempty unique selection, order-independent deterministic identity, two normalized nights with a split first night, a PS Min 2-to-1 settings transition without carry-forward, available and explicitly missing signals, complete nested provenance/source inventory, protected-copy byte identity, missing sessions, mixed machines, one guarded transaction, frozen records, confirmed-absent correction evidence, inclusive and open-ended correction ranges, stacked signed offsets, retained undone rows, malformed evidence, and unsupported drift without fabricated corrected bounds.
+- Reran all forty-one existing one-session summary/event/Flow Rate/Mask Pressure/Leak/normalization tests after factoring their private connection-level extractors for cohort use; all passed without resource warnings. Rebuilt and installed the package with `.venv/bin/python -m pip install --force-reinstall --no-deps --no-build-isolation .`, then ran the complete suite against both the source tree and installed package; all two hundred thirty-four tests passed in each mode.
+- Python compilation, public package/module import checks, `git diff --check`, scope inspection, and retained-artifact scans passed. All S37A databases are wholly synthetic temporary fixtures; no live or private OSCAR database was accessed or retained.
 
 - Ran a temporary, unretained S37 audit against the wholly synthetic schema-17 OSCAR fixture. Guarded extraction and normalization produced one night with Flow Rate, Mask Pressure, and Leak; five structural findings and one signal-quality report were generated; both independent metrics correctly returned `insufficient_evidence` for the fixture's deliberately tiny excerpts; and the disposable OSCAR bytes remained identical.
 - The same audit requested and rendered the actual report/history contracts. The served report remained `not_evaluable_without_fabrication` with all eight missing-input categories, the extracted normalized-night identifier was absent from report provenance, the history contained only two events with no confirmed boundary, and the renderer displayed the non-fabrication state with no waveform SVG. This directly establishes the missing extraction-to-evaluation-to-report seam.
@@ -273,6 +279,11 @@ S37 — Validate the retrospective vertical slice.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
+
+- S37A selects sessions only from the caller's explicit, nonempty, unique OSCAR database identifiers. It does not list sessions, infer cohort membership, detect the settings transition, or assert a change boundary.
+- One selected cohort must use one supported schema, active profile, machine, timezone, and day-split context. Each session retains its own exact setting rows; split sessions are grouped only when their raw-start-derived normalized OSCAR local dates match, and no signal gap or session boundary is bridged.
+- Normalized session, event, and signal timestamps remain the raw OSCAR values. Schema-17 correction rows are a parallel evidence collection: matching active constant contributions stack, undone rows remain visible but do not contribute, and active drift evidence makes corrected bounds explicitly unavailable until its fragile encoding receives separate authoritative validation.
+- Cohort identity is derived deterministically from the canonical selected-session set, normalized nights, and correction evidence. Its top-level source inventory includes all nested OSCAR schema/profile/machine/session/channel/event/EventList/event-data references plus every observed correction row and an explicit per-machine correction-query marker.
 
 - S37 completes through its explicit alternate criterion: Milestones 1 and 2 pass, while every observed gap preventing Milestones 3 and 4 is assigned to S37A–S37F. This is not a claim that the retrospective vertical slice itself is complete.
 - A working local API, honest missing-data report, isolated deterministic components, and individually tested UI sections do not prove an end-to-end retrospective evaluation. Evidence must trace from selected normalized OSCAR nights through quality, allocation, metrics, user evidence, classification, report assembly, and the served UI.
@@ -448,14 +459,14 @@ S37 — Validate the retrospective vertical slice.
 
 ## Blockers
 
-- No product blocker prevents starting S37A.
-- Milestones 3 and 4 remain open. The adapter reads one explicitly identified session at a time, while the retained report is constructed independently from a fixed two-event fixture; no production path selects and normalizes the complete retrospective cohort or carries it through evaluation to the API.
-- The retained S31/S32 fixture still lacks an accepted proposal, a genuine user-confirmed applied-change boundary, attributable baseline/intervention nights, linked quality and metric results, historical journal/confounder/adverse-effect evidence, representative intervals, and an issued classification. S37A–S37E bound those inputs and transformations; S37F owns final UI integration and gate revalidation.
+- No product blocker prevents starting S37B.
+- Milestones 3 and 4 remain open. S37A now selects and normalizes the explicit retrospective OSCAR cohort, but that cohort is not yet linked to an accepted protocol, a genuine user-confirmed applied-change boundary, deterministic evaluation, report assembly, or the local UI.
+- The retained S31/S32 fixture still lacks an accepted proposal, a genuine user-confirmed applied-change boundary, attributable baseline/intervention nights, linked quality and metric results, historical journal/confounder/adverse-effect evidence, representative intervals, and an issued classification. S37B–S37E bound those inputs and transformations; S37F owns final UI integration and gate revalidation.
 - S35's populated waveform tests prove the display contract only. The current S32 report supplies no attributable baseline or intervention excerpt, so the real retained UI correctly renders both missing cards without an SVG.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
-- Normalized record version 1 still does not carry a verified device-time-correction collection or corrected timeline. S19 provides a bounded explicit evidence input and returns `correction_input_missing` for corrected wall-clock requests when it is absent; a future version-gated adapter task must map schema-17 correction rows before corrected time can become authoritative.
+- Normalized record version 1 still keeps raw timestamps unchanged and does not embed correction rows. S37A supplies a parallel version-gated correction-evidence collection; S37D must map it into each quality request before corrected wall-clock analysis can be evaluated.
 - No validated breath detector is implemented yet. S20 accepts explicitly versioned detector output and otherwise returns `wake_prerequisite_missing`; neither selected initial metric invents or requires breath boundaries, and future breath-derived or sleep-stratified metrics remain bounded future work.
 - The local database is schema v17 while the published data dictionary stops at v16. Later sprints must keep version-gating observed behavior and must not assume version equivalence.
 - The contradictory respiratory-event enum, unreliable `events_loaded` flag, and non-contained Large Leak spans remain handled explicitly by S12 extraction; reference-night count agreement does not redefine those raw provenance rules.
@@ -465,5 +476,5 @@ S37 — Validate the retrospective vertical slice.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S37A. Add an explicit local selection contract that reads chosen PS Min sessions from a protected disposable OSCAR copy and produces a deterministic multi-night normalized cohort with complete settings, signal, correction-evidence, missing-state, and provenance handling. Do not infer the cohort or change boundary, mutate experiment history, run the evaluation, change the UI, begin prospective work or AI, change device settings, or write to OSCAR. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S37B. Persist the exact accepted retrospective proposal and a user-confirmed applied-change boundary for the selected S37A cohort as append-only experiment events, preserving every prior record and refusing unconfirmed or inconsistent input. Do not infer confirmation from OSCAR settings, perform general editing, run the retrospective evaluation, change the UI, begin prospective work or AI, change device settings, or write to OSCAR. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

@@ -118,7 +118,16 @@ def extract_session_events(
             connection,
             session_database_id,
         )
-        events = _extract_events(connection, session_summary)
+        return _extract_session_events(connection, session_summary)
+
+
+def _extract_session_events(
+    connection: sqlite3.Connection,
+    session_summary: OscarSessionSummary,
+) -> OscarSessionEvents:
+    """Extract allowlisted events inside an existing guarded read transaction."""
+
+    events = _extract_events(connection, session_summary)
 
     observed_counts = Counter(event.event_kind for event in events)
     counts = tuple(

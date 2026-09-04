@@ -125,22 +125,31 @@ def extract_leak_signal(
             connection,
             session_database_id,
         )
-        channel_id = _extract_channel_id(connection, session_summary)
-        if channel_id is None:
-            return _missing_signal(
-                session_summary,
-                OscarLeakAvailability.CHANNEL_MISSING,
-                source_channel_id=None,
-            )
+        return _extract_leak_signal(connection, session_summary)
 
-        rows = _extract_rows(connection, session_summary, channel_id)
-        if not rows:
-            return _missing_signal(
-                session_summary,
-                OscarLeakAvailability.DATA_MISSING,
-                source_channel_id=channel_id,
-            )
-        segments = _segments_from_rows(rows, session_summary, channel_id)
+
+def _extract_leak_signal(
+    connection: sqlite3.Connection,
+    session_summary: OscarSessionSummary,
+) -> OscarLeakSignal:
+    """Extract Leak inside an existing guarded read transaction."""
+
+    channel_id = _extract_channel_id(connection, session_summary)
+    if channel_id is None:
+        return _missing_signal(
+            session_summary,
+            OscarLeakAvailability.CHANNEL_MISSING,
+            source_channel_id=None,
+        )
+
+    rows = _extract_rows(connection, session_summary, channel_id)
+    if not rows:
+        return _missing_signal(
+            session_summary,
+            OscarLeakAvailability.DATA_MISSING,
+            source_channel_id=channel_id,
+        )
+    segments = _segments_from_rows(rows, session_summary, channel_id)
 
     return OscarLeakSignal(
         session_summary=session_summary,

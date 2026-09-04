@@ -3,13 +3,16 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+import sqlite3
 from typing import Final
 
 from pap_pilot.adapter._uniform_waveform import (
+    DecodedUniformWaveform,
     DecodedUniformWaveformSegment,
     OscarSignalSourceClass,
     OscarSignalStorage,
     UniformWaveformSpec,
+    _extract_uniform_waveform,
     extract_uniform_waveform,
 )
 from pap_pilot.adapter.oscar import OscarDatabaseError
@@ -114,6 +117,26 @@ def extract_mask_pressure_signal(
         error_type=InvalidMaskPressureSignalError,
         trusted_immutable_copy=trusted_immutable_copy,
     )
+    return _mask_pressure_signal(waveform)
+
+
+def _extract_mask_pressure_signal(
+    connection: sqlite3.Connection,
+    session_summary: OscarSessionSummary,
+) -> OscarMaskPressureSignal:
+    """Extract Mask Pressure inside an existing guarded read transaction."""
+
+    return _mask_pressure_signal(
+        _extract_uniform_waveform(
+            connection,
+            session_summary,
+            spec=_MASK_PRESSURE_SPEC,
+            error_type=InvalidMaskPressureSignalError,
+        )
+    )
+
+
+def _mask_pressure_signal(waveform: DecodedUniformWaveform) -> OscarMaskPressureSignal:
     return OscarMaskPressureSignal(
         session_summary=waveform.session_summary,
         availability=OscarMaskPressureAvailability(waveform.availability.value),

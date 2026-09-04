@@ -286,7 +286,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Inferring confirmation from OSCAR settings, general editing, prospective safety policy, evaluation, UI, and device changes.
 - Done when: Replay exposes one effective accepted proposal and confirmed PS Min 2-to-1 boundary linked to the selected cohort while preserving every prior event and refusing unconfirmed or inconsistent input.
 
-### S37C — Link retrospective subjective and confounder evidence — queued
+### S37C — Link retrospective subjective and confounder evidence — done
 
 - Objective: Add a bounded local intake/import path for attributable historical journal responses, confounders, and adverse effects, preserving explicit unavailable states and original text.
 - Excludes: Prospective morning forms or reminders, NLP or AI interpretation, clinical advice, and silent conversion of missing evidence to negative answers.

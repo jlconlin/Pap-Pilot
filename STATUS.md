@@ -2,8 +2,8 @@
 
 **Updated:** September 3, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S37B completed
-**Next sprint:** S37C — Link retrospective subjective and confounder evidence
+**Current sprint:** None — S37C completed
+**Next sprint:** S37D — Orchestrate the retrospective evaluation
 
 ## Current state
 
@@ -15,6 +15,10 @@
 - The S37A schema-17 correction contract retains raw session bounds unchanged and records corrected display bounds separately. It supports inclusive date ranges, null and `2099-12-31` open ends, stacked active constant offsets with documented sign behavior, retained-but-inactive undone rows, an explicit confirmed-none state after querying the table, and an unsupported-drift state that refuses to derive corrected bounds.
 - S37B adds the source-independent `RetrospectiveCohortEvidence` and `RetrospectiveProtocolInput` contracts plus `record_retrospective_protocol`. The operation validates an exact fixed-EPAP ASV PS Min 2-to-1 proposal against the explicitly selected normalized cohort, requires separate affirmative user acceptance and applied-boundary confirmation, and atomically appends proposal, acceptance, and setting-confirmation events.
 - S37B replay preserves the earlier problem and hypothesis events and exposes one effective accepted proposal and confirmed boundary. It refuses missing confirmation, a mismatched change, an in-session or cohort-inconsistent boundary, incomplete held-fixed settings, unresolved baseline nights or intervals, repeated protocol decisions, and any batch failure without altering prior history.
+- S37C adds `RetrospectiveNightEvidenceInput`, exact `RetrospectiveObservation` records, deterministic batch construction, and `record_retrospective_user_evidence`. The bounded intake requires one explicit manifest for every selected cohort night, validates the effective S37B protocol chain and cohort links, and atomically persists exact journal entries, confounder/adverse-effect events, and status manifests.
+- Retrospective evidence schema version 1 distinguishes `unavailable`, `not_reported`, `none_reported`, and `reported` without converting absence into a negative answer. Replay exposes the exact effective per-night manifests, including unchanged structured journal values, nulls, original whitespace and line breaks, typed confounder details, standalone observation text, source links, and explicit status-only nights.
+- `docs/decisions/0007-retrospective-user-evidence-intake.md` records the accepted four-state meanings, complete-cohort rule, journal/observation linkage, atomic persistence, and exclusions for the retrospective intake.
+- Experiment-store schema version 3 adds the protected append-only `retrospective_night_evidence` table and transactionally migrates intact version-1 and version-2 stores. The S37C path is deliberately one-time, source-independent, local, and non-UI; it refuses partial/outside/duplicate cohorts, status-content conflicts, an absent or unlinked protocol, preexisting unmanifested evidence, repeated intake, and any batch failure without changing prior history.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
@@ -115,9 +119,13 @@
 
 ## Last completed sprint
 
-S37B — Record the retrospective protocol and confirmed boundary.
+S37C — Link retrospective subjective and confounder evidence.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_retrospective_evidence -v`; all nine focused S37C tests passed. They cover exact per-night replay, all four evidence states, unchanged multiline journal/confounder/adverse text, deterministic order-independent identities, journal-contained confounders, evidence-sensitive identifiers, complete cohort coverage, zero-event status-only persistence, status/content/night/protocol refusal, repeated-intake refusal, transactional rollback, version-2 migration, SQLite mutation resistance, close/reopen durability, and immutable inputs/results.
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_retrospective_evidence tests.test_sleep_journal tests.test_experiment_store tests.test_retrospective_protocol tests.test_outcome_classification tests.test_package_imports -q`; all forty-eight focused intake/journal/store/protocol/classifier/import tests passed. Rebuilt and installed the package with `.venv/bin/python -m pip install --force-reinstall --no-deps --no-build-isolation .`, then ran the complete suite against both the source tree and installed package; all two hundred fifty-one tests passed in each mode.
+- Python compilation, strict public-import checks, `git diff --check`, dependency/scope inspection, documentation-style checks, and retained-artifact scans passed. S37C uses only wholly synthetic temporary cohort and local-store fixtures, accesses no live or private OSCAR database, and adds no form, API route, reminder, prospective workflow, NLP/AI interpretation, evaluation, report, clinical advice, device behavior, or OSCAR write; `Plan.md` remains unchanged.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_retrospective_protocol -v`; all eight focused S37B tests passed. They cover exact atomic persistence and close/reopen replay, deterministic event identities, explicit user-evidence identity, refusal to infer acceptance or confirmation, cohort/settings/boundary/baseline/interval consistency, one-time protocol recording, transactional rollback, prior-history preservation, and immutable input contracts.
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_retrospective_protocol tests.test_experiment_model tests.test_experiment_store tests.test_ps_min_retrospective_fixture tests.test_package_imports -v`; all forty-four focused protocol/model/store/fixture/import tests passed. Rebuilt and installed the package with `.venv/bin/python -m pip install --force-reinstall --no-deps --no-build-isolation .`, then ran the complete suite against both the source tree and installed package; all two hundred forty-two tests passed in each mode.
@@ -285,6 +293,12 @@ S37B — Record the retrospective protocol and confirmed boundary.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
+
+- S37C records one immutable manifest for every selected cohort night, including nights with no journal or observation event. This makes unavailable evidence durable rather than relying on absence, and the complete-cohort requirement prevents omitted nights from silently disappearing from later denominators.
+- The four common states have distinct meanings: `unavailable` means the historical source cannot establish whether information was reported; `not_reported` means it is known that the question or value was not reported; `none_reported` is an explicit negative answer for confounders or adverse effects; and `reported` requires exact attributable evidence. A journal as a whole cannot use `none_reported`, while its individual version-1 fields may remain null as explicit not-reported values.
+- Reported journal entries retain the S28 record unchanged. Journal text, typed confounder detail, and standalone confounder/adverse descriptions preserve original whitespace and line breaks; deterministic code does not parse, reconcile, or promote prose into structured facts. A standalone confounder may supplement a journal answer and makes the manifest's overall confounder state reported.
+- Store schema version 3 keeps the existing journal table and event vocabulary unchanged and adds a separate append-only manifest table for the otherwise unrepresentable availability states. Journal rows, existing typed observation events, and per-night manifests commit in one transaction and replay validates every embedded record/event link.
+- The S37C intake is a one-time retrospective import path, not a general editing or correction workflow. It requires the already effective accepted proposal and confirmed boundary from S37B, accepts source-independent normalized cohort evidence, and performs no allocation, quality assessment, metric calculation, classification, or report assembly.
 
 - S37B never treats the observed OSCAR setting transition as user intent or confirmation. The caller must provide explicit affirmative acceptance, an exact confirmed PS Min 2-to-1 change, the reported application timestamp, actor, and user source/provenance links.
 - Proposal, acceptance, and boundary are appended as one atomic batch using the existing typed event vocabulary. Proposal provenance derives from the selected normalized cohort; acceptance and confirmation remain user-reported; deterministic identifiers include the facts and evidence that define each event.
@@ -470,9 +484,9 @@ S37B — Record the retrospective protocol and confirmed boundary.
 
 ## Blockers
 
-- No product blocker prevents starting S37C.
-- Milestones 3 and 4 remain open. S37A and S37B now provide the selected normalized cohort and a validated persistence path for an explicitly supplied accepted protocol and user-confirmed boundary, but historical user evidence, deterministic evaluation, report assembly, and local-UI integration remain incomplete.
-- The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks an accepted proposal, a genuine user-confirmed applied-change boundary, attributable baseline/intervention nights, linked quality and metric results, historical journal/confounder/adverse-effect evidence, representative intervals, and an issued classification. S37B records real supplied protocol facts rather than fabricating them into that fixture; S37C–S37E bind the remaining inputs and transformations, and S37F owns final UI integration and gate revalidation.
+- No product blocker prevents starting S37D.
+- Milestones 3 and 4 remain open. S37A–S37C now provide the selected normalized cohort plus validated persistence paths for an explicitly supplied accepted protocol, user-confirmed boundary, and complete per-night historical user-evidence state, but deterministic evaluation, report assembly, and local-UI integration remain incomplete.
+- The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. S37B and S37C provide local paths for genuine supplied facts rather than fabricating them into that fixture; S37D–S37E bind the remaining deterministic transformations, and S37F owns final UI integration and gate revalidation.
 - S35's populated waveform tests prove the display contract only. The current S32 report supplies no attributable baseline or intervention excerpt, so the real retained UI correctly renders both missing cards without an SVG.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
@@ -487,5 +501,5 @@ S37B — Record the retrospective protocol and confirmed boundary.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S37C. Add a bounded local intake/import path for attributable historical journal responses, confounders, and adverse effects for the S37A cohort, preserving explicit unavailable states and original text. Do not add prospective morning forms or reminders, NLP or AI interpretation, clinical advice, silent conversion of missing evidence to negative answers, retrospective evaluation, report or UI changes, device changes, or OSCAR writes. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S37D. Deterministically run quality assessment, period allocation, both version-1 metrics, and outcome classification from the selected cohort and effective experiment/user history, retaining complete provenance and rules-required inconclusive states. Do not add new metrics or thresholds, automatic cohort or boundary selection, report presentation, UI, prospective logic, AI, device changes, or OSCAR writes. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

@@ -131,9 +131,13 @@ class SleepJournalTests(unittest.TestCase):
         with ExperimentStore(self.database_path) as store:
             store.create_experiment(self.experiment)
         with closing(sqlite3.connect(self.database_path)) as connection:
+            connection.execute("DROP TRIGGER retrospective_night_evidence_no_update")
+            connection.execute("DROP TRIGGER retrospective_night_evidence_no_delete")
+            connection.execute("DROP TRIGGER retrospective_night_evidence_no_replace")
             connection.execute("DROP TRIGGER sleep_journal_entries_no_update")
             connection.execute("DROP TRIGGER sleep_journal_entries_no_delete")
             connection.execute("DROP TRIGGER sleep_journal_entries_no_replace")
+            connection.execute("DROP TABLE retrospective_night_evidence")
             connection.execute("DROP TABLE sleep_journal_entries")
             connection.execute("UPDATE pap_pilot_metadata SET value = '1' WHERE key = 'schema_version'")
             connection.commit()
@@ -141,8 +145,9 @@ class SleepJournalTests(unittest.TestCase):
         with ExperimentStore(self.database_path) as migrated:
             self.assertEqual(migrated.get_experiment(self.experiment.record_id), self.experiment)
         with closing(sqlite3.connect(self.database_path)) as connection:
-            self.assertEqual(connection.execute("SELECT value FROM pap_pilot_metadata WHERE key = 'schema_version'").fetchone()[0], "2")
+            self.assertEqual(connection.execute("SELECT value FROM pap_pilot_metadata WHERE key = 'schema_version'").fetchone()[0], "3")
             self.assertIn("sleep_journal_entries", {row[0] for row in connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table'")})
+            self.assertIn("retrospective_night_evidence", {row[0] for row in connection.execute("SELECT name FROM sqlite_schema WHERE type = 'table'")})
 
     def _entry(self, record_id: str, *, note: str | None = "Slept reasonably well.", confounders: tuple[SleepJournalConfounder, ...] = (SleepJournalConfounder(ConfounderKind.STRESS, "Work deadline"),)) -> SleepJournalEntry:
         return SleepJournalEntry(

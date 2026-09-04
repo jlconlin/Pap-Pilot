@@ -18,6 +18,7 @@ class PackageImportTests(unittest.TestCase):
             "pap_pilot.engine.experiments",
             "pap_pilot.engine.experiments.classification",
             "pap_pilot.engine.experiments.retrospective_fixture",
+            "pap_pilot.engine.experiments.retrospective_evidence",
             "pap_pilot.engine.experiments.retrospective_protocol",
             "pap_pilot.engine.metrics",
             "pap_pilot.engine.model",

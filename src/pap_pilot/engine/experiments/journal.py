@@ -12,6 +12,9 @@ SLEEP_JOURNAL_SCHEMA_VERSION: Final = 1
 SLEEP_JOURNAL_RECORD_VERSION: Final = 1
 JOURNAL_RATING_MINIMUM: Final = 1
 JOURNAL_RATING_MAXIMUM: Final = 5
+RETROSPECTIVE_USER_EVIDENCE_SCHEMA_ID: Final = "pap-pilot.retrospective-user-evidence"
+RETROSPECTIVE_USER_EVIDENCE_SCHEMA_VERSION: Final = 1
+RETROSPECTIVE_USER_EVIDENCE_RECORD_VERSION: Final = 1
 
 
 class SleepJournalModelError(ValueError):
@@ -37,6 +40,15 @@ class ConfounderKind(StrEnum):
     MASK_OR_EQUIPMENT_CHANGE = "mask_or_equipment_change"
     STRESS = "stress"
     OTHER = "other"
+
+
+class RetrospectiveEvidenceStatus(StrEnum):
+    """Whether one historical evidence domain was available and answered."""
+
+    UNAVAILABLE = "unavailable"
+    NOT_REPORTED = "not_reported"
+    NONE_REPORTED = "none_reported"
+    REPORTED = "reported"
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +121,224 @@ class SleepJournalEntry:
         object.__setattr__(self, "source_provenance_ids", tuple(sorted(provenance)))
 
 
+@dataclass(frozen=True, slots=True)
+class RetrospectiveObservation:
+    """One exact historical confounder or adverse-effect statement."""
+
+    description: str
+    observed_at_ms: int
+    recorded_at_ms: int
+    recorded_by: str
+    source_record_ids: tuple[str, ...]
+    source_provenance_ids: tuple[str, ...]
+    source_class: SourceClass = SourceClass.USER_REPORTED
+
+    def __post_init__(self) -> None:
+        _original_text(self.description, "retrospective observation description")
+        if type(self.observed_at_ms) is not int or type(self.recorded_at_ms) is not int:
+            raise SleepJournalModelError(
+                "Retrospective observation timestamps must be integers."
+            )
+        _text(self.recorded_by, "retrospective observation reporter")
+        source_ids = _text_tuple(
+            self.source_record_ids,
+            "retrospective observation source identifiers",
+            required=True,
+        )
+        provenance_ids = _text_tuple(
+            self.source_provenance_ids,
+            "retrospective observation provenance identifiers",
+            required=True,
+        )
+        if len(set(source_ids)) != len(source_ids) or len(set(provenance_ids)) != len(
+            provenance_ids
+        ):
+            raise SleepJournalModelError(
+                "Retrospective observation source and provenance identifiers must be unique."
+            )
+        if self.source_class is not SourceClass.USER_REPORTED:
+            raise SleepJournalModelError(
+                "Retrospective observations must remain user-reported."
+            )
+        object.__setattr__(self, "source_record_ids", tuple(sorted(source_ids)))
+        object.__setattr__(
+            self,
+            "source_provenance_ids",
+            tuple(sorted(provenance_ids)),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class RetrospectiveNightEvidence:
+    """One persisted, explicitly statused historical evidence manifest."""
+
+    record_id: str
+    experiment_record_id: str
+    cohort_record_id: str
+    cohort_night_index: int
+    night_record_id: str
+    journal_status: RetrospectiveEvidenceStatus
+    journal_entry: SleepJournalEntry | None
+    journal_event_id: str | None
+    confounder_status: RetrospectiveEvidenceStatus
+    confounders: tuple[RetrospectiveObservation, ...]
+    confounder_event_ids: tuple[str, ...]
+    adverse_effect_status: RetrospectiveEvidenceStatus
+    adverse_effects: tuple[RetrospectiveObservation, ...]
+    adverse_effect_event_ids: tuple[str, ...]
+    recorded_at_ms: int
+    recorded_by: str
+    source_record_ids: tuple[str, ...]
+    source_provenance_ids: tuple[str, ...]
+    source_class: SourceClass = SourceClass.USER_REPORTED
+    schema_id: str = RETROSPECTIVE_USER_EVIDENCE_SCHEMA_ID
+    schema_version: int = RETROSPECTIVE_USER_EVIDENCE_SCHEMA_VERSION
+    record_version: int = RETROSPECTIVE_USER_EVIDENCE_RECORD_VERSION
+
+    def __post_init__(self) -> None:
+        for value, label in (
+            (self.record_id, "retrospective evidence identifier"),
+            (self.experiment_record_id, "retrospective evidence experiment identifier"),
+            (self.cohort_record_id, "retrospective evidence cohort identifier"),
+            (self.night_record_id, "retrospective evidence night identifier"),
+            (self.recorded_by, "retrospective evidence reporter"),
+        ):
+            _text(value, label)
+        if type(self.cohort_night_index) is not int or self.cohort_night_index < 0:
+            raise SleepJournalModelError(
+                "The retrospective cohort-night index must be a nonnegative integer."
+            )
+        if type(self.recorded_at_ms) is not int:
+            raise SleepJournalModelError(
+                "The retrospective evidence timestamp must be an integer."
+            )
+        for value in (
+            self.journal_status,
+            self.confounder_status,
+            self.adverse_effect_status,
+        ):
+            if not isinstance(value, RetrospectiveEvidenceStatus):
+                raise SleepJournalModelError(
+                    "Retrospective evidence requires supported explicit statuses."
+                )
+        if self.journal_status is RetrospectiveEvidenceStatus.NONE_REPORTED:
+            raise SleepJournalModelError(
+                "A journal domain cannot use none-reported; it is either unavailable, not reported, or reported."
+            )
+        journal_present = self.journal_entry is not None or self.journal_event_id is not None
+        if self.journal_status is RetrospectiveEvidenceStatus.REPORTED:
+            if not isinstance(self.journal_entry, SleepJournalEntry):
+                raise SleepJournalModelError(
+                    "Reported retrospective journal evidence requires its exact entry."
+                )
+            _text(self.journal_event_id, "retrospective journal event identifier")
+            if self.journal_entry.night_record_id != self.night_record_id:
+                raise SleepJournalModelError(
+                    "The retrospective journal entry must belong to its evidence night."
+                )
+        elif journal_present:
+            raise SleepJournalModelError(
+                "Unavailable or not-reported journal evidence cannot carry an entry or event."
+            )
+        confounders = _typed_tuple(
+            self.confounders,
+            RetrospectiveObservation,
+            "retrospective confounder observations",
+        )
+        adverse_effects = _typed_tuple(
+            self.adverse_effects,
+            RetrospectiveObservation,
+            "retrospective adverse-effect observations",
+        )
+        confounder_event_ids = _text_tuple(
+            self.confounder_event_ids,
+            "retrospective confounder event identifiers",
+        )
+        adverse_effect_event_ids = _text_tuple(
+            self.adverse_effect_event_ids,
+            "retrospective adverse-effect event identifiers",
+        )
+        _statused_observations(
+            self.confounder_status,
+            confounders,
+            confounder_event_ids,
+            "confounder",
+            alternate_reported=bool(
+                self.journal_entry is not None
+                and self.journal_entry.confounders
+            ),
+        )
+        _statused_observations(
+            self.adverse_effect_status,
+            adverse_effects,
+            adverse_effect_event_ids,
+            "adverse-effect",
+        )
+        all_event_ids = (
+            *((self.journal_event_id,) if self.journal_event_id is not None else ()),
+            *confounder_event_ids,
+            *adverse_effect_event_ids,
+        )
+        if len(set(all_event_ids)) != len(all_event_ids):
+            raise SleepJournalModelError(
+                "Retrospective evidence event identifiers must be unique across domains."
+            )
+        source_ids = _text_tuple(
+            self.source_record_ids,
+            "retrospective evidence source identifiers",
+            required=True,
+        )
+        provenance_ids = _text_tuple(
+            self.source_provenance_ids,
+            "retrospective evidence provenance identifiers",
+            required=True,
+        )
+        if len(set(source_ids)) != len(source_ids) or len(set(provenance_ids)) != len(
+            provenance_ids
+        ):
+            raise SleepJournalModelError(
+                "Retrospective evidence source and provenance identifiers must be unique."
+            )
+        required_sources = {
+            self.experiment_record_id,
+            self.cohort_record_id,
+            self.night_record_id,
+            *all_event_ids,
+        }
+        if self.journal_entry is not None:
+            required_sources.add(self.journal_entry.record_id)
+        if not required_sources.issubset(source_ids):
+            raise SleepJournalModelError(
+                "Retrospective evidence sources must cover its experiment, cohort, night, and linked records."
+            )
+        if self.source_class is not SourceClass.USER_REPORTED:
+            raise SleepJournalModelError(
+                "Retrospective evidence manifests must remain user-reported."
+            )
+        if (
+            self.schema_id,
+            self.schema_version,
+            self.record_version,
+        ) != (
+            RETROSPECTIVE_USER_EVIDENCE_SCHEMA_ID,
+            RETROSPECTIVE_USER_EVIDENCE_SCHEMA_VERSION,
+            RETROSPECTIVE_USER_EVIDENCE_RECORD_VERSION,
+        ):
+            raise SleepJournalModelError(
+                "The retrospective user-evidence schema or record version is unsupported."
+            )
+        object.__setattr__(self, "confounders", confounders)
+        object.__setattr__(self, "confounder_event_ids", confounder_event_ids)
+        object.__setattr__(self, "adverse_effects", adverse_effects)
+        object.__setattr__(self, "adverse_effect_event_ids", adverse_effect_event_ids)
+        object.__setattr__(self, "source_record_ids", tuple(sorted(source_ids)))
+        object.__setattr__(
+            self,
+            "source_provenance_ids",
+            tuple(sorted(provenance_ids)),
+        )
+
+
 def _text(value: object, label: str) -> None:
     if type(value) is not str or not value.strip():
         raise SleepJournalModelError(f"The {label} must be nonempty text.")
@@ -119,7 +349,43 @@ def _optional_original_text(value: object, label: str) -> None:
         raise SleepJournalModelError(f"The {label} must be nonempty text or null.")
 
 
+def _original_text(value: object, label: str) -> None:
+    if type(value) is not str or not value.strip():
+        raise SleepJournalModelError(f"The {label} must be nonempty text.")
+
+
 def _text_tuple(values: object, label: str, *, required: bool = False) -> tuple[str, ...]:
     if type(values) is not tuple or any(type(value) is not str or not value.strip() for value in values) or (required and not values):
         raise SleepJournalModelError(f"The {label} must be an immutable{' nonempty' if required else ''} text tuple.")
     return values
+
+
+def _typed_tuple(values: object, expected_type: type, label: str) -> tuple:
+    if type(values) is not tuple or any(
+        not isinstance(value, expected_type) for value in values
+    ):
+        raise SleepJournalModelError(f"The {label} must be an immutable typed tuple.")
+    return values
+
+
+def _statused_observations(
+    status: RetrospectiveEvidenceStatus,
+    observations: tuple[RetrospectiveObservation, ...],
+    event_ids: tuple[str, ...],
+    label: str,
+    *,
+    alternate_reported: bool = False,
+) -> None:
+    if len(observations) != len(event_ids):
+        raise SleepJournalModelError(
+            f"Retrospective {label} observations and event identifiers must correspond exactly."
+        )
+    if status is RetrospectiveEvidenceStatus.REPORTED:
+        if not observations and not alternate_reported:
+            raise SleepJournalModelError(
+                f"Reported retrospective {label} evidence requires at least one exact observation."
+            )
+    elif observations or event_ids or alternate_reported:
+        raise SleepJournalModelError(
+            f"Unreported retrospective {label} evidence cannot carry observations or events."
+        )

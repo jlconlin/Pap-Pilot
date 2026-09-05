@@ -2,10 +2,12 @@
 
 **Updated:** September 5, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S44 completed
-**Next sprint:** S45 — Implement the structured AI adapter
+**Current sprint:** None — S45 completed
+**Next sprint:** S46 — Enforce the safety gate on AI drafts
 
 ## Current state
+
+- S45 adds the dependency-free structured AI adapter contracts in `pap_pilot.engine.ai`: bounded aggregate metrics/journal states and relative waveform excerpts become a redacted versioned payload, while structured hypothesis/experiment responses are strictly validated. Transmission fails closed as `hosted_transmission_not_authorized` without consent and reports unavailable providers without a transport; no SDK, credential, network call, raw database access, or authoritative calculation was added.
 
 - S44 records `docs/decisions/0010-ai-data-boundary-and-provider.md`: OpenAI Responses API is the sole future provider candidate, but hosted health-data transmission is deferred and fails closed until explicit consent. The decision specifies permitted aggregate fields, redactions, credential storage, retention concerns, opaque labels, no free text/raw OSCAR data, and advisory-only output; no API calls or credentials were added.
 
@@ -148,9 +150,12 @@
 
 ## Last completed sprint
 
-S44 — Decide the AI data boundary and provider.
+S45 — Implement the structured AI adapter.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_structured_ai_adapter -v`; all four focused adapter tests passed, covering valid payload/response, redaction and bounds, malformed response, unauthorized transmission, unavailable provider, and consent-gated injected transport.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 286 tests passed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_ai_data_boundary_decision -v`; both decision-contract tests passed, covering provider selection, permitted/redacted fields, credential and retention controls, explicit consent, and no-network behavior before authorization.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 282 tests passed.
@@ -566,7 +571,7 @@ S44 — Decide the AI data boundary and provider.
 
 ## Blockers
 
-- No product blocker prevents starting S45. Hosted transmission remains intentionally blocked until the consent contract in decision 0010 is implemented and an explicit authorization is recorded.
+- No product blocker prevents starting S46. Hosted transmission remains intentionally blocked until explicit consent; S46 must enforce the deterministic safety gate on any future AI draft.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -583,5 +588,5 @@ S44 — Decide the AI data boundary and provider.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S45. Implement the structured AI adapter only within decision 0010's deferred/consent boundary; do not add unauthorized transmission, direct database access, authoritative calculations, or multiple providers. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S46. Enforce the deterministic safety gate on AI drafts without prompt tuning or UI polish, and preserve the deferred hosted-transmission boundary. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

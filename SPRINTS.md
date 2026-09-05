@@ -356,7 +356,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: API calls and multi-provider abstraction.
 - Done when: An explicit decision authorizes a bounded integration or records that AI remains deferred.
 
-### S45 — Implement the structured AI adapter — queued
+### S45 — Implement the structured AI adapter — done
 
 - Objective: Send only an approved structured summary and bounded waveform excerpts and validate a structured hypothesis/experiment response.
 - Excludes: Direct database access, authoritative calculations, and multiple providers.

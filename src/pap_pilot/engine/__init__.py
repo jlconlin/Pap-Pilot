@@ -160,6 +160,24 @@ from pap_pilot.engine.model import (
     deserialize_normalized_record,
     serialize_normalized_record,
 )
+from pap_pilot.engine.ai import (
+    AI_PAYLOAD_CONTRACT_ID,
+    AI_PAYLOAD_CONTRACT_VERSION,
+    AI_RESPONSE_CONTRACT_ID,
+    AI_RESPONSE_CONTRACT_VERSION,
+    AiAdapterError,
+    AiMetricSummary,
+    AiProviderUnavailable,
+    AiTransmissionConsent,
+    AiTransmissionNotAuthorized,
+    AiTransmissionState,
+    AiWaveformExcerpt,
+    StructuredAiContext,
+    StructuredAiResponse,
+    build_ai_payload,
+    parse_ai_response,
+    request_structured_advisory,
+)
 from pap_pilot.engine.metrics import (
     MEAN_MASK_PRESSURE_ABOVE_EPAP_ALGORITHM_VERSION,
     METRIC_ENGINE_VERSION,
@@ -259,6 +277,22 @@ from pap_pilot.engine.reports import (
 )
 
 __all__ = [
+    "AI_PAYLOAD_CONTRACT_ID",
+    "AI_PAYLOAD_CONTRACT_VERSION",
+    "AI_RESPONSE_CONTRACT_ID",
+    "AI_RESPONSE_CONTRACT_VERSION",
+    "AiAdapterError",
+    "AiMetricSummary",
+    "AiProviderUnavailable",
+    "AiTransmissionConsent",
+    "AiTransmissionNotAuthorized",
+    "AiTransmissionState",
+    "AiWaveformExcerpt",
+    "StructuredAiContext",
+    "StructuredAiResponse",
+    "build_ai_payload",
+    "parse_ai_response",
+    "request_structured_advisory",
     "EVALUATED_RETROSPECTIVE_EVIDENCE_REPORT_RECORD_VERSION",
     "EVALUATED_RETROSPECTIVE_EVIDENCE_REPORT_SCHEMA_VERSION",
     "MAX_RETROSPECTIVE_WAVEFORM_DURATION_MS",

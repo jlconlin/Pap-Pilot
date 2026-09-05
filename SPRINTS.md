@@ -298,7 +298,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: New metrics or thresholds, automatic selection, report presentation, UI, prospective logic, and AI.
 - Done when: One integration fixture produces a stable evidence-linked classification or rules-required inconclusive result whose provenance reaches every selected night, quality finding, metric, and effective user event.
 
-### S37E — Build the complete retrospective report and evidence excerpts — queued
+### S37E — Build the complete retrospective report and evidence excerpts — done
 
 - Objective: Build the versioned retrospective report from an S37D evaluation bundle and explicitly selected bounded baseline/intervention waveform excerpts.
 - Excludes: Automatic interval selection, arbitrary signal exploration, new calculations, UI changes, prospective workflow, and AI prose.

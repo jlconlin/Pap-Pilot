@@ -2,8 +2,8 @@
 
 **Updated:** September 4, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S37D completed
-**Next sprint:** S37E — Build the complete retrospective report and evidence excerpts
+**Current sprint:** None — S37E completed
+**Next sprint:** S37F — Connect and revalidate the retrospective local UI
 
 ## Current state
 
@@ -24,6 +24,11 @@
 - Evaluation retains corrected-wall-clock allocation quality separately from each metric's accepted raw-relative quality request. Unsupported drift excludes an affected night from allocation; supported constant offsets remain explicit; missing breath-detector evidence stays visible without becoming a universal exclusion for the two PAP-on metrics.
 - Classification now consumes the complete retrospective manifests as well as effective journals and user-evidence events, preserving `unavailable`, `not_reported`, `none_reported`, and `reported` confounder states in the denominator logic without interpreting free text or changing version-1 thresholds.
 - `docs/decisions/0008-retrospective-evaluation-orchestration.md` records the accepted input, timeline, quality-role, user-evidence, output, provenance, and exclusion boundaries for the S37D pipeline.
+- S37E adds `build_evaluated_retrospective_evidence_report`, which converts one exact S37D bundle plus one explicit baseline and one explicit intervention selection into an immutable schema-version-2 report while preserving the schema-version-1 honest-missing S32 report unchanged.
+- The evaluated report populates included period inventories, both objective metrics, all four structured journal outcomes, quality/confounder/adverse-effect inventories, the issued deterministic classification and analytical action, uncertainty, limitations, and complete source/provenance links. Missing or partial arms and user-evidence domains remain explicitly statused and never receive invented values.
+- `RetrospectiveRepresentativeIntervalSelection` accepts only caller-named included nights and sessions, one to three already mapped signals, a positive raw-relative half-open window no longer than 60,000 ms, and exactly one selection per arm. Report construction refuses selections outside an eligible allocation interval and performs no automatic interval selection.
+- Each requested signal excerpt is copied only from one normalized segment and is limited to 2,000 exact finite samples. A missing channel, segment gap, or fewer than two stored points becomes a linked missing signal record; samples are never interpolated, smoothed, resampled, or carried across a source gap.
+- `tests/fixtures/evaluated-retrospective-evidence-report-v2.json` freezes a reviewable populated projection plus the SHA-256 digest of the complete canonical report, and `docs/fixtures/evaluated-retrospective-evidence-report-v2.md` records its synthetic origin, missing-evidence case, stability rule, and privacy boundary.
 - `pap_pilot.engine.model` defines immutable version-1 normalized records for provenance, settings, events, signal segments/signals, sessions, and nights without importing the OSCAR adapter.
 - `docs/decisions/0002-normalized-core-records.md` records the accepted normalized hierarchy, provenance boundary, structural-validation boundary, and canonical serialization contract.
 - Every normalized record carries its own record version and serializes through the version-1 `pap-pilot.normalized` canonical JSON envelope. Deserialization rejects unknown/missing fields, duplicate JSON keys, unsupported record/format versions, non-finite numbers, and structurally invalid records.
@@ -124,9 +129,13 @@
 
 ## Last completed sprint
 
-S37D — Orchestrate the retrospective evaluation.
+S37E — Build the complete retrospective report and evidence excerpts.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_evaluated_retrospective_report tests.test_retrospective_evidence_report -v`; all fourteen focused S37E/S32 report tests passed. The six S37E tests cover the populated six-night report, schema/record identity, both periods, both objective and all four subjective outcomes, quality/confounder/adverse inventories, issued classification/action, complete source linkage, exact bounded samples, explicit sparse-signal absence, status-only missing subjective evidence, selection bounds and period refusal, deterministic canonical serialization, the review snapshot/digest, and deep immutability. The eight S32 tests confirm the earlier all-missing report and full snapshot remain byte-for-byte stable.
+- Ran the broader report/evaluation/classifier/API/UI/package set; all fifty-four tests passed. Ran the complete source-tree suite and the rebuilt installed-package suite with resource warnings treated as errors; all two hundred sixty-four tests passed in each mode. A direct import from outside the checkout confirmed the installed wheel exports the evaluated report, selection, signal, interval, and builder contracts.
+- Python compilation to an external bytecode cache, JSON parsing, `git diff --check`, public-export inspection, dependency/scope review, documentation-style review, and retained-artifact scans passed. S37E uses only wholly synthetic fixtures and temporary local PAP Pilot stores; it accessed no live or private OSCAR database, wrote no OSCAR data, retained no database/EDF/credential artifact, and added no automatic selection, arbitrary exploration, analytical metric or threshold, UI/API change, prospective workflow, AI prose, clinical conclusion, or device-setting behavior. `Plan.md` remains unchanged.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_retrospective_evaluation tests.test_outcome_classification -q`; all nineteen focused S37D/classifier tests passed. The seven S37D integration tests cover a stable six-night clear-improvement/keep snapshot, deterministic identity, all three S37A clock-correction states, corrected allocation versus raw metric quality roles, rules-required inconclusive evaluation, complete versus partial/mismatched evidence refusal, status-only user evidence, a manifest-linked standalone confounder without journal data, deep immutability, and source linkage to every selected night, quality finding, metric, manifest, and effective event.
 - Ran the broader retrospective/quality/allocation/metric/import set; all one hundred nineteen tests passed. Ran the complete source-tree suite and the rebuilt installed-package suite with resource warnings treated as errors; all two hundred fifty-eight tests passed in each mode. A direct import from outside the checkout confirmed the installed wheel includes the new workflow and evaluator modules.
@@ -302,6 +311,13 @@ S37D — Orchestrate the retrospective evaluation.
 - `git diff --check` passed.
 
 ## Decisions and assumptions
+
+- The retained S32 report remains schema version 1 and keeps its exact all-missing serialized contract. A report built from an S37D evaluation uses schema and record version 2 under the same canonical JSON envelope, allowing S37F to supply the richer report through the existing local API boundary without reinterpreting its fields.
+- Report construction projects the classifier's already-calculated arm summaries, outcome states, classification, action, reasons, and limitations; it does not recalculate metrics, medians, thresholds, or outcome rules. Availability, inventory counts, deterministic identity, canonical serialization, and exact bounded sample extraction are report-layer transformations only.
+- Representative intervals are explicit report inputs rather than selected by heuristics or inherited silently from the proposal. Each selection must name an included night/session, its declared baseline or intervention arm, exact raw-relative half-open bounds inside one eligible allocation interval, and requested signal kinds.
+- A requested signal is available only when one normalized source segment covers the complete selected window and supplies two through 2,000 strictly increasing points inside it. Otherwise that signal remains explicitly missing with source links; the presence of other valid signal excerpts may keep the interval itself available.
+- Quality inventory retains every structural/signal report and finding identifier. Confounder and adverse-effect inventories count attributable `reported` and explicit `none_reported` manifests/events; `unavailable` and `not_reported` states remain linked sources but do not become affirmative evidence.
+- An evaluated report always retains the deterministic S37D classification and action, including `inconclusive`/`extend` when subjective evidence is unavailable. Missing report inputs describe absent evidence and do not suppress or replace the classifier's rules-required result.
 
 - S37D separates adapter composition from deterministic analysis. `pap_pilot.workflow` is the only new layer that knows both `OscarNormalizedCohort` and the engine evaluation contract; `pap_pilot.engine.experiments.retrospective_evaluation` remains source-independent and receives immutable normalized records plus explicit clock evidence.
 - Corrected wall clock is required for boundary allocation, while both accepted version-1 metrics continue to analyze normalized raw-relative signal timing. Allocation consumes the complete corrected structural request but not the full signal report because `wake_prerequisite_missing` limits sleep/wake analysis and is not grounds to discard otherwise usable PAP-on pressure or ventilation evidence.
@@ -499,10 +515,10 @@ S37D — Orchestrate the retrospective evaluation.
 
 ## Blockers
 
-- No product blocker prevents starting S37E.
-- Milestones 3 and 4 remain open. S37A–S37D now provide the selected normalized cohort, validated persistence paths for the explicitly supplied protocol and historical user evidence, and the complete deterministic evaluation, but report assembly and local-UI integration remain incomplete.
-- The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. S37B–S37D provide local paths and deterministic transformations for genuine supplied facts rather than fabricating them into that fixture; S37E owns the complete report and bounded evidence excerpts, and S37F owns final UI integration and gate revalidation.
-- S35's populated waveform tests prove the display contract only. The current S32 report supplies no attributable baseline or intervention excerpt, so the real retained UI correctly renders both missing cards without an SVG.
+- No product blocker prevents starting S37F.
+- Milestones 3 and 4 remain open. S37A–S37E now provide the selected normalized cohort, validated persistence paths for the explicitly supplied protocol and historical user evidence, the complete deterministic evaluation, and the versioned populated report with bounded evidence excerpts, but the local API/UI still serves the retained S32 honest-missing report rather than the evaluated report/workspace.
+- The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. S37B–S37E provide local paths and deterministic transformations for genuine supplied facts rather than fabricating them into that fixture; S37F owns configuration of those inputs, workspace persistence across restart, final UI integration, protected disposable validation, and the Milestone 3 and 4 gate decisions.
+- S35's populated waveform tests and S37E's report excerpts prove the display and report contracts independently. The default API/UI still receives S32's two genuinely missing interval slots until S37F connects the evaluated report, so the current retained view correctly draws no SVG.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -516,5 +532,5 @@ S37D — Orchestrate the retrospective evaluation.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S37E. Build the versioned retrospective report from the S37D evaluation bundle and explicitly selected bounded baseline/intervention waveform excerpts. Do not add automatic interval selection, arbitrary signal exploration, new calculations, UI changes, prospective workflows, AI prose, device changes, or OSCAR writes. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S37F. Configure the local API to serve the evaluated retrospective report and effective workspace history, then re-run the Milestone 3 and 4 gates through the packaged localhost UI. Do not add new analytical methods, general editing, prospective workflows, remote access, AI, device changes, or OSCAR writes. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

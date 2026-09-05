@@ -1,0 +1,91 @@
+{
+  "canonical_sha256": "94233fcb303c44cd307f4cc5c76bc45538e1dbd59924e5163127ab2982af97d0",
+  "classification": "clear_improvement",
+  "classification_action": "keep",
+  "confounder_availability": "available",
+  "evaluation_record_id": "retrospective-evaluation:7074f4134015eafb179a",
+  "evaluation_status": "evaluated",
+  "intervals": [
+    {
+      "available_sample_counts": [
+        5,
+        5
+      ],
+      "duration_ms": 200,
+      "period": "baseline",
+      "signal_availability": {
+        "flow_rate": "available",
+        "leak": "missing",
+        "mask_pressure": "available"
+      }
+    },
+    {
+      "available_sample_counts": [
+        5,
+        5
+      ],
+      "duration_ms": 200,
+      "period": "intervention",
+      "signal_availability": {
+        "flow_rate": "available",
+        "leak": "missing",
+        "mask_pressure": "available"
+      }
+    }
+  ],
+  "missing_input_ids": [],
+  "objective_outcomes": [
+    {
+      "baseline_median": 3.0,
+      "change": -0.5,
+      "intervention_median": 2.5,
+      "outcome_id": "mean_mask_pressure_above_epap",
+      "state": "expected_mechanism"
+    },
+    {
+      "baseline_median": 1.0,
+      "change": 0.0,
+      "intervention_median": 1.0,
+      "outcome_id": "minute_ventilation_upper_tail_ratio",
+      "state": "neutral"
+    }
+  ],
+  "period_night_counts": {
+    "baseline": 3,
+    "intervention": 3
+  },
+  "quality_record_count": 114,
+  "record_id": "retrospective-evidence-report:0268c3009a01f97b6827",
+  "record_version": 2,
+  "schema_version": 2,
+  "subjective_outcomes": [
+    {
+      "baseline_median": 2.0,
+      "change": -1.0,
+      "intervention_median": 1.0,
+      "outcome_id": "awakenings_count",
+      "state": "favorable"
+    },
+    {
+      "baseline_median": 3.0,
+      "change": 1.0,
+      "intervention_median": 4.0,
+      "outcome_id": "sleep_quality",
+      "state": "favorable"
+    },
+    {
+      "baseline_median": 3.0,
+      "change": 1.0,
+      "intervention_median": 4.0,
+      "outcome_id": "morning_energy",
+      "state": "favorable"
+    },
+    {
+      "baseline_median": 3.0,
+      "change": -1.0,
+      "intervention_median": 2.0,
+      "outcome_id": "daytime_tiredness",
+      "state": "favorable"
+    }
+  ]
+}

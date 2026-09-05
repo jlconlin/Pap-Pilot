@@ -2,10 +2,12 @@
 
 **Updated:** September 5, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S46 completed
-**Next sprint:** S47 — Record AI provenance
+**Current sprint:** None — S47 completed
+**Next sprint:** S48 — Evaluate AI usefulness
 
 ## Current state
+
+- S47 adds typed `AiProvenancePayload` records and `ExperimentStore.append_ai_provenance`. Authorized structured interactions retain provider, model, prompt version, approved input IDs, raw structured output, consent ID, and evidence IDs in the immutable event ledger; secret-like keys are rejected and nested JSON round-trips through replay. No analytics, provider comparison, or unauthorized transmission was added.
 
 - S46 adds `gate_ai_draft`, which requires a validated structured AI response and runs its associated proposal through the deterministic S39 safety gate. `AiDraftGateResult.viable` is exactly the gate's eligibility; unsafe scope, bounds, evidence, or reversion failures remain non-viable regardless of AI wording. No prompt tuning, UI polish, device action, or hosted transmission behavior was added.
 
@@ -152,9 +154,12 @@
 
 ## Last completed sprint
 
-S46 — Enforce the safety gate on AI drafts.
+S47 — Record AI provenance.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_ai_provenance -v`; both focused provenance tests passed, covering complete append-only storage/replay and rejection of credential-like payload keys.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 289 tests passed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_prospective_safety_gate tests.test_structured_ai_adapter -v`; all nine focused gate/adapter tests passed, including an AI draft claiming safety that remained non-viable under a failed deterministic gate.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 287 tests passed.
@@ -576,7 +581,7 @@ S46 — Enforce the safety gate on AI drafts.
 
 ## Blockers
 
-- No product blocker prevents starting S47. Hosted transmission remains intentionally blocked until explicit consent; S47 may only record provenance for already-authorized structured interactions.
+- No product blocker prevents starting S48. Hosted transmission remains intentionally blocked until explicit consent; usefulness evaluation must use synthetic or explicitly authorized structured inputs and must not expand recommendation scope.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -593,5 +598,5 @@ S46 — Enforce the safety gate on AI drafts.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S47. Record AI provenance append-only for authorized structured interactions without analytics or provider comparison, and preserve decision 0010's consent boundary. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S48. Evaluate AI usefulness against the deterministic retrospective fixture without expanding recommendation scope. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

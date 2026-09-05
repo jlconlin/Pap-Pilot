@@ -55,6 +55,7 @@ from pap_pilot.engine.experiments import (
     ConfounderReportStatus,
     EvaluationIssuedPayload,
     EvaluationSupersededPayload,
+    AiProvenancePayload,
     ExperimentActionPayload,
     ExperimentAllocationError,
     ExperimentDecisionPayload,
@@ -179,6 +180,7 @@ from pap_pilot.engine.ai import (
     parse_ai_response,
     request_structured_advisory,
     gate_ai_draft,
+    build_ai_provenance_event,
 )
 from pap_pilot.engine.metrics import (
     MEAN_MASK_PRESSURE_ABOVE_EPAP_ALGORITHM_VERSION,
@@ -297,6 +299,7 @@ __all__ = [
     "parse_ai_response",
     "request_structured_advisory",
     "gate_ai_draft",
+    "build_ai_provenance_event",
     "EVALUATED_RETROSPECTIVE_EVIDENCE_REPORT_RECORD_VERSION",
     "EVALUATED_RETROSPECTIVE_EVIDENCE_REPORT_SCHEMA_VERSION",
     "MAX_RETROSPECTIVE_WAVEFORM_DURATION_MS",
@@ -355,6 +358,7 @@ __all__ = [
     "ConfounderReportStatus",
     "EvaluationIssuedPayload",
     "EvaluationSupersededPayload",
+    "AiProvenancePayload",
     "ExperimentActionPayload",
     "ExperimentAllocationError",
     "ExperimentDecisionPayload",

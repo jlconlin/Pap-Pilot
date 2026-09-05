@@ -368,7 +368,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Prompt tuning and UI polish.
 - Done when: Tests prove failed proposals cannot be accepted or activated regardless of AI wording.
 
-### S47 — Record AI provenance — queued
+### S47 — Record AI provenance — done
 
 - Objective: Persist provider, model, prompt version, approved inputs, raw structured output, and evidence references as append-only events.
 - Excludes: Analytics and provider comparison.

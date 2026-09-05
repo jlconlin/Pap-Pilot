@@ -344,6 +344,31 @@ class NoteRecordedPayload:
         _text(self.related_event_id, "related experiment-event identifier")
 
 
+@dataclass(frozen=True, slots=True)
+class AiProvenancePayload(NoteRecordedPayload):
+    """Structured AI request/response provenance stored as an additive note event."""
+
+    provider: str = ""
+    model: str = ""
+    prompt_version: str = ""
+    approved_input_record_ids: tuple[str, ...] = ()
+    raw_structured_output: dict[str, object] | None = None
+    evidence_record_ids: tuple[str, ...] = ()
+    consent_record_id: str = ""
+
+    def __post_init__(self) -> None:
+        NoteRecordedPayload.__post_init__(self)
+        for value, label in ((self.provider, "AI provider"), (self.model, "AI model"), (self.prompt_version, "AI prompt version"), (self.consent_record_id, "AI consent record identifier")):
+            _text(value, label)
+        for values, label in ((self.approved_input_record_ids, "approved AI input record identifiers"), (self.evidence_record_ids, "AI evidence record identifiers")):
+            _required_text_tuple(values, label)
+            _unique(values, label)
+        if self.raw_structured_output is None or type(self.raw_structured_output) is not dict:
+            raise ExperimentModelError("AI provenance requires raw structured output.")
+        if any(str(key).lower() in {"api_key", "authorization", "credential", "secret"} for key in self.raw_structured_output):
+            raise ExperimentModelError("AI provenance cannot contain credentials or secrets.")
+
+
 ExperimentEventPayload: TypeAlias = (
     ProblemRecordedPayload
     | HypothesisDraftedPayload

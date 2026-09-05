@@ -6,7 +6,8 @@ import math
 from typing import Any, Callable, Final, Mapping
 
 from pap_pilot.engine.experiments.safety import ProspectiveSafetyEvidence, ProspectiveSafetyGateResult, evaluate_prospective_safety
-from pap_pilot.engine.experiments.model import ExperimentProposal
+from pap_pilot.engine.experiments.model import AiProvenancePayload, ExperimentEvent, ExperimentEventType, ExperimentProposal
+from pap_pilot.engine.model import SourceClass
 
 
 AI_PAYLOAD_CONTRACT_ID: Final = "pap-pilot.ai-advisory-payload"
@@ -191,6 +192,23 @@ def gate_ai_draft(response: StructuredAiResponse, proposal: ExperimentProposal, 
         raise AiAdapterError("The AI draft response is not a validated structured response.")
     safety = evaluate_prospective_safety(proposal, evidence)
     return AiDraftGateResult(response, safety, safety.eligible)
+
+
+def build_ai_provenance_event(*, experiment_record_id: str, related_event_id: str, event_record_id: str, sequence_number: int, recorded_at_ms: int, provider: str, model: str, prompt_version: str, approved_input_record_ids: tuple[str, ...], raw_structured_output: dict[str, object], evidence_record_ids: tuple[str, ...], consent_record_id: str) -> ExperimentEvent:
+    """Build one append-only provenance event; payloads cannot contain credentials."""
+
+    payload = AiProvenancePayload(
+        note="Structured AI advisory provenance",
+        related_event_id=related_event_id,
+        provider=provider,
+        model=model,
+        prompt_version=prompt_version,
+        approved_input_record_ids=approved_input_record_ids,
+        raw_structured_output=raw_structured_output,
+        evidence_record_ids=evidence_record_ids,
+        consent_record_id=consent_record_id,
+    )
+    return ExperimentEvent(event_record_id, experiment_record_id, sequence_number, ExperimentEventType.NOTE_RECORDED, recorded_at_ms, "companion:ai", payload, SourceClass.COMPANION_DERIVED, (experiment_record_id, *approved_input_record_ids, *evidence_record_ids), (consent_record_id,))
 
 
 def _text(value: object, label: str) -> None:

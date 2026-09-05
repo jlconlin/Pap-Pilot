@@ -24,6 +24,7 @@ from pap_pilot.engine.experiments.model import (
     EvaluationIssuedPayload,
     EvaluationSupersededPayload,
     ExperimentActionPayload,
+    AiProvenancePayload,
     ExperimentDecisionPayload,
     ExperimentEvent,
     ExperimentEventType,
@@ -216,6 +217,13 @@ class ExperimentStore:
                 self._insert_event(connection, event, serialized)
         except (sqlite3.Error, OverflowError, ExperimentModelError) as error:
             raise ExperimentStoreError("The experiment event could not be appended without changing prior history.") from error
+
+    def append_ai_provenance(self, event: ExperimentEvent) -> None:
+        """Append one structured AI provenance note through the ordinary immutable ledger."""
+
+        if event.event_type is not ExperimentEventType.NOTE_RECORDED or not isinstance(event.payload, AiProvenancePayload):
+            raise ExperimentStoreError("AI provenance requires an AI provenance note event.")
+        self.append_event(event)
 
     def append_events(self, events: tuple[ExperimentEvent, ...]) -> None:
         """Atomically validate and append a nonempty sequence of ordinary events."""
@@ -767,6 +775,7 @@ _RECORD_TYPES: Final = {
     "problem_recorded_payload": ProblemRecordedPayload,
     "hypothesis_drafted_payload": HypothesisDraftedPayload,
     "note_recorded_payload": NoteRecordedPayload,
+    "ai_provenance_payload": AiProvenancePayload,
     "experiment_proposed_payload": ExperimentProposedPayload,
     "experiment_decision_payload": ExperimentDecisionPayload,
     "experiment_revised_payload": ExperimentRevisedPayload,
@@ -823,6 +832,10 @@ def _encode_value(value: object) -> object:
         return _encode_record(value)
     if type(value) is tuple:
         return [_encode_value(item) for item in value]
+    if type(value) is dict:
+        if any(type(key) is not str for key in value):
+            raise ExperimentStoreError("An experiment record mapping must use text keys.")
+        return {key: _encode_value(value[key]) for key in sorted(value)}
     if value is None or type(value) in (bool, int, str):
         return value
     if type(value) is float and math.isfinite(value):
@@ -909,7 +922,9 @@ def _decode_record(payload: object) -> object:
 
 def _decode_value(value: object) -> object:
     if type(value) is dict:
-        return _decode_record(value)
+        if "record_type" in value:
+            return _decode_record(value)
+        return {key: _decode_value(item) for key, item in value.items()}
     if type(value) is list:
         return tuple(_decode_value(item) for item in value)
     if value is None or type(value) in (bool, int, float, str):

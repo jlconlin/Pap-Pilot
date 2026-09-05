@@ -312,7 +312,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 
 ## 5 — Prospective experiment support
 
-### S38 — Define prospective safety policy — queued
+### S38 — Define prospective safety policy — done
 
 - Objective: Record the initial settings allowlist, change bounds, exclusions, minimum data, stop rules, and reversion requirements.
 - Excludes: Implementation and AI proposals.

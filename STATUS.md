@@ -2,10 +2,12 @@
 
 **Updated:** September 4, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S37F completed
-**Next sprint:** S38 — Define prospective safety policy
+**Current sprint:** None — S38 completed
+**Next sprint:** S39 — Implement the deterministic safety gate
 
 ## Current state
+
+- S38 accepts `docs/decisions/0009-prospective-safety-policy.md` version 1. The initial prospective scope is one manually applied PS Min 2.0-to-1.0 cm H₂O change in fixed-EPAP ASV with all other settings held fixed; it defines allowlist/bounds, exclusions, three-night and 300,000 ms evidence minima, conservative stop-review triggers, manual append-only reversion, and explicit no-device-control/no-clinical-claim boundaries.
 
 - The Python application scaffold now uses a `src` layout with importable `pap_pilot`, `pap_pilot.adapter`, and `pap_pilot.engine` packages.
 - `pyproject.toml` defines the installable Python package, FastAPI/Uvicorn runtime dependencies, the `httpx2` test extra, and the `pap-pilot-api` console entry point; `README.md` documents isolated installation, testing, and local API startup.
@@ -134,9 +136,11 @@
 
 ## Last completed sprint
 
-S37F — Connect and revalidate the retrospective local UI.
+S38 — Define prospective safety policy.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_prospective_safety_policy -v`; both document-contract tests passed, confirming the accepted policy version, single-variable/manual boundary, evidence minimums, stop rules, reversion requirements, and no-device-control/AI-bypass constraints. `git diff --check` passed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_retrospective_local_workspace tests.test_boundary_corrections tests.test_local_api tests.test_overview_ui -q`; all twenty-eight focused S37F/correction/API/UI tests passed. The four S37F groups cover strict protected configuration, six selected schema-17 OSCAR nights, every populated evaluated-report and rendered-UI section, complete source-session linkage, honest missing sparse Leak excerpts, effective history rendering, fixed loopback command wiring, boundary correction, rebuilt-report identity, close/reopen persistence, and unchanged source bytes.
 - Rebuilt and installed the package with `.venv/bin/python -m pip install --force-reinstall --no-deps --no-build-isolation .`; all two hundred sixty-eight tests passed against both the source tree and installed package with resource warnings treated as errors.
@@ -532,7 +536,7 @@ S37F — Connect and revalidate the retrospective local UI.
 
 ## Blockers
 
-- No product blocker prevents starting S38.
+- No product blocker prevents starting S39. S38 deliberately limits the first gate to the exact PS Min 2.0-to-1.0 fixed-EPAP ASV proposal; broader settings require a new policy decision.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -549,5 +553,5 @@ S37F — Connect and revalidate the retrospective local UI.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S38. Define the prospective safety policy without implementing it or adding AI proposals. Update Plan.md only if the accepted policy changes product scope, requirements, safety boundaries, architecture, or milestone gates. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S39. Implement the deterministic safety gate from decision 0009 without adding UI, AI proposals, or device-setting instructions. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

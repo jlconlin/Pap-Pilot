@@ -285,7 +285,7 @@ These milestones are outcome gates, not a task queue. The current order and stat
 
 ### Milestone 5: Prospective experiment support
 
-- Define the initial settings allowlist, bounds, validity rules, stop rules, and reversion requirements.
+- Define the initial settings allowlist, bounds, validity rules, stop rules, and reversion requirements. Decision 0009 accepts a single manually applied PS Min 2.0-to-1.0 cm H₂O change in fixed-EPAP ASV with all other settings held fixed; it is an engineering gate, not a clinical safety claim.
 - Support starting and monitoring one prospective experiment.
 - Add brief subjective and confounder entry.
 
@@ -309,7 +309,7 @@ These milestones are outcome gates, not a task queue. The current order and stat
 - Internal serialization and local database schema.
 - Valid-night criteria and minimum baseline/intervention duration.
 - Optional sleep-journal prompt wording and whether later prospective use requires any currently optional response.
-- Initial settings recommendation allowlist, change bounds, and exclusions.
+- Initial settings recommendation allowlist, change bounds, and exclusions are accepted in `docs/decisions/0009-prospective-safety-policy.md`; later changes require a new versioned decision.
 - User-preference weighting for mixed tradeoffs and any future clinically validated replacement for the prototype's engineering thresholds.
 - Choice of the first AI provider and whether health data may be sent to a hosted service.
 - Credential storage and AI data-minimization rules.

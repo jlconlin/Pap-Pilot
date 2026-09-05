@@ -318,7 +318,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Implementation and AI proposals.
 - Done when: A safety decision record resolves every required rule or explicitly blocks implementation.
 
-### S39 — Implement the deterministic safety gate — queued
+### S39 — Implement the deterministic safety gate — done
 
 - Objective: Evaluate a prospective proposal against S38 and return structured failures.
 - Excludes: UI, AI, and device-setting instructions.

@@ -2,10 +2,12 @@
 
 **Updated:** September 4, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S38 completed
-**Next sprint:** S39 — Implement the deterministic safety gate
+**Current sprint:** None — S39 completed
+**Next sprint:** S40 — Implement prospective lifecycle events
 
 ## Current state
+
+- S39 implements `evaluate_prospective_safety` and immutable source-independent evidence/result records. The gate enforces policy 0009's exact PS Min 2.0-to-1.0 fixed-EPAP ASV scope, one-variable shape, setting bounds, three included nights and 300,000 ms per arm/night, required signal presence, supported source and resolved boundaries, stop-rule presence, and an exact manual reversion snapshot. Failures use a versioned structured vocabulary; the gate performs no UI, AI, OSCAR write, or device action.
 
 - S38 accepts `docs/decisions/0009-prospective-safety-policy.md` version 1. The initial prospective scope is one manually applied PS Min 2.0-to-1.0 cm H₂O change in fixed-EPAP ASV with all other settings held fixed; it defines allowlist/bounds, exclusions, three-night and 300,000 ms evidence minima, conservative stop-review triggers, manual append-only reversion, and explicit no-device-control/no-clinical-claim boundaries.
 
@@ -136,9 +138,12 @@
 
 ## Last completed sprint
 
-S38 — Define prospective safety policy.
+S39 — Implement the deterministic safety gate.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_prospective_safety_gate tests.test_prospective_safety_policy -v`; all six focused policy/gate tests passed, including eligible exact scope plus unsupported, multi-variable, per-arm insufficient-data, missing-reversion, unsupported-source, and unresolved-boundary failures.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 274 tests passed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_prospective_safety_policy -v`; both document-contract tests passed, confirming the accepted policy version, single-variable/manual boundary, evidence minimums, stop rules, reversion requirements, and no-device-control/AI-bypass constraints. `git diff --check` passed.
 
@@ -536,7 +541,7 @@ S38 — Define prospective safety policy.
 
 ## Blockers
 
-- No product blocker prevents starting S39. S38 deliberately limits the first gate to the exact PS Min 2.0-to-1.0 fixed-EPAP ASV proposal; broader settings require a new policy decision.
+- No product blocker prevents starting S40. S39 deliberately implements eligibility only; lifecycle persistence, monitoring, stop/keep/revert events, and UI remain outside this sprint.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -553,5 +558,5 @@ S38 — Define prospective safety policy.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S39. Implement the deterministic safety gate from decision 0009 without adding UI, AI proposals, or device-setting instructions. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S40. Implement prospective lifecycle events from decision 0009 without adding monitoring calculations, UI, AI proposals, or device-setting instructions. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

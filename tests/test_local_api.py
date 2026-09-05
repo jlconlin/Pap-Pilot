@@ -1,6 +1,8 @@
 """Focused HTTP and binding-safety tests for the local API shell."""
 
 from unittest.mock import patch
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 
 from fastapi.routing import APIRoute
@@ -13,6 +15,7 @@ from pap_pilot.api import (
     LOCAL_API_VERSION,
     PS_MIN_EXPERIMENT_SUMMARY_PATH,
     PS_MIN_BOUNDARY_CORRECTION_PATH,
+    PS_MIN_JOURNAL_PATH,
     PS_MIN_EXPERIMENT_HISTORY_PATH,
     LocalApiConfigurationError,
     LocalApiSettings,
@@ -68,6 +71,7 @@ class LocalApiTests(unittest.TestCase):
                 (PS_MIN_EXPERIMENT_SUMMARY_PATH, frozenset({"GET"})),
                 (PS_MIN_EXPERIMENT_HISTORY_PATH, frozenset({"GET"})),
                 (PS_MIN_BOUNDARY_CORRECTION_PATH, frozenset({"POST"})),
+                (PS_MIN_JOURNAL_PATH, frozenset({"POST"})),
             },
         )
         with TestClient(application) as client:
@@ -81,6 +85,27 @@ class LocalApiTests(unittest.TestCase):
                 for method in ("post", "put", "patch", "delete"):
                     with self.subTest(path=path, method=method):
                         self.assertEqual(client.request(method.upper(), path, json={"ignored": True}).status_code, 405)
+
+    def test_morning_journal_is_validated_appended_and_replayed(self) -> None:
+        with TemporaryDirectory() as directory:
+            database_path = Path(directory) / "pap_pilot.sqlite3"
+            with TestClient(create_app(database_path=database_path)) as client:
+                response = client.post(PS_MIN_JOURNAL_PATH, json={
+                    "night_record_id": "night:intervention",
+                    "awakenings_count": 1,
+                    "sleep_quality": 4,
+                    "morning_energy": 3,
+                    "daytime_tiredness": 2,
+                    "confounder_status": "reported",
+                    "confounders": [{"kind": "stress", "details": "Work deadline"}],
+                    "original_note": "  Exact note  ",
+                })
+                self.assertEqual(response.status_code, 201)
+                entries = response.json()["journal_entries"]
+                self.assertEqual(len(entries), 1)
+                self.assertEqual(entries[0]["night_record_id"], "night:intervention")
+                self.assertEqual(entries[0]["original_note"], "  Exact note  ")
+                self.assertEqual(client.post(PS_MIN_JOURNAL_PATH, json={"night_record_id": "night:two", "sleep_quality": 6}).status_code, 422)
 
     def test_default_server_configuration_is_numeric_ipv4_loopback(self) -> None:
         settings = LocalApiSettings()

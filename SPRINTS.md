@@ -330,7 +330,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Monitoring calculations and UI.
 - Done when: Replay tests cover one complete lifecycle and corrections remain additive.
 
-### S41 — Add morning sleep-journal entry — queued
+### S41 — Add morning sleep-journal entry — done
 
 - Objective: Add the smallest local form/API for structured morning outcomes, optional free-text notes, adverse effects, and confounder events.
 - Excludes: Notifications, mobile UI, AI or NLP interpretation of journal prose, and free-form clinical advice.

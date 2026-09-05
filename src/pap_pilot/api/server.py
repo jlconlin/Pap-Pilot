@@ -13,7 +13,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 import uvicorn
 
-from pap_pilot.engine.experiments import ExperimentEventType, ExperimentModelError, ExperimentNotFoundError, ExperimentStore, ExperimentStoreError, NoteRecordedPayload, SettingChangeConfirmedPayload, build_boundary_correction_events, reconstruct_ps_min_experiment_fixture
+from pap_pilot.engine.experiments import ConfounderKind, ConfounderReportStatus, ExperimentEvent, ExperimentEventType, ExperimentModelError, ExperimentNotFoundError, ExperimentStore, ExperimentStoreError, NoteRecordedPayload, SettingChangeConfirmedPayload, SleepJournalConfounder, SleepJournalEntry, SleepJournalEntryRecordedPayload, build_boundary_correction_events, reconstruct_ps_min_experiment_fixture
+from pap_pilot.engine.model import SourceClass
 from pap_pilot.engine.reports import (
     RetrospectiveEvidenceReport,
     build_ps_min_retrospective_evidence_report,
@@ -30,6 +31,7 @@ LOCAL_API_HEALTH_PATH: Final = "/api/v1/health"
 PS_MIN_EXPERIMENT_SUMMARY_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/summary"
 PS_MIN_EXPERIMENT_HISTORY_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/history"
 PS_MIN_BOUNDARY_CORRECTION_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/boundary-corrections"
+PS_MIN_JOURNAL_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/journal"
 LOCAL_OVERVIEW_PATH: Final = "/"
 LOCAL_OVERVIEW_STYLES_PATH: Final = "/assets/overview.css"
 LOCAL_OVERVIEW_SCRIPT_PATH: Final = "/assets/overview.mjs"
@@ -86,6 +88,28 @@ class BoundaryCorrectionRequest(BaseModel):
     corrected_event_id: StrictStr = Field(min_length=1, max_length=256)
     applied_at_ms: StrictInt
     note: StrictStr = Field(min_length=1, max_length=4000)
+
+
+class JournalConfounderRequest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    kind: StrictStr = Field(min_length=1, max_length=64)
+    details: StrictStr | None = Field(default=None, max_length=4000)
+
+
+class MorningJournalRequest(BaseModel):
+    """Small structured local morning check-in; prose is retained but never parsed."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    night_record_id: StrictStr = Field(min_length=1, max_length=256)
+    awakenings_count: StrictInt | None = Field(default=None, ge=0)
+    sleep_quality: StrictInt | None = Field(default=None, ge=1, le=5)
+    morning_energy: StrictInt | None = Field(default=None, ge=1, le=5)
+    daytime_tiredness: StrictInt | None = Field(default=None, ge=1, le=5)
+    confounder_status: Literal["not_reported", "none_reported", "reported"] = "not_reported"
+    confounders: list[JournalConfounderRequest] = Field(default_factory=list)
+    original_note: StrictStr | None = Field(default=None, max_length=4000)
 
 
 def create_app(report: RetrospectiveEvidenceReport | None = None, *, database_path: str | Path | None = None) -> FastAPI:
@@ -146,6 +170,34 @@ def create_app(report: RetrospectiveEvidenceReport | None = None, *, database_pa
             raise HTTPException(status_code=409, detail=str(error)) from error
         except ExperimentStoreError as error:
             raise HTTPException(status_code=409, detail="The append-only correction could not be saved.") from error
+        return JSONResponse(content=_history_response(updated), status_code=201, headers=_JSON_RESPONSE_HEADERS)
+
+    @application.post(PS_MIN_JOURNAL_PATH, response_class=JSONResponse)
+    def add_morning_journal(request: MorningJournalRequest) -> JSONResponse:
+        if database_path is None:
+            raise HTTPException(status_code=503, detail="The local experiment database is not configured.")
+        try:
+            confounder_kind = tuple(ConfounderKind(value.kind) for value in request.confounders)
+            if len(set(confounder_kind)) != len(confounder_kind):
+                raise ValueError("Journal confounder kinds must be unique.")
+            if request.confounder_status == "reported" and not request.confounders:
+                raise ValueError("Reported confounders require entries.")
+            if request.confounder_status != "reported" and request.confounders:
+                raise ValueError("Only reported confounders may carry entries.")
+            confounders = tuple(SleepJournalConfounder(kind, item.details) for kind, item in zip(confounder_kind, request.confounders))
+            with ExperimentStore(database_path) as store:
+                _ensure_fixture_history(store)
+                experiment_id = reconstruct_ps_min_experiment_fixture().experiment.record_id
+                recorded_at_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+                journal_id = f"journal:{uuid4()}"
+                entry = SleepJournalEntry(journal_id, request.night_record_id, recorded_at_ms, "user:local", request.awakenings_count, request.sleep_quality, request.morning_energy, request.daytime_tiredness, ConfounderReportStatus(request.confounder_status), confounders, request.original_note, (f"provenance:{journal_id}",))
+                event = ExperimentEvent(f"event:{journal_id}", experiment_id, len(store.read_history(experiment_id)) + 1, ExperimentEventType.SLEEP_JOURNAL_ENTRY_RECORDED, recorded_at_ms, "user:local", SleepJournalEntryRecordedPayload(entry.record_id, entry.night_record_id), SourceClass.USER_REPORTED, (experiment_id, entry.record_id, entry.night_record_id), entry.source_provenance_ids)
+                store.append_journal_entry(event, entry)
+                updated = store.replay(experiment_id)
+        except (ValueError, ExperimentModelError) as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        except ExperimentStoreError as error:
+            raise HTTPException(status_code=409, detail="The morning journal entry could not be saved.") from error
         return JSONResponse(content=_history_response(updated), status_code=201, headers=_JSON_RESPONSE_HEADERS)
 
     @application.get(LOCAL_OVERVIEW_PATH, response_class=HTMLResponse)
@@ -220,6 +272,9 @@ def _history_response(replayed) -> dict[str, object]:
         if isinstance(event.payload, NoteRecordedPayload):
             item["note"] = event.payload.note
             item["related_event_id"] = event.payload.related_event_id
+        if event.event_type is ExperimentEventType.SLEEP_JOURNAL_ENTRY_RECORDED:
+            item["journal_entry_record_id"] = event.payload.journal_entry_record_id
+            item["night_record_id"] = event.payload.night_record_id
         history.append(item)
     boundary = None if effective_boundary is None else {
         "record_id": effective_boundary.record_id,
@@ -236,6 +291,21 @@ def _history_response(replayed) -> dict[str, object]:
         "can_correct_boundary": effective_boundary is not None,
         "effective_boundary": boundary,
         "history": history,
+        "journal_entries": [
+            {
+                "record_id": entry.record_id,
+                "night_record_id": entry.night_record_id,
+                "reported_at_ms": entry.reported_at_ms,
+                "awakenings_count": entry.awakenings_count,
+                "sleep_quality": entry.sleep_quality,
+                "morning_energy": entry.morning_energy,
+                "daytime_tiredness": entry.daytime_tiredness,
+                "confounder_status": entry.confounder_status.value,
+                "confounders": [{"kind": value.kind.value, "details": value.details} for value in entry.confounders],
+                "original_note": entry.original_note,
+            }
+            for entry in replayed.effective_journal_entries
+        ],
     }
 
 

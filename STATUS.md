@@ -1,11 +1,13 @@
 # PAP Pilot — session handoff
 
-**Updated:** September 4, 2026
+**Updated:** September 5, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S40 completed
-**Next sprint:** S41 — Add morning sleep-journal entry
+**Current sprint:** None — S41 completed
+**Next sprint:** S42 — Add prospective monitoring view
 
 ## Current state
+
+- S41 adds the local `POST /api/v1/experiments/ps-min-2-to-1/journal` path with strict structured morning fields, bounded confounders, optional untouched notes, and explicit night linkage. Entries use the existing version-1 journal schema and atomic append-only store operation; reconstructed history returns effective journal entries. No notifications, mobile UI, AI/NLP, or clinical advice was added.
 
 - S40 adds `replay_prospective_lifecycle` and append validation over the existing immutable event ledger. It supports propose, accept/reject/revise, confirm-applied, extend, stop, keep, and revert transitions, exposes a correction-resolved state, and retains original events. Established `evaluation_superseded` events remain additive and preserved; no monitoring, UI, AI, or device action was added.
 
@@ -140,9 +142,12 @@
 
 ## Last completed sprint
 
-S40 — Implement prospective lifecycle events.
+S41 — Add morning sleep-journal entry.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_local_api tests.test_sleep_journal -q`; all fifteen focused API/journal tests passed, including strict validation, exact note preservation, confounder handling, atomic persistence, and replayed night linkage.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 279 tests passed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_prospective_lifecycle -v`; all four focused lifecycle tests passed, covering a complete applied/extended/stopped/reverted flow, invalid transition rejection, revision/rejection, and additive correction replay.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 278 tests passed.
@@ -546,7 +551,7 @@ S40 — Implement prospective lifecycle events.
 
 ## Blockers
 
-- No product blocker prevents starting S41. S40 deliberately leaves monitoring calculations and all UI/API work to later sprints.
+- No product blocker prevents starting S42. S41 deliberately leaves notifications, mobile UI, AI/NLP, and free-form clinical advice out of the journal path.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -563,5 +568,5 @@ S40 — Implement prospective lifecycle events.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S41. Add the local structured morning sleep-journal entry path without notifications, mobile UI, AI/NLP, or free-form clinical advice. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S42. Add the prospective monitoring view without expanding settings scope, adding AI, or enabling remote/device control. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

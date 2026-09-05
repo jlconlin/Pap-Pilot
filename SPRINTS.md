@@ -350,7 +350,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 
 ## 6 — Optional AI assistance
 
-### S44 — Decide the AI data boundary and provider — queued
+### S44 — Decide the AI data boundary and provider — done
 
 - Objective: Select one provider and document permitted fields, redactions, credential storage, retention concerns, and whether hosted transmission is acceptable.
 - Excludes: API calls and multi-provider abstraction.

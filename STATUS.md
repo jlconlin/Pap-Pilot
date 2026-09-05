@@ -2,10 +2,12 @@
 
 **Updated:** September 5, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S43 completed
-**Next sprint:** S44 — Decide the AI data boundary and provider
+**Current sprint:** None — S44 completed
+**Next sprint:** S45 — Implement the structured AI adapter
 
 ## Current state
+
+- S44 records `docs/decisions/0010-ai-data-boundary-and-provider.md`: OpenAI Responses API is the sole future provider candidate, but hosted health-data transmission is deferred and fails closed until explicit consent. The decision specifies permitted aggregate fields, redactions, credential storage, retention concerns, opaque labels, no free text/raw OSCAR data, and advisory-only output; no API calls or credentials were added.
 
 - S43 records the synthetic non-AI prospective vertical slice in `docs/validation/prospective-vertical-slice-s43.md`. A disposable local store passes deterministic policy gating, proposal/accept/application/keep lifecycle replay, structured morning journaling, monitoring-state reconstruction, and manual-action display; no clinical, real-device, OSCAR-write, remote, or AI behavior is implied.
 
@@ -146,9 +148,12 @@
 
 ## Last completed sprint
 
-S43 — Validate the non-AI prospective flow.
+S44 — Decide the AI data boundary and provider.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_ai_data_boundary_decision -v`; both decision-contract tests passed, covering provider selection, permitted/redacted fields, credential and retention controls, explicit consent, and no-network behavior before authorization.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 282 tests passed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_prospective_vertical_slice -v`; the synthetic gate/lifecycle/journal/monitoring/replay flow passed against a temporary `pap_pilot.sqlite3` store, with no OSCAR database access.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 280 tests passed.
@@ -561,7 +566,7 @@ S43 — Validate the non-AI prospective flow.
 
 ## Blockers
 
-- No product blocker prevents starting S44. Milestone 5's synthetic non-AI path is accepted; S44 must make a separate explicit decision before any hosted health-data transmission or provider integration.
+- No product blocker prevents starting S45. Hosted transmission remains intentionally blocked until the consent contract in decision 0010 is implemented and an explicit authorization is recorded.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -578,5 +583,5 @@ S43 — Validate the non-AI prospective flow.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S44. Decide the AI data boundary and provider without implementing AI calls or hosted health-data transmission. Update Plan.md only if the decision changes product scope or safety boundaries. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S45. Implement the structured AI adapter only within decision 0010's deferred/consent boundary; do not add unauthorized transmission, direct database access, authoritative calculations, or multiple providers. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

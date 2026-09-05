@@ -99,7 +99,7 @@ Early development must use a backup or disposable copy until read-only behavior 
 - Deterministic metrics and before-and-after comparisons.
 - Append-only experiment history.
 - A daily sleep journal that combines a brief structured morning check-in with optional free-text notes, links each entry to the relevant therapy night, and records confounders.
-- One configured AI provider after the deterministic vertical slice works.
+- One configured AI provider remains deferred until the explicit data-boundary and transmission-consent decision in `docs/decisions/0010-ai-data-boundary-and-provider.md`.
 - Manual settings application and explicit confirmation of when a change was applied.
 
 ### Deferred
@@ -293,7 +293,7 @@ These milestones are outcome gates, not a task queue. The current order and stat
 
 ### Milestone 6: Optional AI assistance
 
-- Configure one AI provider and define exactly what information may be transmitted.
+- Configure one AI provider and define exactly what information may be transmitted, only after explicit consent authorizes hosted health-data transmission.
 - Give the model structured summaries and bounded waveform excerpts, not direct database access.
 - Require structured hypothesis and experiment drafts.
 - Run every draft through the deterministic safety gate.
@@ -311,8 +311,8 @@ These milestones are outcome gates, not a task queue. The current order and stat
 - Optional sleep-journal prompt wording and whether later prospective use requires any currently optional response.
 - Initial settings recommendation allowlist, change bounds, and exclusions are accepted in `docs/decisions/0009-prospective-safety-policy.md`; later changes require a new versioned decision.
 - User-preference weighting for mixed tradeoffs and any future clinically validated replacement for the prototype's engineering thresholds.
-- Choice of the first AI provider and whether health data may be sent to a hosted service.
-- Credential storage and AI data-minimization rules.
+- Choice of the first AI provider and whether health data may be sent to a hosted service are recorded in `docs/decisions/0010-ai-data-boundary-and-provider.md`; hosted transmission remains deferred pending renewed consent.
+- Credential storage and AI data-minimization rules are recorded in `docs/decisions/0010-ai-data-boundary-and-provider.md`.
 - Local backup and recovery approach for the experiment database.
 
 These decisions should be recorded as short architecture or methodology decision records as they are made.

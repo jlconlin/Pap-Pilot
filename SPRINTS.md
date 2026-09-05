@@ -374,7 +374,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Analytics and provider comparison.
 - Done when: A replayed AI-assisted experiment has a complete, inspectable provenance chain.
 
-### S48 — Evaluate AI usefulness — queued
+### S48 — Evaluate AI usefulness — done
 
 - Objective: Compare AI-assisted exploration/explanation with the deterministic retrospective fixture and document benefit, errors, and limitations.
 - Excludes: Expanding recommendation scope.

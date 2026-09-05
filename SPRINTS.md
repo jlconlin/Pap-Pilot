@@ -342,7 +342,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: AI and automatic device interaction.
 - Done when: A seeded experiment can be proposed, manually confirmed, monitored, and evaluated through the UI.
 
-### S43 — Validate the non-AI prospective flow — queued
+### S43 — Validate the non-AI prospective flow — done
 
 - Objective: Exercise one synthetic prospective experiment end to end and record evidence.
 - Excludes: Real settings recommendations and AI integration.

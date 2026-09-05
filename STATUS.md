@@ -2,10 +2,12 @@
 
 **Updated:** September 5, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S42 completed
-**Next sprint:** S43 — Validate the non-AI prospective flow
+**Current sprint:** None — S43 completed
+**Next sprint:** S44 — Decide the AI data boundary and provider
 
 ## Current state
+
+- S43 records the synthetic non-AI prospective vertical slice in `docs/validation/prospective-vertical-slice-s43.md`. A disposable local store passes deterministic policy gating, proposal/accept/application/keep lifecycle replay, structured morning journaling, monitoring-state reconstruction, and manual-action display; no clinical, real-device, OSCAR-write, remote, or AI behavior is implied.
 
 - S42 adds the bounded local prospective monitoring view to the existing overview API: effective lifecycle status, application/reversion timestamps, structured morning journal entries, and retained event history are exposed without calculations, AI, remote access, or device control. The journal route remains strict and append-only, and the view preserves missing/unknown states.
 
@@ -144,9 +146,12 @@
 
 ## Last completed sprint
 
-S42 — Add prospective monitoring view.
+S43 — Validate the non-AI prospective flow.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_prospective_vertical_slice -v`; the synthetic gate/lifecycle/journal/monitoring/replay flow passed against a temporary `pap_pilot.sqlite3` store, with no OSCAR database access.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 280 tests passed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_local_api tests.test_overview_ui -q`; all twenty-one focused monitoring/API/UI tests passed, including lifecycle status, progress counts, safety state, available actions, strict morning input validation, atomic append, replayed linkage, and bounded rendering.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 279 tests passed.
@@ -556,7 +561,7 @@ S42 — Add prospective monitoring view.
 
 ## Blockers
 
-- No product blocker prevents starting S43. S42 deliberately leaves monitoring calculations, AI, remote access, and device-control behavior out of the local view.
+- No product blocker prevents starting S44. Milestone 5's synthetic non-AI path is accepted; S44 must make a separate explicit decision before any hosted health-data transmission or provider integration.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -573,5 +578,5 @@ S42 — Add prospective monitoring view.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S43. Validate one synthetic non-AI prospective flow and record evidence without adding new product scope. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S44. Decide the AI data boundary and provider without implementing AI calls or hosted health-data transmission. Update Plan.md only if the decision changes product scope or safety boundaries. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

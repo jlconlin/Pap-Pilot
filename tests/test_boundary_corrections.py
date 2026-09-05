@@ -48,6 +48,8 @@ class BoundaryCorrectionTests(unittest.TestCase):
         self.assertEqual(replayed.latest_event(ExperimentEventType.SETTING_CHANGE_CONFIRMED_APPLIED), correction)
         self.assertEqual(correction.payload.applied_change, self.boundary.payload.applied_change)
         self.assertEqual(correction.payload.applied_at_ms, 1_788_450_000_000)
+        self.assertTrue(set(self.boundary.source_record_ids).issubset(correction.source_record_ids))
+        self.assertTrue(set(self.boundary.source_provenance_ids).issubset(correction.source_provenance_ids))
         self.assertEqual(note.payload, NoteRecordedPayload("The first timestamp used the start of the calendar day; this is the actual change time.", correction.record_id))
         with ExperimentStore(self.database_path) as reopened:
             self.assertEqual(reopened.replay(self.fixture.experiment.record_id), replayed)

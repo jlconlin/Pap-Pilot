@@ -91,7 +91,7 @@ class LocalApiTests(unittest.TestCase):
 
     def test_command_runs_only_the_validated_default_binding(self) -> None:
         with patch("pap_pilot.api.server.uvicorn.run") as run:
-            main()
+            main(())
 
         run.assert_called_once_with(app, host=LOCAL_API_DEFAULT_HOST, port=LOCAL_API_DEFAULT_PORT, reload=False, access_log=False)
 

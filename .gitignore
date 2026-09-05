@@ -26,6 +26,7 @@ dist/
 .env
 .env.*
 !.env.example
+pap-pilot-workspace*.json
 
 # Private OSCAR/PAP data and local databases
 *.sqlite

@@ -1,10 +1,11 @@
 """Local HTTP boundary for reports and tightly scoped append-only experiment events."""
 
+import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from ipaddress import ip_address
 from pathlib import Path
-from typing import Final, Literal
+from typing import Final, Literal, Sequence
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Response
@@ -19,6 +20,7 @@ from pap_pilot.engine.reports import (
     serialize_retrospective_evidence_report,
 )
 from pap_pilot.ui import load_overview_asset
+from pap_pilot.workflow import load_retrospective_workspace
 
 
 LOCAL_API_VERSION: Final = 1
@@ -161,6 +163,16 @@ def create_app(report: RetrospectiveEvidenceReport | None = None, *, database_pa
     return application
 
 
+def create_configured_app(configuration_path: str | Path) -> FastAPI:
+    """Create an app from explicit protected source and workspace inputs."""
+
+    workspace = load_retrospective_workspace(configuration_path)
+    return create_app(
+        workspace.report,
+        database_path=workspace.configuration.experiment_database_path,
+    )
+
+
 def _replay_workspace(database_path: str | Path | None):
     if database_path is None:
         raise HTTPException(status_code=503, detail="The local experiment database is not configured.")
@@ -230,8 +242,23 @@ def _history_response(replayed) -> dict[str, object]:
 app = create_app(database_path=Path.cwd() / "pap_pilot.sqlite3")
 
 
-def main() -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     """Run the local API with settings that cannot select a public host."""
 
+    parser = argparse.ArgumentParser(
+        prog="pap-pilot-api",
+        description="Serve the local PAP Pilot retrospective overview.",
+    )
+    parser.add_argument(
+        "--workspace-config",
+        type=Path,
+        help="versioned JSON configuration for an evaluated retrospective workspace",
+    )
+    arguments = parser.parse_args(argv)
     settings = LocalApiSettings()
-    uvicorn.run(app, host=settings.host, port=settings.port, reload=False, access_log=False)
+    selected_app = (
+        app
+        if arguments.workspace_config is None
+        else create_configured_app(arguments.workspace_config)
+    )
+    uvicorn.run(selected_app, host=settings.host, port=settings.port, reload=False, access_log=False)

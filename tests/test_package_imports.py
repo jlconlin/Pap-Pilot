@@ -28,6 +28,7 @@ class PackageImportTests(unittest.TestCase):
             "pap_pilot.engine.reports.retrospective",
             "pap_pilot.ui",
             "pap_pilot.workflow",
+            "pap_pilot.workflow.local_workspace",
             "pap_pilot.workflow.retrospective",
         ):
             with self.subTest(module_name=module_name):

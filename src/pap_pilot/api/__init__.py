@@ -17,6 +17,7 @@ from pap_pilot.api.server import (
     LocalApiSettings,
     app,
     create_app,
+    create_configured_app,
     main,
 )
 
@@ -37,5 +38,6 @@ __all__ = [
     "LocalApiSettings",
     "app",
     "create_app",
+    "create_configured_app",
     "main",
 ]

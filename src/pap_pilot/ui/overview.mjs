@@ -47,6 +47,7 @@ export function renderOverview(envelope) {
   const classification = object(report.classification, "classification");
   const provenance = object(report.provenance, "provenance");
   const evidence = evidenceIndex(provenance.source_record_ids);
+  const evaluated = status === "evaluated";
 
   return `
     <article class="overview-report" data-report-id="${escapeHtml(text(report.record_id, "report identifier"))}">
@@ -64,7 +65,7 @@ export function renderOverview(envelope) {
       </section>
 
       <section class="section" aria-labelledby="setting-heading">
-        ${sectionHeading("setting-heading", "Known setting change", "The retained record identifies the intended comparison, but it does not establish when the setting was applied or which nights belong to either period.")}
+        ${sectionHeading("setting-heading", "Known setting change", evaluated ? "The evaluated record retains the user-confirmed application boundary and the nights assigned to each comparison period." : "The retained record identifies the intended comparison, but it does not establish when the setting was applied or which nights belong to either period.")}
         <div class="change-grid">
           ${settingCard("Baseline", knownChange.baseline_value, knownChange.unit)}
           <div class="change-arrow" aria-label="changed to"><strong>${escapeHtml(label(knownChange.setting_name))}</strong></div>
@@ -107,7 +108,7 @@ export function renderOverview(envelope) {
       </section>
 
       <section class="section" aria-labelledby="boundaries-heading">
-        ${sectionHeading("boundaries-heading", "Evidence boundaries", "The report records both what is known and what prevents evaluation. These statements are evidence inventory, not generated interpretation.")}
+        ${sectionHeading("boundaries-heading", "Evidence boundaries", evaluated ? "The report records what is known and the uncertainty that remains after evaluation. These statements are evidence inventory, not generated interpretation." : "The report records both what is known and what prevents evaluation. These statements are evidence inventory, not generated interpretation.")}
         <div class="two-column">
           <div class="content-card">
             <h3>Known facts</h3>
@@ -127,7 +128,7 @@ export function renderOverview(envelope) {
 
       <section class="section" aria-labelledby="missing-heading">
         ${sectionHeading("missing-heading", "Missing inputs", "Each item names source evidence that must exist before the retrospective result can be evaluated without fabrication.")}
-        <div class="missing-list">${missingInputs.map(renderMissingInput).join("")}</div>
+        <div class="missing-list">${missingInputs.length ? missingInputs.map(renderMissingInput).join("") : '<article class="content-card"><p>No required report inputs are missing.</p></article>'}</div>
       </section>
 
       <section class="section limitations" aria-labelledby="limitations-heading">

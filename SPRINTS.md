@@ -304,7 +304,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Automatic interval selection, arbitrary signal exploration, new calculations, UI changes, prospective workflow, and AI prose.
 - Done when: Snapshot tests cover populated and explicitly missing periods, metrics, subjective evidence, quality, classification/action, limitations, and both representative intervals with complete source linkage.
 
-### S37F — Connect and revalidate the retrospective local UI — queued
+### S37F — Connect and revalidate the retrospective local UI — done
 
 - Objective: Configure the local API to serve the evaluated retrospective report and effective workspace history, then re-run the Milestone 3 and 4 gates through the packaged localhost UI.
 - Excludes: New analytical methods, general editing, prospective workflows, remote access, and AI.

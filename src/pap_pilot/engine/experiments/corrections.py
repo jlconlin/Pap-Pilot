@@ -38,7 +38,9 @@ def build_boundary_correction_events(
     if any(type(value) is not str or not value.strip() for value in (correction_event_id, note_event_id, recorded_by)):
         raise ExperimentModelError("Correction event identifiers and actor must be nonempty text.")
     experiment_id = replayed.experiment.record_id
-    provenance = ("provenance:user:local",)
+    provenance = tuple(
+        sorted({*current.source_provenance_ids, "provenance:user:local"})
+    )
     correction = ExperimentEvent(
         record_id=correction_event_id,
         experiment_record_id=experiment_id,
@@ -48,7 +50,9 @@ def build_boundary_correction_events(
         recorded_by=recorded_by,
         payload=SettingChangeConfirmedPayload(current.payload.accepted_event_id, current.payload.applied_change, applied_at_ms),
         source_class=SourceClass.USER_REPORTED,
-        source_record_ids=(experiment_id, current.record_id),
+        source_record_ids=tuple(
+            sorted({*current.source_record_ids, experiment_id, current.record_id})
+        ),
         source_provenance_ids=provenance,
         correction_of_event_id=current.record_id,
     )

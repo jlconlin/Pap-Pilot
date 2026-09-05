@@ -2,10 +2,12 @@
 
 **Updated:** September 4, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S39 completed
-**Next sprint:** S40 — Implement prospective lifecycle events
+**Current sprint:** None — S40 completed
+**Next sprint:** S41 — Add morning sleep-journal entry
 
 ## Current state
+
+- S40 adds `replay_prospective_lifecycle` and append validation over the existing immutable event ledger. It supports propose, accept/reject/revise, confirm-applied, extend, stop, keep, and revert transitions, exposes a correction-resolved state, and retains original events. Established `evaluation_superseded` events remain additive and preserved; no monitoring, UI, AI, or device action was added.
 
 - S39 implements `evaluate_prospective_safety` and immutable source-independent evidence/result records. The gate enforces policy 0009's exact PS Min 2.0-to-1.0 fixed-EPAP ASV scope, one-variable shape, setting bounds, three included nights and 300,000 ms per arm/night, required signal presence, supported source and resolved boundaries, stop-rule presence, and an exact manual reversion snapshot. Failures use a versioned structured vocabulary; the gate performs no UI, AI, OSCAR write, or device action.
 
@@ -138,9 +140,12 @@
 
 ## Last completed sprint
 
-S39 — Implement the deterministic safety gate.
+S40 — Implement prospective lifecycle events.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_prospective_lifecycle -v`; all four focused lifecycle tests passed, covering a complete applied/extended/stopped/reverted flow, invalid transition rejection, revision/rejection, and additive correction replay.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 278 tests passed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_prospective_safety_gate tests.test_prospective_safety_policy -v`; all six focused policy/gate tests passed, including eligible exact scope plus unsupported, multi-variable, per-arm insufficient-data, missing-reversion, unsupported-source, and unresolved-boundary failures.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 274 tests passed.
@@ -541,7 +546,7 @@ S39 — Implement the deterministic safety gate.
 
 ## Blockers
 
-- No product blocker prevents starting S40. S39 deliberately implements eligibility only; lifecycle persistence, monitoring, stop/keep/revert events, and UI remain outside this sprint.
+- No product blocker prevents starting S41. S40 deliberately leaves monitoring calculations and all UI/API work to later sprints.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -558,5 +563,5 @@ S39 — Implement the deterministic safety gate.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S40. Implement prospective lifecycle events from decision 0009 without adding monitoring calculations, UI, AI proposals, or device-setting instructions. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S41. Add the local structured morning sleep-journal entry path without notifications, mobile UI, AI/NLP, or free-form clinical advice. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

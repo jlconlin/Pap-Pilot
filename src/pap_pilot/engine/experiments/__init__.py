@@ -140,6 +140,14 @@ from pap_pilot.engine.experiments.safety import (
     ProspectiveSafetyGateResult,
     evaluate_prospective_safety,
 )
+from pap_pilot.engine.experiments.lifecycle import (
+    PROSPECTIVE_LIFECYCLE_ENGINE_VERSION,
+    ProspectiveLifecycleError,
+    ProspectiveLifecycleState,
+    ProspectiveLifecycleStatus,
+    append_prospective_lifecycle_event,
+    replay_prospective_lifecycle,
+)
 from pap_pilot.engine.experiments.storage import (
     EXPERIMENT_STORE_RECORD_FORMAT,
     EXPERIMENT_STORE_RECORD_FORMAT_VERSION,
@@ -187,6 +195,7 @@ __all__ = [
     "PROSPECTIVE_SAFETY_ENGINE_VERSION",
     "PROSPECTIVE_SAFETY_POLICY_ID",
     "PROSPECTIVE_SAFETY_POLICY_VERSION",
+    "PROSPECTIVE_LIFECYCLE_ENGINE_VERSION",
     "OUTCOME_CLASSIFICATION_ENGINE_VERSION",
     "OUTCOME_CLASSIFICATION_RECORD_VERSION",
     "OUTCOME_CLASSIFICATION_RULE_SET_ID",
@@ -252,6 +261,9 @@ __all__ = [
     "ProspectiveSafetyEvidence",
     "ProspectiveSafetyFailureCode",
     "ProspectiveSafetyGateResult",
+    "ProspectiveLifecycleError",
+    "ProspectiveLifecycleState",
+    "ProspectiveLifecycleStatus",
     "SettingChangeConfirmedPayload",
     "SleepJournalEntryRecordedPayload",
     "SleepJournalConfounder",
@@ -279,6 +291,8 @@ __all__ = [
     "build_retrospective_protocol_events",
     "evaluate_outcome_classification",
     "evaluate_prospective_safety",
+    "append_prospective_lifecycle_event",
+    "replay_prospective_lifecycle",
     "evaluate_retrospective_experiment",
     "reconstruct_ps_min_experiment_fixture",
     "record_retrospective_protocol",

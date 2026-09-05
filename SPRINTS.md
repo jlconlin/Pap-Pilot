@@ -324,7 +324,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: UI, AI, and device-setting instructions.
 - Done when: Tests prove unsupported, multi-variable, insufficient-data, and missing-reversion proposals are rejected.
 
-### S40 — Implement prospective lifecycle events — queued
+### S40 — Implement prospective lifecycle events — done
 
 - Objective: Support propose, accept/reject/revise, confirm-applied, stop/extend/keep/revert, and supersede events.
 - Excludes: Monitoring calculations and UI.

@@ -105,6 +105,8 @@ class LocalApiTests(unittest.TestCase):
                 self.assertEqual(len(entries), 1)
                 self.assertEqual(entries[0]["night_record_id"], "night:intervention")
                 self.assertEqual(entries[0]["original_note"], "  Exact note  ")
+                self.assertEqual(response.json()["monitoring"]["reported_night_count"], 1)
+                self.assertFalse(response.json()["monitoring"]["automatic_device_actions"])
                 self.assertEqual(client.post(PS_MIN_JOURNAL_PATH, json={"night_record_id": "night:two", "sleep_quality": 6}).status_code, 422)
 
     def test_default_server_configuration_is_numeric_ipv4_loopback(self) -> None:

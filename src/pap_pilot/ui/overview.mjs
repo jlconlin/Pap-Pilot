@@ -155,6 +155,7 @@ export function renderExperimentHistory(envelope) {
     throw new Error("The local API returned an unsupported experiment history format.");
   }
   const history = array(value.history, "experiment history");
+  const monitoring = value.monitoring === undefined ? {lifecycle_status: "empty", safety_status: "policy_gate_required", required_nights_per_arm: 3, reported_night_count: 0, required_signal_duration_ms: 300000, outcome_status: "not_issued", available_actions: [], automatic_device_actions: false} : object(value.monitoring, "monitoring state");
   const boundary = value.effective_boundary === null ? null : object(value.effective_boundary, "effective boundary");
   const correctionSurface = boundary === null
     ? `<div class="history-unavailable"><h3>No confirmed boundary to correct</h3><p>The retained retrospective record does not contain a user-confirmed application timestamp. PAP Pilot will not invent one.</p></div>`
@@ -163,7 +164,7 @@ export function renderExperimentHistory(envelope) {
         <div><label for="correction-note">Reason or note</label><textarea id="correction-note" name="correction-note" maxlength="4000" required></textarea></div>
         <button type="submit">Append correction and note</button><p class="form-status" role="status"></p>
       </form>`;
-  return `<div class="history-layout">${correctionSurface}<div class="history-ledger"><h3>Complete event history</h3><ol>${history.map(renderHistoryEvent).join("")}</ol></div></div>`;
+  return `<div class="history-layout"><section class="monitoring-card" aria-labelledby="monitoring-heading"><h3 id="monitoring-heading">Prospective monitoring</h3><p><strong>${escapeHtml(label(text(monitoring.lifecycle_status, "lifecycle status")))}</strong> · Safety: ${escapeHtml(label(text(monitoring.safety_status, "safety status")))}</p><p>Reported nights: ${integer(monitoring.reported_night_count, "reported night count")} / ${integer(monitoring.required_nights_per_arm, "required night count")} per arm · Required signal duration: ${formatTimestamp(integer(monitoring.required_signal_duration_ms, "required duration"))}</p><p>Outcome: ${escapeHtml(label(text(monitoring.outcome_status, "outcome status")))}</p><p>Available actions: ${array(monitoring.available_actions, "available actions").map((action) => escapeHtml(label(text(action, "action")))).join(", ") || "None"}. Device actions are never automatic.</p></section>${correctionSurface}<div class="history-ledger"><h3>Complete event history</h3><ol>${history.map(renderHistoryEvent).join("")}</ol></div></div>`;
 }
 
 function renderHistoryEvent(value) {

@@ -2,10 +2,12 @@
 
 **Updated:** September 5, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S41 completed
-**Next sprint:** S42 — Add prospective monitoring view
+**Current sprint:** None — S42 completed
+**Next sprint:** S43 — Validate the non-AI prospective flow
 
 ## Current state
+
+- S42 adds the bounded local prospective monitoring view to the existing overview API: effective lifecycle status, application/reversion timestamps, structured morning journal entries, and retained event history are exposed without calculations, AI, remote access, or device control. The journal route remains strict and append-only, and the view preserves missing/unknown states.
 
 - S41 adds the local `POST /api/v1/experiments/ps-min-2-to-1/journal` path with strict structured morning fields, bounded confounders, optional untouched notes, and explicit night linkage. Entries use the existing version-1 journal schema and atomic append-only store operation; reconstructed history returns effective journal entries. No notifications, mobile UI, AI/NLP, or clinical advice was added.
 
@@ -142,9 +144,12 @@
 
 ## Last completed sprint
 
-S41 — Add morning sleep-journal entry.
+S42 — Add prospective monitoring view.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_local_api tests.test_overview_ui -q`; all twenty-one focused monitoring/API/UI tests passed, including lifecycle status, progress counts, safety state, available actions, strict morning input validation, atomic append, replayed linkage, and bounded rendering.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 279 tests passed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_local_api tests.test_sleep_journal -q`; all fifteen focused API/journal tests passed, including strict validation, exact note preservation, confounder handling, atomic persistence, and replayed night linkage.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 279 tests passed.
@@ -551,7 +556,7 @@ S41 — Add morning sleep-journal entry.
 
 ## Blockers
 
-- No product blocker prevents starting S42. S41 deliberately leaves notifications, mobile UI, AI/NLP, and free-form clinical advice out of the journal path.
+- No product blocker prevents starting S43. S42 deliberately leaves monitoring calculations, AI, remote access, and device-control behavior out of the local view.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -568,5 +573,5 @@ S41 — Add morning sleep-journal entry.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S42. Add the prospective monitoring view without expanding settings scope, adding AI, or enabling remote/device control. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. Complete only S43. Validate one synthetic non-AI prospective flow and record evidence without adding new product scope. Update SPRINTS.md and STATUS.md, commit, verify a clean tree, then stop.
 ```

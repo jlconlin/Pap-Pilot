@@ -336,7 +336,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Notifications, mobile UI, AI or NLP interpretation of journal prose, and free-form clinical advice.
 - Done when: Entries validate, append, link to the selected therapy night, and appear in reconstructed experiment state.
 
-### S42 — Add prospective monitoring view — queued
+### S42 — Add prospective monitoring view — done
 
 - Objective: Show progress toward valid-night requirements, safety status, outcomes, and available lifecycle actions.
 - Excludes: AI and automatic device interaction.

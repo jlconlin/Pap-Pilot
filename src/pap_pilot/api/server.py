@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 import uvicorn
 
-from pap_pilot.engine.experiments import ConfounderKind, ConfounderReportStatus, ExperimentEvent, ExperimentEventType, ExperimentModelError, ExperimentNotFoundError, ExperimentStore, ExperimentStoreError, NoteRecordedPayload, SettingChangeConfirmedPayload, SleepJournalConfounder, SleepJournalEntry, SleepJournalEntryRecordedPayload, build_boundary_correction_events, reconstruct_ps_min_experiment_fixture
+from pap_pilot.engine.experiments import ConfounderKind, ConfounderReportStatus, ExperimentEvent, ExperimentEventType, ExperimentModelError, ExperimentNotFoundError, ExperimentStore, ExperimentStoreError, NoteRecordedPayload, SettingChangeConfirmedPayload, SleepJournalConfounder, SleepJournalEntry, SleepJournalEntryRecordedPayload, build_boundary_correction_events, reconstruct_ps_min_experiment_fixture, replay_prospective_lifecycle
 from pap_pilot.engine.model import SourceClass
 from pap_pilot.engine.reports import (
     RetrospectiveEvidenceReport,
@@ -284,6 +284,17 @@ def _history_response(replayed) -> dict[str, object]:
         "corrected_value": effective_boundary.payload.applied_change.proposed.value,
         "unit": effective_boundary.payload.applied_change.previous.unit,
     }
+    try:
+        lifecycle = replay_prospective_lifecycle(replayed.experiment, replayed.history)
+        lifecycle_status = lifecycle.status.value
+    except (ExperimentModelError, ValueError):
+        lifecycle_status = "invalid"
+    action_map = {
+        "empty": ("propose",), "proposed": ("accept", "reject", "revise"), "accepted": ("confirm_applied",),
+        "applied": ("extend", "stop", "keep", "revert"), "extended": ("extend", "stop", "keep", "revert"),
+        "stopped": ("revert",), "kept": ("revert",), "rejected": ("propose",), "reverted": (), "superseded": (),
+    }
+    journal_nights = tuple(dict.fromkeys(entry.night_record_id for entry in replayed.effective_journal_entries))
     return {
         "format": "pap-pilot.experiment-history-json",
         "format_version": 1,
@@ -306,6 +317,16 @@ def _history_response(replayed) -> dict[str, object]:
             }
             for entry in replayed.effective_journal_entries
         ],
+        "monitoring": {
+            "lifecycle_status": lifecycle_status,
+            "safety_status": "policy_gate_required" if lifecycle_status in {"empty", "proposed", "accepted"} else "manual_review_required",
+            "required_nights_per_arm": 3,
+            "reported_night_count": len(journal_nights),
+            "required_signal_duration_ms": 300000,
+            "outcome_status": "available_after_deterministic_evaluation" if lifecycle_status in {"kept", "reverted"} else "not_issued",
+            "available_actions": list(action_map.get(lifecycle_status, ())),
+            "automatic_device_actions": False,
+        },
     }
 
 

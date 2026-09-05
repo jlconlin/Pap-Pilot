@@ -10,6 +10,8 @@ from pap_pilot.engine import (
     ProspectiveSafetyEvidence,
     ProspectiveSafetyFailureCode,
     evaluate_prospective_safety,
+    StructuredAiResponse,
+    gate_ai_draft,
 )
 
 
@@ -51,6 +53,13 @@ class ProspectiveSafetyGateTests(unittest.TestCase):
         evidence = replace(self.evidence, reversion_settings=None, source_supported=False, time_boundaries_resolved=False)
         result = evaluate_prospective_safety(self.proposal, evidence)
         self.assertEqual(set(result.failure_codes), {ProspectiveSafetyFailureCode.MISSING_REVERSION, ProspectiveSafetyFailureCode.UNSUPPORTED_DATA_SOURCE, ProspectiveSafetyFailureCode.UNRESOLVED_TIME_BOUNDARY})
+
+    def test_ai_draft_is_not_viable_when_deterministic_gate_fails(self) -> None:
+        response = StructuredAiResponse("This wording says safe", "Try it", ("effect",), ("outcome",), ("limitation",))
+        unsafe = replace(self.proposal, proposed_change=ExperimentSettingChange(ExperimentSetting("ps_min", 2.0, "cm H₂O"), ExperimentSetting("ps_min", 1.5, "cm H₂O")))
+        result = gate_ai_draft(response, unsafe, self.evidence)
+        self.assertFalse(result.viable)
+        self.assertIn(ProspectiveSafetyFailureCode.UNSUPPORTED_SCOPE, result.safety.failure_codes)
 
 
 if __name__ == "__main__":

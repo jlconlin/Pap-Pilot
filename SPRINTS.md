@@ -362,7 +362,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Direct database access, authoritative calculations, and multiple providers.
 - Done when: Contract tests cover valid, malformed, refused, and unavailable-provider responses.
 
-### S46 — Enforce the safety gate on AI drafts — queued
+### S46 — Enforce the safety gate on AI drafts — done
 
 - Objective: Route every AI proposal through S39 before presentation and prevent unsafe text from becoming viable.
 - Excludes: Prompt tuning and UI polish.

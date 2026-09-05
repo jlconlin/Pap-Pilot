@@ -5,6 +5,9 @@ from enum import StrEnum
 import math
 from typing import Any, Callable, Final, Mapping
 
+from pap_pilot.engine.experiments.safety import ProspectiveSafetyEvidence, ProspectiveSafetyGateResult, evaluate_prospective_safety
+from pap_pilot.engine.experiments.model import ExperimentProposal
+
 
 AI_PAYLOAD_CONTRACT_ID: Final = "pap-pilot.ai-advisory-payload"
 AI_PAYLOAD_CONTRACT_VERSION: Final = 1
@@ -121,6 +124,19 @@ class StructuredAiResponse:
     limitations: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class AiDraftGateResult:
+    """AI draft plus deterministic eligibility; only eligible drafts are viable."""
+
+    response: StructuredAiResponse
+    safety: ProspectiveSafetyGateResult
+    viable: bool
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.response, StructuredAiResponse) or not isinstance(self.safety, ProspectiveSafetyGateResult) or self.viable != self.safety.eligible:
+            raise AiAdapterError("AI draft viability must be exactly the deterministic safety result.")
+
+
 def build_ai_payload(context: StructuredAiContext) -> dict[str, Any]:
     """Build a redacted JSON-ready payload with opaque labels and no free text notes."""
 
@@ -168,7 +184,15 @@ def request_structured_advisory(context: StructuredAiContext, *, consent: AiTran
     return parse_ai_response(response)
 
 
+def gate_ai_draft(response: StructuredAiResponse, proposal: ExperimentProposal, evidence: ProspectiveSafetyEvidence) -> AiDraftGateResult:
+    """Run every AI-associated proposal through S39 before it can be presented as viable."""
+
+    if not isinstance(response, StructuredAiResponse):
+        raise AiAdapterError("The AI draft response is not a validated structured response.")
+    safety = evaluate_prospective_safety(proposal, evidence)
+    return AiDraftGateResult(response, safety, safety.eligible)
+
+
 def _text(value: object, label: str) -> None:
     if type(value) is not str or not value.strip():
         raise AiAdapterError(f"The {label} must be nonempty text.")
-

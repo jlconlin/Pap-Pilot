@@ -166,6 +166,7 @@ from pap_pilot.engine.ai import (
     AI_RESPONSE_CONTRACT_ID,
     AI_RESPONSE_CONTRACT_VERSION,
     AiAdapterError,
+    AiDraftGateResult,
     AiMetricSummary,
     AiProviderUnavailable,
     AiTransmissionConsent,
@@ -177,6 +178,7 @@ from pap_pilot.engine.ai import (
     build_ai_payload,
     parse_ai_response,
     request_structured_advisory,
+    gate_ai_draft,
 )
 from pap_pilot.engine.metrics import (
     MEAN_MASK_PRESSURE_ABOVE_EPAP_ALGORITHM_VERSION,
@@ -282,6 +284,7 @@ __all__ = [
     "AI_RESPONSE_CONTRACT_ID",
     "AI_RESPONSE_CONTRACT_VERSION",
     "AiAdapterError",
+    "AiDraftGateResult",
     "AiMetricSummary",
     "AiProviderUnavailable",
     "AiTransmissionConsent",
@@ -293,6 +296,7 @@ __all__ = [
     "build_ai_payload",
     "parse_ai_response",
     "request_structured_advisory",
+    "gate_ai_draft",
     "EVALUATED_RETROSPECTIVE_EVIDENCE_REPORT_RECORD_VERSION",
     "EVALUATED_RETROSPECTIVE_EVIDENCE_REPORT_SCHEMA_VERSION",
     "MAX_RETROSPECTIVE_WAVEFORM_DURATION_MS",

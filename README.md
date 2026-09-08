@@ -2,6 +2,8 @@
 
 PAP Pilot is a local, single-user tool for independently analyzing OSCAR-normalized PAP data and evaluating controlled settings experiments. OSCAR remains the canonical data store; PAP Pilot's adapter is read-only, and its deterministic analysis engine is separate from OSCAR, the user interface, and any AI assistance.
 
+PAP Pilot is licensed under the GNU General Public License, version 3.0 only (GPL-3.0-only). See [LICENSE](LICENSE).
+
 ## Development
 
 Create an isolated environment, install the package, and run the smoke test:

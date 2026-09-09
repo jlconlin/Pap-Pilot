@@ -1,6 +1,6 @@
 # PAP Pilot
 
-PAP Pilot is a local, single-user tool for reviewing PAP therapy evidence and evaluating controlled settings experiments. It reads OSCAR-normalized data, calculates deterministic metrics, keeps an append-only experiment history, and presents the results in a local web interface.
+PAP Pilot is a local, single-user tool for understanding PAP therapy data over time. It is being developed as a general analysis workspace for recent-night review, longitudinal trends, night-by-night evidence, signal quality, waveform and event inspection, subjective outcomes, and optional controlled settings experiments.
 
 PAP Pilot is an analysis and decision-support prototype. It does not change PAP device settings, write to OSCAR, diagnose medical conditions, or send health data to a hosted AI service. OSCAR remains the canonical data store, and any settings change remains a manual decision for the user and their clinician.
 
@@ -31,7 +31,7 @@ curl http://127.0.0.1:8765/api/v1/health
 
 Without a workspace configuration, PAP Pilot loads a retained synthetic retrospective fixture. It is useful for checking the interface and report states, but it is not your OSCAR data and it does not automatically import anything. The local experiment history is stored in `pap_pilot.sqlite3` in the directory from which the command is started.
 
-The overview can show experiment findings, evidence coverage, monitoring state, journal history, provenance, and explicit missing or not-evaluable states. Missing evidence is reported rather than silently inferred.
+The currently implemented overview can show experiment findings, evidence coverage, monitoring state, journal history, provenance, and explicit missing or not-evaluable states. The queued general-analysis work will replace this experiment-first landing view with recent-night, trend, and night-detail views. Missing evidence is reported rather than silently inferred.
 
 ## Use a disposable OSCAR copy
 

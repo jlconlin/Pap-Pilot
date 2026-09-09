@@ -379,3 +379,35 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Objective: Compare AI-assisted exploration/explanation with the deterministic retrospective fixture and document benefit, errors, and limitations.
 - Excludes: Expanding recommendation scope.
 - Done when: A short evaluation supports enabling, revising, or disabling AI assistance for the prototype.
+
+## 7 — General PAP analysis pivot
+
+### S49 — Define the generic analysis workspace — done
+
+- Objective: Replace the PS Min experiment overview as the product-level contract with generic records for therapy nights, trends, waveform/event evidence, signal quality, missing states, and optional experiments.
+- Excludes: New metrics, broad UI implementation, AI, device interaction, and OSCAR writes.
+- Done when: `Plan.md` and source-independent contracts define the generic analysis unit, route/resource identity, provenance, and compatibility treatment for the existing PS Min fixture.
+
+### S50 — Add generic analysis API composition — queued
+
+- Objective: Expose read-only recent-night, trend, night-detail, evidence, and quality resources from the existing normalized data and local store without PS Min-specific route assumptions.
+- Excludes: New waveform algorithms, automatic cohort discovery, AI, and prospective settings actions.
+- Done when: Focused API tests prove generic responses, explicit missing states, provenance, and unchanged PS Min compatibility behavior.
+
+### S51 — Build the general analysis overview — queued
+
+- Objective: Replace the experiment-first landing view with a local overview of recent nights, longitudinal patterns, data quality, and available analysis paths.
+- Excludes: New metric definitions, remote access, device control, and AI-generated interpretation.
+- Done when: The packaged localhost UI renders a generic overview from API responses and preserves honest unavailable/not-evaluable states.
+
+### S52 — Add night detail and waveform evidence views — queued
+
+- Objective: Let the user inspect one therapy night, its settings/events/signals, bounded waveform excerpts, source links, and quality findings.
+- Excludes: Automatic diagnosis, arbitrary unbounded waveform export, new clinical claims, and settings changes.
+- Done when: Synthetic and disposable-workspace tests cover populated, missing, and poor-quality night evidence through the UI.
+
+### S53 — Generalize experiment workflows — queued
+
+- Objective: Make experiment records, metric selection, comparison periods, and safety-policy dispatch generic while retaining PS Min as one supported example.
+- Excludes: Expanding the prospective safety allowlist, automatic recommendations, AI activation, and device control.
+- Done when: A non-PS-Min synthetic experiment can be represented and analyzed through the generic contracts without weakening the existing PS Min safety and regression tests.

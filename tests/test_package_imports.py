@@ -15,6 +15,8 @@ class PackageImportTests(unittest.TestCase):
             "pap_pilot.api",
             "pap_pilot.api.server",
             "pap_pilot.engine",
+            "pap_pilot.engine.analysis",
+            "pap_pilot.engine.analysis.model",
             "pap_pilot.engine.experiments",
             "pap_pilot.engine.experiments.classification",
             "pap_pilot.engine.experiments.retrospective_fixture",

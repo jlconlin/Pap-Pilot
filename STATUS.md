@@ -1,11 +1,15 @@
 # PAP Pilot — session handoff
 
-**Updated:** September 5, 2026
+**Updated:** September 8, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S48 completed
-**Next sprint:** None — sprint queue complete
+**Current sprint:** None — S49 completed
+**Next sprint:** S50 — Add generic analysis API composition
 
 ## Current state
+
+- S49 establishes `pap_pilot.engine.analysis` as the source-independent product-level contract. Immutable version-1 workspace, night, trend, trend-point, evidence, logical-resource, and optional experiment-reference records preserve explicit availability, stable identities, complete nested provenance, resolvable links, deterministic JSON, and the ability to represent useful PAP analysis with no experiment. `docs/decisions/0011-generic-analysis-workspace.md` defines the reserved generic routes and keeps PS Min only as an optional compatibility fixture; no API route, UI behavior, metric, selection, AI, persistence, device action, or OSCAR access was added.
+
+- Product scope is now broader general PAP analysis, inspired by the AirwayLab-style workflow of recent-night review, longitudinal trends, night drill-down, waveform/event evidence, and signal-quality explanations. The completed PS Min 2-to-1 path remains a regression fixture and example experiment, not the product definition. S49 is complete; S50–S53 remain queued.
 
 - S48 records `docs/validation/ai-usefulness-s48.md`: synthetic comparison with the deterministic retrospective fixture found possible bounded explanatory value but no incremental evidence or decision value, so hosted AI remains disabled and recommendation scope is unchanged. Fail-closed authorization, unavailable-provider, malformed-response, and S46 safety-gate behavior remain reproducible.
 
@@ -156,9 +160,13 @@
 
 ## Last completed sprint
 
-S48 — Evaluate AI usefulness.
+S49 — Define the generic analysis workspace.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_analysis_workspace tests.test_package_imports -v`; all nine focused contract/package tests passed, covering experiment-free workspaces, stable logical resource identities, optional PS Min compatibility, explicit missing and partial trends, empty unavailable trends, resolvable evidence/resources, complete nested provenance, deterministic serialization, immutability, and the source-independent dependency boundary.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 299 tests passed, preserving every existing PS Min, adapter, quality, metric, experiment, API, UI, safety, and AI regression.
+- Rebuilt and installed the package with `.venv/bin/python -m pip install --force-reinstall --no-deps --no-build-isolation .`; the focused tests passed against the installed package and direct imports resolved `pap_pilot.engine.analysis.model`. `git diff --check`, contract dependency inspection, PS Min coupling inspection, and documentation-style review passed. No OSCAR database, therapy data, local application database, credential, or device interface was accessed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_ai_usefulness -v`; both evaluation tests passed, confirming the fixture's honest-missing status and explicit defer/revise conclusion plus fail-closed adapter states.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 291 tests passed.
@@ -586,7 +594,7 @@ S48 — Evaluate AI usefulness.
 
 ## Blockers
 
-- The sprint queue is complete through S48. Hosted transmission remains intentionally blocked; any future hardening or consent change requires a newly queued sprint and decision.
+- S49 is complete and S50 is queued. Hosted transmission remains intentionally blocked; the general-analysis pivot does not authorize AI transmission or weaken decision 0010.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -603,5 +611,5 @@ S48 — Evaluate AI usefulness.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. The current sprint queue is complete through S48; do not begin unqueued work. Any future AI hardening requires an explicit new sprint and must preserve decision 0010's consent boundary.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. S49 is complete; begin only S50, add generic read-only analysis API composition without starting S51 UI work, and preserve the existing PS Min compatibility behavior and decision 0010 consent boundary.
 ```

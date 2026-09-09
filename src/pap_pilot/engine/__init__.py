@@ -1,5 +1,26 @@
 """Deterministic PAP analysis independent of data-source and UI code."""
 
+from pap_pilot.engine.analysis import (
+    ANALYSIS_WORKSPACE_ENGINE_VERSION,
+    ANALYSIS_WORKSPACE_FORMAT,
+    ANALYSIS_WORKSPACE_FORMAT_VERSION,
+    ANALYSIS_WORKSPACE_RECORD_VERSION,
+    ANALYSIS_WORKSPACE_SCHEMA_ID,
+    ANALYSIS_WORKSPACE_SCHEMA_VERSION,
+    AnalysisAvailability,
+    AnalysisEvidence,
+    AnalysisEvidenceKind,
+    AnalysisExperimentReference,
+    AnalysisModelError,
+    AnalysisNight,
+    AnalysisResource,
+    AnalysisResourceKind,
+    AnalysisTrend,
+    AnalysisTrendPoint,
+    AnalysisWorkspace,
+    analysis_resource_id,
+    serialize_analysis_workspace,
+)
 from pap_pilot.engine.experiments import (
     DIRECTION_CONSISTENCY_DENOMINATOR,
     DIRECTION_CONSISTENCY_NUMERATOR,
@@ -281,6 +302,25 @@ from pap_pilot.engine.reports import (
 )
 
 __all__ = [
+    "ANALYSIS_WORKSPACE_ENGINE_VERSION",
+    "ANALYSIS_WORKSPACE_FORMAT",
+    "ANALYSIS_WORKSPACE_FORMAT_VERSION",
+    "ANALYSIS_WORKSPACE_RECORD_VERSION",
+    "ANALYSIS_WORKSPACE_SCHEMA_ID",
+    "ANALYSIS_WORKSPACE_SCHEMA_VERSION",
+    "AnalysisAvailability",
+    "AnalysisEvidence",
+    "AnalysisEvidenceKind",
+    "AnalysisExperimentReference",
+    "AnalysisModelError",
+    "AnalysisNight",
+    "AnalysisResource",
+    "AnalysisResourceKind",
+    "AnalysisTrend",
+    "AnalysisTrendPoint",
+    "AnalysisWorkspace",
+    "analysis_resource_id",
+    "serialize_analysis_workspace",
     "AI_PAYLOAD_CONTRACT_ID",
     "AI_PAYLOAD_CONTRACT_VERSION",
     "AI_RESPONSE_CONTRACT_ID",

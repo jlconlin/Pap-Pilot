@@ -2,7 +2,7 @@
 
 **Status:** Living product and implementation plan
 **Created:** August 27, 2026
-**Updated:** September 1, 2026
+**Updated:** September 8, 2026
 **Governs:** The personal prototype; deferred future-product requirements are retained in Part II
 **Working name:** PAP Pilot
 **Technical identifiers:** `pap-pilot` command/slug, `pap_pilot` Python package, and `pap_pilot.sqlite3` local database
@@ -19,11 +19,15 @@ Update this file in place as decisions change. Use Git history and focused decis
 
 ## 1. Purpose
 
-Build a useful single-user tool before investing in infrastructure needed for distribution. The prototype will analyze OSCAR-normalized PAP data, evaluate controlled settings experiments, combine objective and subjective outcomes, and present the evidence through a clean local interface.
+Build a useful single-user tool before investing in infrastructure needed for distribution. The prototype will analyze OSCAR-normalized PAP data, explain nightly and longitudinal therapy patterns, combine objective and subjective outcomes, and present the evidence through a clean local interface. Controlled settings experiments are an optional workflow built on top of the general analysis workspace.
 
-The primary unit remains **an evaluated therapy experiment**, not a chart, score, night, or AI conversation.
+The primary unit is **an analyzed therapy record over time**, not a single score or AI conversation. An evaluated therapy experiment is one supported workflow within that broader analysis workspace.
 
 The earlier v1 requirements for multi-user safety, mobile access, synchronization, MCP, licensing, regulatory review, and commercialization are retained as a future reference. They are not current implementation requirements.
+
+### Scope correction — September 8, 2026
+
+The completed PS Min 2-to-1 implementation is retained as a deterministic regression fixture and example experiment, but it no longer defines the product. Current work must generalize the local interface and analysis contracts to support everyday PAP review: recent-night summaries, longitudinal trends, night-by-night drill-down, waveform and event analysis, signal-quality explanations, and user-reported outcomes. Experiment analysis remains available but must accept a generic experiment definition rather than assuming PS Min.
 
 ---
 
@@ -39,7 +43,7 @@ It does **not** yet establish that:
 - The evaluation method can reliably distinguish improvement from regression to the mean.
 - Future AI-generated recommendations will be safe or useful.
 
-Therefore, the PS Min experiment will be the prototype's first retrospective validation fixture. The initial vertical slice should reproduce its baseline and intervention periods, calculate predefined outcomes, incorporate the user's reports, and determine whether explicit evaluation rules reach a defensible conclusion.
+Therefore, the PS Min experiment remains the prototype's first retrospective validation fixture and regression case. It proves that one evidence-linked analysis can be reproduced; it does not limit the analysis workspace to PS Min or to settings-change experiments.
 
 ---
 
@@ -94,7 +98,8 @@ Early development must use a backup or disposable copy until read-only behavior 
 - ResMed AirCurve 10 ASV data already normalized by OSCAR 2.
 - A local web application bound only to the local machine.
 - Python backend, preferably FastAPI with explicit request and response models.
-- A browser-based interface focused on experiments and supporting evidence.
+- A browser-based interface focused on general PAP analysis, with experiments and supporting evidence as an optional workflow.
+- Recent-night summaries, longitudinal trends, night-by-night drill-down, waveform/event inspection, and explicit signal-quality or missing-data explanations.
 - Read-only OSCAR adapter.
 - Deterministic metrics and before-and-after comparisons.
 - Append-only experiment history.
@@ -113,6 +118,14 @@ Early development must use a backup or disposable copy until read-only behavior 
 - Support for additional PAP machines, modes, or profiles.
 - Formal regulatory, clinical, and legal review for distribution.
 - Open-source governance, licensing strategy, business model, final branding, and external name clearance.
+
+### 4.1 Generic analysis workspace contract
+
+The product-level engine record is the versioned `pap-pilot.analysis-workspace`, containing generic therapy-night summaries, longitudinal trend series, evidence records, logical resources, complete source/provenance inventories, and optional experiment references. Every workspace, night, trend point, evidence item, resource, and experiment reference has an explicit `available`, `partial`, `unavailable`, or `not_evaluable` state as applicable; missing data is never imputed or converted to zero.
+
+Logical resource identities are stable and independent from transport: `analysis:overview`, `analysis:nights`, `analysis:night:<night-record-id>`, `analysis:trends`, `analysis:trend:<trend-record-id>`, `analysis:evidence:<evidence-record-id>`, and `analysis:experiment:<experiment-record-id>`. S50 may map those resources to the reserved read-only routes `/api/v1/analysis/overview`, `/api/v1/analysis/nights`, `/api/v1/analysis/nights/{night_record_id}`, `/api/v1/analysis/trends`, `/api/v1/analysis/trends/{trend_record_id}`, `/api/v1/analysis/evidence/{evidence_record_id}`, and `/api/v1/analysis/experiments/{experiment_record_id}` without placing HTTP concerns in the deterministic engine.
+
+An analysis workspace requires no experiment. Existing PS Min endpoints and report contracts remain compatibility surfaces until a later sprint explicitly migrates or removes them; the PS Min retrospective fixture may appear only as an optional `AnalysisExperimentReference` with its fixture identity and limitations preserved. `docs/decisions/0011-generic-analysis-workspace.md` governs the complete version-1 contract.
 
 ---
 
@@ -216,9 +229,9 @@ Corrections create new events that reference the prior record. They do not erase
 
 ---
 
-## 9. First vertical slice: PS Min 2 to PS Min 1
+## 9. Historical first vertical slice: PS Min 2 to PS Min 1
 
-The first milestone is an end-to-end retrospective evaluation of the known PS Min experiment.
+The completed first vertical slice is an end-to-end retrospective evaluation of the known PS Min experiment. It is retained as a validation fixture while the current product direction expands to general PAP analysis.
 
 The prototype must:
 
@@ -275,6 +288,14 @@ These milestones are outcome gates, not a task queue. The current order and stat
 
 **Exit criterion:** The engine produces a reproducible, evidence-linked evaluation without AI.
 
+### Current next milestone: General PAP analysis foundation
+
+- Replace PS Min-specific overview assumptions with generic analysis-workspace contracts.
+- Define the first general analysis views: recent-night summary, longitudinal trend, night detail, waveform/event evidence, signal quality, and explicit missing states.
+- Keep the existing PS Min report and experiment routes working as a compatibility fixture while generic contracts are introduced.
+
+**Exit criterion:** A local user can inspect general PAP records across multiple nights without creating or evaluating a settings experiment, while the PS Min regression fixture remains reproducible.
+
 ### Milestone 4: Local web interface
 
 - Show experiment status, periods, metrics, subjective outcomes, representative waveforms, and final evaluation.
@@ -323,7 +344,7 @@ These decisions should be recorded as short architecture or methodology decision
 
 Use `SPRINTS.md` for the ordered work queue, sprint scope, exclusions, completion checks, and status. Use `STATUS.md` for the current handoff, validation evidence, decisions, and blockers. Update this plan only when the product scope, requirements, safety boundaries, architecture, or milestone gates change.
 
-The deterministic retrospective evaluation must still work end to end before AI integration or broad UI work begins.
+The deterministic retrospective evaluation must still work end to end as a regression fixture. General PAP analysis now takes priority over further PS Min-specific experiment or AI work.
 
 ---
 

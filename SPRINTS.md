@@ -400,7 +400,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: New metric definitions, remote access, device control, and AI-generated interpretation.
 - Done when: The packaged localhost UI renders a generic overview from API responses and preserves honest unavailable/not-evaluable states.
 
-### S52 — Add night detail and waveform evidence views — queued
+### S52 — Add night detail and waveform evidence views — done
 
 - Objective: Let the user inspect one therapy night, its settings/events/signals, bounded waveform excerpts, source links, and quality findings.
 - Excludes: Automatic diagnosis, arbitrary unbounded waveform export, new clinical claims, and settings changes.

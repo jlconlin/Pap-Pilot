@@ -151,8 +151,21 @@ class RetrospectiveLocalWorkspaceTests(unittest.TestCase):
         self.assertTrue(all(len(value["metric_result_ids"]) == 2 for value in analysis_nights))
         self.assertTrue(all(len(value["journal_entry_ids"]) == 1 for value in analysis_nights))
         analysis_night = analysis_night_response.json()["night"]
+        analysis_night_detail = analysis_night_response.json()["detail"]
         quality_evidence = quality_evidence_response.json()["evidence"]
         self.assertEqual(analysis_nights[0]["night_record_id"], analysis_night["night_record_id"])
+        self.assertEqual(analysis_night_detail["night_record_id"], analysis_night["night_record_id"])
+        self.assertEqual(analysis_night_detail["settings_availability"], "available")
+        self.assertEqual(analysis_night_detail["events_availability"], "unavailable")
+        self.assertEqual(analysis_night_detail["events_reason_codes"], ["no_normalized_event_records"])
+        self.assertEqual(analysis_night_detail["signals_availability"], "available")
+        self.assertEqual(analysis_night_detail["quality_availability"], "partial")
+        flow_preview = next(value for value in analysis_night_detail["signals"] if value["signal_kind"] == "flow_rate")
+        self.assertEqual(flow_preview["displayed_sample_count"], 2_000)
+        self.assertEqual(flow_preview["source_sample_count"], 9_000)
+        self.assertEqual(flow_preview["omitted_sample_count"], 7_000)
+        self.assertTrue(any(value["status"] == "insufficient_evidence" and value["impact"] == "block_requested_analysis" for value in analysis_night_detail["quality_findings"]))
+        self.assertTrue(analysis_night_detail["provenance"])
         self.assertEqual(quality_evidence["kind"], "quality")
         self.assertTrue(quality_evidence["source_provenance_ids"])
         self.assertEqual(self.oscar_path.read_bytes(), self.oscar_bytes)
@@ -181,6 +194,17 @@ class RetrospectiveLocalWorkspaceTests(unittest.TestCase):
             self.assertNotIn('id="boundary-correction-form"', rendered)
             self.assertNotIn("undefined", rendered)
             self.assertNotIn("NaN", rendered)
+            night_rendered = self._render_night_with_node(analysis_night_response.content)
+            for heading in ("Therapy sessions", "Observed settings", "Machine-labeled events", "Signal evidence", "Data-quality findings", "Sources and provenance"):
+                self.assertIn(heading, night_rendered)
+            self.assertIn("No normalized event records are available", night_rendered)
+            self.assertIn("2000</strong> displayed samples", night_rendered)
+            self.assertIn("7000</strong> omitted samples", night_rendered)
+            self.assertIn("Insufficient evidence", night_rendered)
+            self.assertIn("Blocks requested analysis", night_rendered)
+            self.assertIn('<polyline class="waveform-line"', night_rendered)
+            self.assertNotIn("undefined", night_rendered)
+            self.assertNotIn("NaN", night_rendered)
 
     def test_effective_history_and_rebuilt_report_persist_across_restart(self) -> None:
         first_application = create_configured_app(self.configuration_path)
@@ -348,6 +372,18 @@ class RetrospectiveLocalWorkspaceTests(unittest.TestCase):
         result = subprocess.run(
             ("node", "--input-type=module", "--eval", program),
             input=json.dumps({"overview": json.loads(overview_payload), "nights": json.loads(nights_payload), "trends": json.loads(trends_payload)}).encode("utf-8"),
+            capture_output=True,
+            check=True,
+        )
+        return result.stdout.decode("utf-8")
+
+    @staticmethod
+    def _render_night_with_node(payload: bytes) -> str:
+        module_uri = files("pap_pilot.ui").joinpath("night.mjs").as_uri()
+        program = f'import {{renderNightDetail}} from {json.dumps(module_uri)}; let source = ""; for await (const chunk of process.stdin) source += chunk; process.stdout.write(renderNightDetail(JSON.parse(source)));'
+        result = subprocess.run(
+            ("node", "--input-type=module", "--eval", program),
+            input=payload,
             capture_output=True,
             check=True,
         )

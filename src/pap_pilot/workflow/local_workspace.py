@@ -16,6 +16,7 @@ from pap_pilot.engine.reports import (
 )
 from pap_pilot.workflow.retrospective import evaluate_selected_oscar_retrospective_experiment
 from pap_pilot.workflow.analysis import compose_analysis_workspace
+from pap_pilot.workflow.night_detail import AnalysisNightDetail, compose_analysis_night_details
 
 
 RETROSPECTIVE_WORKSPACE_CONFIGURATION_FORMAT: Final = "pap-pilot.retrospective-workspace"
@@ -76,6 +77,7 @@ class ConfiguredRetrospectiveWorkspace:
     configuration: RetrospectiveWorkspaceConfiguration
     report: EvaluatedRetrospectiveEvidenceReport
     analysis_workspace: AnalysisWorkspace
+    analysis_night_details: tuple[AnalysisNightDetail, ...]
 
 
 def load_retrospective_workspace(
@@ -145,7 +147,15 @@ def load_retrospective_workspace(
         journal_entries=evaluation.effective_journal_entries,
         experiments=(experiment_reference,),
     )
-    return ConfiguredRetrospectiveWorkspace(configuration, report, analysis_workspace)
+    analysis_night_details = compose_analysis_night_details(
+        evaluation.selected_nights,
+        structural_quality_reports=(
+            *evaluation.allocation_structural_quality_reports,
+            *evaluation.metric_structural_quality_reports,
+        ),
+        signal_quality_reports=evaluation.signal_quality_reports,
+    )
+    return ConfiguredRetrospectiveWorkspace(configuration, report, analysis_workspace, analysis_night_details)
 
 
 def load_retrospective_workspace_configuration(

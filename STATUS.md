@@ -2,16 +2,24 @@
 
 **Updated:** September 10, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S51 completed
-**Next sprint:** S52 — Add night detail and waveform evidence views
+**Current sprint:** None — S52 completed
+**Next sprint:** S53 — Generalize experiment workflows
 
 ## Current state
+
+- S52 adds a rendered `/nights/{night_record_id}` page reached from the general overview. It displays exact normalized session bounds, observed settings, machine-labeled event intervals, generic signal records, existing deterministic quality findings, source-record links, and normalized provenance without requiring or centering an experiment.
+
+- `pap_pilot.workflow.compose_analysis_night_details` creates a versioned `pap-pilot.analysis-night-detail` projection from already-normalized nights and existing structural/signal quality reports. Every signal preview is limited to the first 2,000 exact samples of the first stored segment; source segment/sample counts, omitted counts, selection policy, boundaries, interval closure, sample interval, units, semantics, reason codes, and limitations remain explicit. Samples are never smoothed, interpolated, resampled, carried forward, or joined across gaps.
+
+- Configured startup freezes these detail projections beside the S50 workspace snapshot and adds them to the existing GET-only night resource. Workspace/detail linkage is checked across dates and session, setting, event, signal, and quality-report identifiers before serving. A workspace created without normalized detail inputs returns `night_detail_source_not_configured` for known night summaries rather than fabricating evidence.
+
+- The packaged night renderer keeps populated, unavailable, partial, flagged, insufficient-evidence, and not-applicable states distinct. Uniform waveform samples are connected only within the one selected source segment, sparse timed updates are rendered as points, all API-supplied text is escaped, and evidence links resolve to source/provenance inventories. The page has no form, browser storage, remote dependency, AI interpretation, diagnosis, settings recommendation, OSCAR access, export path, or device action.
 
 - S51 replaces the experiment-first root page with a generic local PAP analysis overview backed by the versioned overview, recent-night, and trend API responses. It presents workspace availability, recent nights and their retained evidence counts, deterministic longitudinal series, data-quality inventory and status counts, workspace limitations, direct links to versioned local resources, and optional experiment references without requiring or centering a settings experiment.
 
 - Trend plots use only supplied numeric metric values in date order. Unavailable and not-evaluable points remain explicit in the point ledger and split the plotted line into gaps rather than becoming zero, interpolated, or connected values. Quality presentation remains a record inventory rather than a synthetic score, retains source reason codes, and preserves partial, unavailable, and not-evaluable states.
 
-- The root page makes three same-origin GET requests and has no form, browser storage, telemetry, remote dependency, AI interpretation, OSCAR access, device action, or waveform/night-detail view. The PS Min summary/history/journal/correction routes and canonical report response remain compatibility APIs; the optional PS Min experiment reference links to its compatibility summary without making it the workspace root. S52, not S51, owns rendered night detail and waveform evidence.
+- The root page makes three same-origin GET requests and links each retained night to the S52 detail page. Neither interface has browser storage, telemetry, a remote dependency, AI interpretation, direct OSCAR access, device action, or an unbounded waveform path. The PS Min summary/history/journal/correction routes and canonical report response remain compatibility APIs; the optional PS Min experiment reference links to its compatibility summary without making it the workspace root.
 
 - S50 adds deterministic `pap_pilot.workflow.compose_analysis_workspace` composition from explicitly selected normalized nights, existing structural/signal quality reports, existing metric results, replayed local journal entries, and optional experiment references. It produces stable generic nights, longitudinal trends, evidence and quality resources, explicit unavailable/not-evaluable states, complete nested provenance, and the same workspace identity regardless of input order; it performs no OSCAR access, cohort discovery, new calculation, AI work, UI work, prospective action, or device interaction.
 
@@ -19,7 +27,7 @@
 
 - S49 establishes `pap_pilot.engine.analysis` as the source-independent product-level contract. Immutable version-1 workspace, night, trend, trend-point, evidence, logical-resource, and optional experiment-reference records preserve explicit availability, stable identities, complete nested provenance, resolvable links, deterministic JSON, and the ability to represent useful PAP analysis with no experiment. `docs/decisions/0011-generic-analysis-workspace.md` defines the reserved generic routes and keeps PS Min only as an optional compatibility fixture; no API route, UI behavior, metric, selection, AI, persistence, device action, or OSCAR access was added.
 
-- Product scope is now broader general PAP analysis, inspired by the AirwayLab-style workflow of recent-night review, longitudinal trends, night drill-down, waveform/event evidence, and signal-quality explanations. The completed PS Min 2-to-1 path remains a regression fixture and example experiment, not the product definition. S49–S51 are complete; S52–S53 remain queued.
+- Product scope is now broader general PAP analysis, inspired by the AirwayLab-style workflow of recent-night review, longitudinal trends, night drill-down, waveform/event evidence, and signal-quality explanations. The completed PS Min 2-to-1 path remains a regression fixture and example experiment, not the product definition. S49–S52 are complete; S53 remains queued.
 
 - S48 records `docs/validation/ai-usefulness-s48.md`: synthetic comparison with the deterministic retrospective fixture found possible bounded explanatory value but no incremental evidence or decision value, so hosted AI remains disabled and recommendation scope is unchanged. Fail-closed authorization, unavailable-provider, malformed-response, and S46 safety-gate behavior remain reproducible.
 
@@ -165,9 +173,14 @@
 
 ## Last completed sprint
 
-S51 — Build the general analysis overview.
+S52 — Add night detail and waveform evidence views.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_night_detail_ui tests.test_overview_ui tests.test_analysis_api tests.test_local_api tests.test_retrospective_local_workspace tests.test_package_imports -v`; all thirty-nine focused S52/composition/API/UI/configuration/package tests passed. Synthetic browser coverage includes populated settings/events/signals, a missing signal, exact 2,000-sample truncation with omitted counts, a flagged large-leak interval, insufficient evidence, impact/measurement/limitation display, source/provenance anchors, escaped text, visible load failure, known/unknown rendered routes, GET-only behavior, an explicit unavailable detail when normalized inputs were not supplied, and rejection of detail/workspace mismatches or an oversized preview.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all 312 tests passed, preserving adapter, normalized-model, quality, metric, experiment, report, API, safety, AI, overview, and PS Min compatibility regressions.
+- Rebuilt and installed the package with `.venv/bin/python -m pip install --force-reinstall --no-deps --no-build-isolation .`, then ran `tests.test_night_detail_ui`, `tests.test_overview_ui`, `tests.test_analysis_api`, `tests.test_retrospective_local_workspace`, and `tests.test_package_imports` without `PYTHONPATH`; all twenty-nine tests passed against the installed wheel and packaged HTML/CSS/JavaScript assets.
+- The disposable-workspace browser test rebuilt six selected schema-17 synthetic OSCAR nights through configured startup, rendered a selected night with six settings, three available signals, explicit absent events, partial quality evidence, source/provenance inventories, two 2,000-sample waveform previews, and exact 7,000-sample omission counts, then verified the protected OSCAR fixture bytes were unchanged. Python compilation, JavaScript syntax checks, `git diff --check`, dependency/scope inspection, and PS Min coupling inspection passed. No live/private OSCAR database, therapy data, credential, hosted service, or device interface was accessed; `Plan.md` remains unchanged because S52 implements its already accepted night-detail scope without changing product requirements, safety boundaries, architecture, or milestone gates.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_local_api tests.test_analysis_api tests.test_overview_ui tests.test_retrospective_local_workspace -q`; all thirty focused generic API, local asset, overview-rendering, compatibility, and protected configured-workspace tests passed. The UI coverage includes populated and unconfigured API responses, recent-first night summaries, two deterministic trend states, a plotted gap across a not-evaluable point, explicit unavailable/not-evaluable point ledgers, quality reason codes, optional experiment links, escaped API text, and visible load failure.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all 304 tests passed, preserving adapter, normalized-model, quality, metric, experiment, report, API, safety, AI, and PS Min compatibility regressions.
@@ -607,10 +620,10 @@ S51 — Build the general analysis overview.
 
 ## Blockers
 
-- S51 is complete and S52 is queued. Hosted transmission remains intentionally blocked; the generic overview does not authorize AI transmission or weaken decision 0010.
+- S52 is complete and S53 is queued. Hosted transmission remains intentionally blocked; the generic overview and night-detail view do not authorize AI transmission or weaken decision 0010.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
-- S37E's bounded experiment-report excerpts remain available through the PS Min compatibility API, while S51 deliberately removes the experiment waveform renderer from the product-level root. S52 must build generic night-detail and waveform evidence views without filling a source gap or inferring a missing signal.
+- S37E's explicitly selected experiment-report excerpts remain available through the PS Min compatibility API. S52 separately adds generic per-night previews chosen by a fixed display-only rule; neither path fills a source gap or infers a missing signal, and arbitrary waveform exploration/export remains outside the prototype.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -624,5 +637,5 @@ S51 — Build the general analysis overview.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. S51 is complete; begin only S52, add generic night-detail and bounded waveform-evidence views without starting S53 experiment generalization, and preserve explicit missing/poor-quality states, PS Min compatibility behavior, read-only OSCAR access, and decision 0010 consent boundary.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. S52 is complete; begin only S53, generalize experiment records, metric selection, comparison periods, and safety-policy dispatch while retaining PS Min as one supported example, without expanding the prospective safety allowlist, enabling automatic recommendations or AI, or adding device control.
 ```

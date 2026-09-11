@@ -31,7 +31,7 @@ curl http://127.0.0.1:8765/api/v1/health
 
 Without a workspace configuration, the browser shows an explicit unavailable analysis workspace with the reason `analysis_workspace_not_configured`. PAP Pilot does not automatically locate or import OSCAR data, so an unconfigured dashboard must not be mistaken for an empty therapy history.
 
-With a configured workspace, the landing page shows recent therapy nights, deterministic longitudinal trends, retained data-quality records, workspace limitations, and links to available local analysis resources. Missing and not-evaluable values remain visible and are never plotted as zero. Experiments appear only as optional linked workflows.
+With a configured workspace, the landing page shows recent therapy nights, deterministic longitudinal trends, retained data-quality records, workspace limitations, and links to available local analysis resources. Open a night to inspect its sessions, observed settings, machine-labeled events, signal evidence, quality findings, and source links. Waveform views are limited to 2,000 exact samples from the first stored segment and explicitly disclose omitted samples; missing and not-evaluable values remain visible and are never plotted as zero. Experiments appear only as optional linked workflows.
 
 The legacy synthetic PS Min report and its local append-only history remain available through the compatibility API under `/api/v1/experiments/ps-min-2-to-1/*`. That fixture is useful for regression checks, but it is not your OSCAR data. If its history routes are used, the local ledger is stored in `pap_pilot.sqlite3` in the directory from which the command is started.
 

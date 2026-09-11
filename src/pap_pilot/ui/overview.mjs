@@ -358,7 +358,7 @@ function plural(count, singular, pluralForm = `${singular}s`) {
 }
 
 function nightUrl(identifier) {
-  return `/api/v1/analysis/nights/${encodeURIComponent(identifier)}`;
+  return `/nights/${encodeURIComponent(identifier)}`;
 }
 
 function trendUrl(identifier) {

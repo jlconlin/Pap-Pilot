@@ -4,7 +4,7 @@ from importlib.resources import files
 from typing import Final
 
 
-OVERVIEW_ASSET_NAMES: Final = frozenset({"overview.css", "overview.html", "overview.mjs"})
+OVERVIEW_ASSET_NAMES: Final = frozenset({"night.html", "night.mjs", "overview.css", "overview.html", "overview.mjs"})
 
 
 def load_overview_asset(name: str) -> str:

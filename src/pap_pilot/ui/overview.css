@@ -771,6 +771,429 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.back-link {
+  display: inline-block;
+  margin-bottom: 34px;
+  color: var(--mint);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.back-link:hover,
+.back-link:focus-visible {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.detail-hero h1 {
+  font-size: clamp(3rem, 7vw, 6.3rem);
+}
+
+.detail-summary {
+  padding-top: 6px;
+}
+
+.session-grid,
+.source-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.session-card h3,
+.source-columns h3,
+.event-card h3,
+.signal-card h3,
+.finding-card h3 {
+  margin: 7px 0 5px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.28rem;
+  font-weight: 400;
+}
+
+.card-row,
+.signal-heading,
+.finding-heading,
+.event-card {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.detail-list {
+  display: grid;
+  gap: 0;
+  margin: 22px 0 0;
+}
+
+.detail-list > div {
+  display: grid;
+  grid-template-columns: minmax(85px, 0.35fr) minmax(0, 1fr);
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.detail-list dt,
+.detail-list dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.detail-list dt {
+  color: var(--faint);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.table-card {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th,
+td {
+  min-width: 130px;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.72rem;
+  vertical-align: top;
+}
+
+thead th {
+  color: var(--faint);
+  font-size: 0.63rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+tbody th,
+.value-cell {
+  color: var(--ink);
+}
+
+.value-cell {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1rem;
+}
+
+.value-cell span {
+  color: var(--muted);
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 0.68rem;
+}
+
+tbody tr:last-child th,
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.event-list,
+.finding-list {
+  display: grid;
+  gap: 10px;
+}
+
+.event-card {
+  align-items: center;
+  padding: 18px 20px;
+}
+
+.event-card p,
+.finding-scope,
+.finding-interval,
+.preview-policy,
+.source-inventory,
+.provenance-inventory {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.event-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.event-evidence strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.15rem;
+  font-weight: 400;
+}
+
+.signal-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.signal-card,
+.finding-card {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.13);
+}
+
+.signal-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.waveform-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.waveform-line {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke: var(--mint);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.timed-update-point {
+  fill: var(--base);
+  vector-effect: non-scaling-stroke;
+  stroke: var(--blue);
+  stroke-width: 2;
+}
+
+.signal-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.signal-facts span {
+  display: grid;
+  gap: 4px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+  color: var(--faint);
+  font-size: 0.62rem;
+}
+
+.signal-facts strong {
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.15rem;
+  font-weight: 400;
+}
+
+.preview-policy {
+  margin-bottom: 14px;
+  color: var(--blue);
+  overflow-wrap: anywhere;
+}
+
+.source-links {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.source-links summary {
+  padding-top: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.68rem;
+}
+
+.source-links div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  padding-top: 10px;
+}
+
+.source-links span {
+  width: 100%;
+  color: var(--faint);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.source-links a {
+  color: var(--blue);
+  font-size: 0.64rem;
+  overflow-wrap: anywhere;
+}
+
+.finding-card {
+  border-left-width: 3px;
+}
+
+.finding-flagged {
+  border-left-color: var(--danger);
+}
+
+.finding-insufficient-evidence {
+  border-left-color: var(--amber);
+}
+
+.finding-pass,
+.finding-not-applicable {
+  border-left-color: rgba(102, 211, 179, 0.4);
+}
+
+.finding-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.quality-chip,
+.impact-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 0.61rem;
+  font-weight: 720;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.quality-pass {
+  border-color: rgba(102, 211, 179, 0.35);
+  color: var(--mint);
+  background: var(--mint-soft);
+}
+
+.quality-flagged {
+  border-color: rgba(237, 142, 121, 0.38);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.quality-insufficient-evidence,
+.quality-not-applicable {
+  border-color: rgba(224, 174, 99, 0.34);
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.finding-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.finding-values > div {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.finding-values h4 {
+  margin: 0 0 9px;
+  color: var(--faint);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.finding-values dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.finding-values dl div {
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.finding-values dt,
+.finding-values dd {
+  margin: 0;
+}
+
+.finding-values dd {
+  color: var(--ink);
+  text-align: right;
+}
+
+.finding-card .evidence-list {
+  margin-top: 14px;
+}
+
+.source-columns > article {
+  min-width: 0;
+}
+
+.source-inventory,
+.provenance-inventory {
+  display: grid;
+  gap: 9px;
+  margin: 18px 0 0;
+  padding-left: 22px;
+}
+
+.source-inventory li,
+.provenance-inventory > li {
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+  scroll-margin-top: 16px;
+}
+
+.provenance-inventory p {
+  margin: 5px 0 0;
+}
+
+.provenance-inventory ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--faint);
+  font-size: 0.67rem;
+}
+
+.error-back {
+  width: fit-content;
+}
+
 .loading-panel,
 .error-panel {
   max-width: 800px;
@@ -831,7 +1254,8 @@ h1 {
 @media (max-width: 940px) {
   .hero,
   .section-heading,
-  .trend-grid {
+  .trend-grid,
+  .source-columns {
     grid-template-columns: 1fr;
   }
 
@@ -883,7 +1307,9 @@ h1 {
   .summary-grid,
   .night-card,
   .quality-item,
-  .path-grid {
+  .path-grid,
+  .session-grid,
+  .finding-values {
     grid-template-columns: 1fr;
   }
 
@@ -925,6 +1351,23 @@ h1 {
 
   .report-footer {
     flex-direction: column;
+  }
+
+  .card-row,
+  .signal-heading,
+  .finding-heading,
+  .event-card {
+    flex-direction: column;
+  }
+
+  .event-evidence,
+  .finding-badges {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .signal-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

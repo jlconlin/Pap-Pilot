@@ -25,7 +25,16 @@ from pap_pilot.engine.reports import (
     serialize_retrospective_evidence_report,
 )
 from pap_pilot.ui import load_overview_asset
-from pap_pilot.workflow import load_retrospective_workspace, unavailable_analysis_workspace
+from pap_pilot.workflow import (
+    ANALYSIS_NIGHT_DETAIL_RECORD_VERSION,
+    ANALYSIS_NIGHT_DETAIL_SCHEMA_ID,
+    ANALYSIS_NIGHT_DETAIL_SCHEMA_VERSION,
+    ANALYSIS_NIGHT_SIGNAL_PREVIEW_MAX_SAMPLES,
+    AnalysisNightDetail,
+    load_retrospective_workspace,
+    unavailable_analysis_night_detail,
+    unavailable_analysis_workspace,
+)
 
 
 LOCAL_API_VERSION: Final = 1
@@ -46,8 +55,10 @@ PS_MIN_EXPERIMENT_HISTORY_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/histo
 PS_MIN_BOUNDARY_CORRECTION_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/boundary-corrections"
 PS_MIN_JOURNAL_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/journal"
 LOCAL_OVERVIEW_PATH: Final = "/"
+LOCAL_NIGHT_DETAIL_PATH: Final = "/nights/{night_record_id}"
 LOCAL_OVERVIEW_STYLES_PATH: Final = "/assets/overview.css"
 LOCAL_OVERVIEW_SCRIPT_PATH: Final = "/assets/overview.mjs"
+LOCAL_NIGHT_DETAIL_SCRIPT_PATH: Final = "/assets/night.mjs"
 _JSON_RESPONSE_HEADERS: Final = {
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
@@ -141,6 +152,7 @@ def create_app(
     *,
     database_path: str | Path | None = None,
     analysis_workspace: AnalysisWorkspace | None = None,
+    analysis_night_details: tuple[AnalysisNightDetail, ...] = (),
 ) -> FastAPI:
     """Create the local API and freeze its deterministic report response bytes."""
 
@@ -151,10 +163,12 @@ def create_app(
     selected_analysis = unavailable_analysis_workspace() if analysis_workspace is None else analysis_workspace
     if not isinstance(selected_analysis, AnalysisWorkspace):
         raise LocalApiConfigurationError("The generic analysis endpoints require an analysis workspace.")
-    analysis_snapshot = _build_analysis_api_snapshot(selected_analysis)
+    analysis_snapshot = _build_analysis_api_snapshot(selected_analysis, analysis_night_details)
     overview_html = load_overview_asset("overview.html")
+    night_html = load_overview_asset("night.html")
     overview_styles = load_overview_asset("overview.css")
     overview_script = load_overview_asset("overview.mjs")
+    night_script = load_overview_asset("night.mjs")
     application = FastAPI(
         title="PAP Pilot local API",
         version=str(LOCAL_API_VERSION),
@@ -265,6 +279,12 @@ def create_app(
     def experiment_overview() -> HTMLResponse:
         return HTMLResponse(content=overview_html, headers=_UI_RESPONSE_HEADERS)
 
+    @application.get(LOCAL_NIGHT_DETAIL_PATH, response_class=HTMLResponse)
+    def night_detail_page(night_record_id: str) -> HTMLResponse:
+        if night_record_id not in analysis_snapshot.night_json_by_id:
+            raise HTTPException(status_code=404, detail="The requested analysis night is not available.")
+        return HTMLResponse(content=night_html, headers=_UI_RESPONSE_HEADERS)
+
     @application.get(LOCAL_OVERVIEW_STYLES_PATH, response_class=Response)
     def experiment_overview_styles() -> Response:
         return Response(content=overview_styles, media_type="text/css", headers=_UI_RESPONSE_HEADERS)
@@ -272,6 +292,10 @@ def create_app(
     @application.get(LOCAL_OVERVIEW_SCRIPT_PATH, response_class=Response)
     def experiment_overview_script() -> Response:
         return Response(content=overview_script, media_type="text/javascript", headers=_UI_RESPONSE_HEADERS)
+
+    @application.get(LOCAL_NIGHT_DETAIL_SCRIPT_PATH, response_class=Response)
+    def night_detail_script() -> Response:
+        return Response(content=night_script, media_type="text/javascript", headers=_UI_RESPONSE_HEADERS)
 
     return application
 
@@ -284,11 +308,39 @@ def create_configured_app(configuration_path: str | Path) -> FastAPI:
         workspace.report,
         database_path=workspace.configuration.experiment_database_path,
         analysis_workspace=workspace.analysis_workspace,
+        analysis_night_details=workspace.analysis_night_details,
     )
 
 
-def _build_analysis_api_snapshot(workspace: AnalysisWorkspace) -> _AnalysisApiSnapshot:
+def _build_analysis_api_snapshot(
+    workspace: AnalysisWorkspace,
+    night_details: tuple[AnalysisNightDetail, ...],
+) -> _AnalysisApiSnapshot:
     resources = {(value.kind, value.target_record_id): value for value in workspace.resources}
+    if type(night_details) is not tuple or any(not isinstance(value, AnalysisNightDetail) for value in night_details):
+        raise LocalApiConfigurationError("Analysis night details must be a tuple of AnalysisNightDetail records.")
+    if len({value.night_record_id for value in night_details}) != len(night_details):
+        raise LocalApiConfigurationError("Analysis night detail identifiers must be unique.")
+    workspace_night_ids = {value.night_record_id for value in workspace.nights}
+    if any(value.night_record_id not in workspace_night_ids for value in night_details):
+        raise LocalApiConfigurationError("Every analysis night detail must resolve to the analysis workspace.")
+    details_by_night = {value.night_record_id: value for value in night_details}
+    summary_by_night = {value.night_record_id: value for value in workspace.nights}
+    for detail in night_details:
+        _validate_analysis_night_detail(detail)
+        summary = summary_by_night[detail.night_record_id]
+        linked_values = (
+            (tuple(value.session_record_id for value in detail.sessions), summary.session_record_ids, "sessions"),
+            (tuple(value.setting_record_id for value in detail.settings), summary.setting_record_ids, "settings"),
+            (tuple(value.event_record_id for value in detail.events), summary.event_record_ids, "events"),
+            (tuple(value.signal_record_id for value in detail.signals), summary.signal_record_ids, "signals"),
+            (detail.quality_report_ids, summary.quality_report_ids, "quality reports"),
+        )
+        if detail.local_date != summary.local_date:
+            raise LocalApiConfigurationError("Every analysis night detail must match its workspace local date.")
+        for actual, expected, label in linked_values:
+            if actual != expected:
+                raise LocalApiConfigurationError(f"Every analysis night detail must exactly match its workspace {label} links.")
 
     def required(kind: AnalysisResourceKind, target_record_id: str) -> AnalysisResource:
         resource = resources.get((kind, target_record_id))
@@ -299,14 +351,16 @@ def _build_analysis_api_snapshot(workspace: AnalysisWorkspace) -> _AnalysisApiSn
     required(AnalysisResourceKind.OVERVIEW, workspace.record_id)
     nights = required(AnalysisResourceKind.NIGHT_COLLECTION, workspace.record_id)
     trends = required(AnalysisResourceKind.TREND_COLLECTION, workspace.record_id)
-    night_json = {
-        value.night_record_id: _serialize_analysis_resource(
+    night_json = {}
+    for value in workspace.nights:
+        detail = details_by_night.get(value.night_record_id)
+        if detail is None:
+            detail = unavailable_analysis_night_detail(value)
+        night_json[value.night_record_id] = _serialize_analysis_night_resource(
             required(AnalysisResourceKind.NIGHT_DETAIL, value.night_record_id),
-            "night",
             value,
+            detail,
         )
-        for value in workspace.nights
-    }
     trend_json = {
         value.record_id: _serialize_analysis_resource(
             required(AnalysisResourceKind.TREND_DETAIL, value.record_id),
@@ -342,12 +396,53 @@ def _build_analysis_api_snapshot(workspace: AnalysisWorkspace) -> _AnalysisApiSn
     )
 
 
+def _validate_analysis_night_detail(detail: AnalysisNightDetail) -> None:
+    if (
+        detail.schema_id != ANALYSIS_NIGHT_DETAIL_SCHEMA_ID
+        or detail.schema_version != ANALYSIS_NIGHT_DETAIL_SCHEMA_VERSION
+        or detail.record_version != ANALYSIS_NIGHT_DETAIL_RECORD_VERSION
+        or detail.record_id != f"analysis-night-detail:{detail.night_record_id}"
+    ):
+        raise LocalApiConfigurationError("The analysis night detail identity or version is unsupported.")
+    source_ids = set(detail.source_record_ids)
+    provenance_ids = set(detail.source_provenance_ids)
+    linked_records = (*detail.sessions, *detail.settings, *detail.events, *detail.signals, *detail.quality_findings)
+    if any(not set(value.source_record_ids).issubset(source_ids) for value in linked_records):
+        raise LocalApiConfigurationError("Every night-detail source link must resolve within its source inventory.")
+    if any(not set(value.source_provenance_ids).issubset(provenance_ids) for value in linked_records):
+        raise LocalApiConfigurationError("Every night-detail provenance link must resolve within its provenance inventory.")
+    for signal in detail.signals:
+        sample_count = len(signal.values)
+        if (
+            len(signal.sample_times_ms) != sample_count
+            or signal.displayed_sample_count != sample_count
+            or sample_count > ANALYSIS_NIGHT_SIGNAL_PREVIEW_MAX_SAMPLES
+            or signal.source_sample_count - sample_count != signal.omitted_sample_count
+        ):
+            raise LocalApiConfigurationError("Every signal preview must obey the bounded sample-count contract.")
+
+
 def _serialize_analysis_resource(resource: AnalysisResource, field_name: str, value: object) -> str:
     envelope = {
         "format": ANALYSIS_RESOURCE_FORMAT,
         "format_version": ANALYSIS_RESOURCE_FORMAT_VERSION,
         "resource": _analysis_json_value(asdict(resource)),
         field_name: _analysis_json_value(asdict(value) if hasattr(value, "__dataclass_fields__") else value),
+    }
+    return json.dumps(envelope, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
+
+
+def _serialize_analysis_night_resource(
+    resource: AnalysisResource,
+    night: object,
+    detail: AnalysisNightDetail,
+) -> str:
+    envelope = {
+        "format": ANALYSIS_RESOURCE_FORMAT,
+        "format_version": ANALYSIS_RESOURCE_FORMAT_VERSION,
+        "resource": _analysis_json_value(asdict(resource)),
+        "night": _analysis_json_value(asdict(night)),
+        "detail": _analysis_json_value(asdict(detail)),
     }
     return json.dumps(envelope, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
 

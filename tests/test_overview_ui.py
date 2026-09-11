@@ -14,6 +14,8 @@ from pap_pilot.api import (
     ANALYSIS_NIGHTS_PATH,
     ANALYSIS_OVERVIEW_PATH,
     ANALYSIS_TRENDS_PATH,
+    LOCAL_NIGHT_DETAIL_PATH,
+    LOCAL_NIGHT_DETAIL_SCRIPT_PATH,
     LOCAL_OVERVIEW_PATH,
     LOCAL_OVERVIEW_SCRIPT_PATH,
     LOCAL_OVERVIEW_STYLES_PATH,
@@ -65,7 +67,7 @@ class GeneralAnalysisOverviewTests(unittest.TestCase):
         self.assertNotIn("<form", combined)
         self.assertNotIn("<canvas", combined)
 
-    def test_ui_surface_is_exactly_three_get_routes(self) -> None:
+    def test_ui_surface_is_exactly_five_get_routes(self) -> None:
         application = create_app()
         routes = {(route.path, frozenset(route.methods)) for route in application.routes if isinstance(route, APIRoute) and not route.path.startswith("/api/")}
 
@@ -73,6 +75,8 @@ class GeneralAnalysisOverviewTests(unittest.TestCase):
             routes,
             {
                 (LOCAL_OVERVIEW_PATH, frozenset({"GET"})),
+                (LOCAL_NIGHT_DETAIL_PATH, frozenset({"GET"})),
+                (LOCAL_NIGHT_DETAIL_SCRIPT_PATH, frozenset({"GET"})),
                 (LOCAL_OVERVIEW_STYLES_PATH, frozenset({"GET"})),
                 (LOCAL_OVERVIEW_SCRIPT_PATH, frozenset({"GET"})),
             },
@@ -101,6 +105,7 @@ class GeneralAnalysisOverviewTests(unittest.TestCase):
         self.assertIn("metric_input_missing", rendered)
         self.assertIn("Not evaluable", rendered)
         self.assertIn("Unavailable", rendered)
+        self.assertIn('/nights/night%3Anew', rendered)
         self.assertEqual(rendered.count('<svg class="trend-chart"'), 1)
         self.assertEqual(rendered.count("<circle "), 3)
         self.assertEqual(rendered.count('<path class="trend-line"'), 1)
@@ -158,7 +163,7 @@ class GeneralAnalysisOverviewTests(unittest.TestCase):
         self.assertNotIn("<b>offline</b>", error)
 
     def test_asset_loader_is_allowlisted(self) -> None:
-        self.assertEqual(OVERVIEW_ASSET_NAMES, frozenset({"overview.css", "overview.html", "overview.mjs"}))
+        self.assertEqual(OVERVIEW_ASSET_NAMES, frozenset({"night.html", "night.mjs", "overview.css", "overview.html", "overview.mjs"}))
         with self.assertRaises(ValueError):
             load_overview_asset("../server.py")
 

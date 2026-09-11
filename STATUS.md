@@ -2,10 +2,16 @@
 
 **Updated:** September 10, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S50 completed
-**Next sprint:** S51 — Build the general analysis overview
+**Current sprint:** None — S51 completed
+**Next sprint:** S52 — Add night detail and waveform evidence views
 
 ## Current state
+
+- S51 replaces the experiment-first root page with a generic local PAP analysis overview backed by the versioned overview, recent-night, and trend API responses. It presents workspace availability, recent nights and their retained evidence counts, deterministic longitudinal series, data-quality inventory and status counts, workspace limitations, direct links to versioned local resources, and optional experiment references without requiring or centering a settings experiment.
+
+- Trend plots use only supplied numeric metric values in date order. Unavailable and not-evaluable points remain explicit in the point ledger and split the plotted line into gaps rather than becoming zero, interpolated, or connected values. Quality presentation remains a record inventory rather than a synthetic score, retains source reason codes, and preserves partial, unavailable, and not-evaluable states.
+
+- The root page makes three same-origin GET requests and has no form, browser storage, telemetry, remote dependency, AI interpretation, OSCAR access, device action, or waveform/night-detail view. The PS Min summary/history/journal/correction routes and canonical report response remain compatibility APIs; the optional PS Min experiment reference links to its compatibility summary without making it the workspace root. S52, not S51, owns rendered night detail and waveform evidence.
 
 - S50 adds deterministic `pap_pilot.workflow.compose_analysis_workspace` composition from explicitly selected normalized nights, existing structural/signal quality reports, existing metric results, replayed local journal entries, and optional experiment references. It produces stable generic nights, longitudinal trends, evidence and quality resources, explicit unavailable/not-evaluable states, complete nested provenance, and the same workspace identity regardless of input order; it performs no OSCAR access, cohort discovery, new calculation, AI work, UI work, prospective action, or device interaction.
 
@@ -13,7 +19,7 @@
 
 - S49 establishes `pap_pilot.engine.analysis` as the source-independent product-level contract. Immutable version-1 workspace, night, trend, trend-point, evidence, logical-resource, and optional experiment-reference records preserve explicit availability, stable identities, complete nested provenance, resolvable links, deterministic JSON, and the ability to represent useful PAP analysis with no experiment. `docs/decisions/0011-generic-analysis-workspace.md` defines the reserved generic routes and keeps PS Min only as an optional compatibility fixture; no API route, UI behavior, metric, selection, AI, persistence, device action, or OSCAR access was added.
 
-- Product scope is now broader general PAP analysis, inspired by the AirwayLab-style workflow of recent-night review, longitudinal trends, night drill-down, waveform/event evidence, and signal-quality explanations. The completed PS Min 2-to-1 path remains a regression fixture and example experiment, not the product definition. S49 and S50 are complete; S51–S53 remain queued.
+- Product scope is now broader general PAP analysis, inspired by the AirwayLab-style workflow of recent-night review, longitudinal trends, night drill-down, waveform/event evidence, and signal-quality explanations. The completed PS Min 2-to-1 path remains a regression fixture and example experiment, not the product definition. S49–S51 are complete; S52–S53 remain queued.
 
 - S48 records `docs/validation/ai-usefulness-s48.md`: synthetic comparison with the deterministic retrospective fixture found possible bounded explanatory value but no incremental evidence or decision value, so hosted AI remains disabled and recommendation scope is unchanged. Fail-closed authorization, unavailable-provider, malformed-response, and S46 safety-gate behavior remain reproducible.
 
@@ -126,14 +132,9 @@
 - `pap_pilot.api` retains the version-1 health and exact canonical S32 summary routes and adds `GET /api/v1/experiments/ps-min-2-to-1/history` plus the single bounded `POST /api/v1/experiments/ps-min-2-to-1/boundary-corrections` mutation. The summary is still built and serialized once when the application is created; only the history routes open the local append-only experiment store, and no route accesses OSCAR, recalculates a metric, issues a classification, or changes a device setting.
 - `LocalApiSettings` accepts only numeric IPv4 or IPv6 loopback addresses and valid ports. The `pap-pilot-api` command has no host override and starts Uvicorn on `127.0.0.1:8765`; wildcard, LAN, hostname, malformed, and out-of-range configurations are rejected by the public settings contract.
 - FastAPI's OpenAPI, Swagger, and ReDoc routes remain disabled. Responses carry `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`; the only mutation route accepts a current boundary event identifier, a corrected application timestamp, and a required note, then appends exactly two user-reported events atomically.
-- `pap_pilot.ui` packages the overview HTML, CSS, and JavaScript module inside the installable wheel. The root page loads only same-origin assets, fetches the summary and local history endpoints, validates both versioned envelopes, escapes every API-supplied string, and has visible report/history failure states that do not estimate missing values.
-- The overview displays the S32 status and report identity, known PS Min 2-to-1 change, both period inventories, both independently defined objective metrics, all four structured subjective outcomes, quality/confounder/adverse-effect report inventories, both representative-interval states, classification and action availability, retained facts, uncertainty, every missing input, limitations, and provenance count.
-- All unavailable medians, changes, and interval bounds render as `Not available`; the evaluation remains `Not evaluable without fabrication`; classification and action render as `Not issued`; and zero counts are labeled as retained nights, observations, or records. The page adds only the S36 boundary-correction form when replay finds a real effective confirmed boundary; the retained S31 fixture has none, so its live view explicitly refuses to invent one.
-- The responsive local-only visual treatment uses semantic sections and tables, system fonts, high-contrast missing-state badges, reduced-motion support, no-store/nosniff headers, a same-origin content-security policy, and a no-referrer policy. `README.md` now identifies the root overview URL, and package-data configuration ensures the three UI assets survive wheel installation.
-- The S35 browser renderer accepts only version-1 explicitly preselected waveform-display records for the canonical baseline and intervention interval slots. An available interval requires positive half-open raw-relative bounds and one to three unique supported signal excerpts; the client has no interval picker, pan/zoom control, search, or automatic-selection path.
-- Supported excerpts are Flow Rate in L/min and Mask Pressure in cm H₂O as uniform waveforms plus Leak in L/min as timed updates. Each excerpt retains its supplied unit, representation, sample times, values, record identifier, and source-record links; uniform samples are connected without smoothing and sparse Leak updates are shown as steps.
-- Rendering is bounded to at most three signal kinds and two thousand paired finite samples per signal. Wrong units, unsupported representations, duplicate kinds, out-of-window or nonincreasing times, unmatched samples, nonfinite values, oversized excerpts, and unplottable ranges fail visibly without drawing an invalid trace or estimating a replacement.
-- Every interval and signal evidence identifier resolves to the displayed report provenance inventory when present; an absent inventory target is labeled unresolved rather than silently linked. The current S32 report still contains two genuinely missing interval slots, so both cards remain visibly unavailable and no SVG is drawn for the retained fixture.
+- `pap_pilot.ui` packages the overview HTML, CSS, and JavaScript module inside the installable wheel. The root page loads only same-origin assets, concurrently fetches the three generic analysis feeds, validates their versioned envelopes and collection kinds, escapes API-supplied text, and has a visible whole-workspace failure state that does not estimate missing values.
+- The responsive local-only visual treatment uses semantic sections and lists, system fonts, high-contrast availability badges, bounded SVG trend plots, reduced-motion support, no-store/nosniff headers, a same-origin content-security policy, and a no-referrer policy. `README.md` explains both the unconfigured state and configured general overview, and package-data configuration retains the three UI assets in the wheel.
+- The earlier S34–S36 PS Min browser surface has been superseded at `/` by the S51 generic overview. Its deterministic experiment report, bounded representative waveform records, append-only history, journal, and correction behavior remain covered behind compatibility APIs and engine tests; generic rendered night and waveform inspection is deliberately deferred to S52.
 - `docs/research/oscar-reference-night-cross-check.md` records explicit passes for settings, session boundaries, event counts, and all three required signals' timing, values, units, display relationships, and Leak semantics on one private reference night.
 - Milestone 1 was accepted on September 1, 2026: required AirCurve 10 ASV sessions, settings, events, Flow Rate, Mask Pressure, and Leak extract reproducibly through the strictly read-only adapter without modifying OSCAR data.
 - `Plan.md` is authoritative: Part I governs the personal prototype and Part II retains deferred future-product requirements.
@@ -164,9 +165,13 @@
 
 ## Last completed sprint
 
-S50 — Add generic analysis API composition.
+S51 — Build the general analysis overview.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_local_api tests.test_analysis_api tests.test_overview_ui tests.test_retrospective_local_workspace -q`; all thirty focused generic API, local asset, overview-rendering, compatibility, and protected configured-workspace tests passed. The UI coverage includes populated and unconfigured API responses, recent-first night summaries, two deterministic trend states, a plotted gap across a not-evaluable point, explicit unavailable/not-evaluable point ledgers, quality reason codes, optional experiment links, escaped API text, and visible load failure.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all 304 tests passed, preserving adapter, normalized-model, quality, metric, experiment, report, API, safety, AI, and PS Min compatibility regressions.
+- Built a wheel with `.venv/bin/python -m pip wheel . --no-deps --no-build-isolation`, installed it into an isolated temporary target, and ran `tests.test_overview_ui`, `tests.test_local_api`, and `tests.test_analysis_api` against that installed package; all twenty-six tests passed and `importlib.resources` loaded the packaged HTML, CSS, and JavaScript exactly. `node --check`, `git diff --check`, README review, and scope review passed. Validation used only synthetic fixtures and temporary databases; no live/private OSCAR data, hosted service, credential, or device interface was accessed. `Plan.md` remains unchanged because S51 implements its accepted general-overview scope without changing product requirements, safety boundaries, architecture, or milestone gates.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_analysis_api tests.test_analysis_workspace tests.test_local_api tests.test_retrospective_local_workspace tests.test_package_imports -v`; all thirty-one focused composition, API, configured-workspace, contract, compatibility, and package tests passed. They cover experiment-free generic analysis, deterministic order-independent composition, recent-first nights, trend/night/evidence/quality/optional-experiment resource resolution, known and unconfigured missing states, complete provenance, frozen response snapshots, GET-only generic routes, configured normalized-data/local-journal composition, and byte-for-byte unchanged PS Min summary behavior.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 307 tests passed, preserving every existing adapter, normalized-model, quality, metric, experiment, report, API, UI, safety, AI, and PS Min regression.
@@ -602,10 +607,10 @@ S50 — Add generic analysis API composition.
 
 ## Blockers
 
-- S50 is complete and S51 is queued. Hosted transmission remains intentionally blocked; the generic API does not authorize AI transmission or weaken decision 0010.
+- S51 is complete and S52 is queued. Hosted transmission remains intentionally blocked; the generic overview does not authorize AI transmission or weaken decision 0010.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
-- S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
+- S37E's bounded experiment-report excerpts remain available through the PS Min compatibility API, while S51 deliberately removes the experiment waveform renderer from the product-level root. S52 must build generic night-detail and waveform evidence views without filling a source gap or inferring a missing signal.
 - Milestone 1 is accepted; its reference-night result is deliberately limited to one device/night and does not substitute OSCAR summaries for PAP Pilot's later independent analysis.
 - S17 retains one safe synthetic reference-night fixture and exact expected normalized output. It guards mapping stability only and deliberately does not define quality classifications, metrics, clinical meaning, or experiment suitability.
 - S18 defines quality rule set version 1; S19 implements its structural findings and S20 implements its signal findings. No metric, experiment classification, persistence, UI, or AI behavior is included in those quality sprints.
@@ -619,5 +624,5 @@ S50 — Add generic analysis API composition.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. S50 is complete; begin only S51, build the general analysis overview without starting S52 night-detail/waveform UI work, and preserve explicit missing states, the PS Min compatibility behavior, and decision 0010 consent boundary.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. S51 is complete; begin only S52, add generic night-detail and bounded waveform-evidence views without starting S53 experiment generalization, and preserve explicit missing/poor-quality states, PS Min compatibility behavior, read-only OSCAR access, and decision 0010 consent boundary.
 ```

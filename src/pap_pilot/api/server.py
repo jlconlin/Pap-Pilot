@@ -490,7 +490,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     parser = argparse.ArgumentParser(
         prog="pap-pilot-api",
-        description="Serve the local PAP Pilot retrospective overview.",
+        description="Serve the local PAP Pilot analysis workspace.",
     )
     parser.add_argument(
         "--workspace-config",

@@ -158,43 +158,27 @@ class RetrospectiveLocalWorkspaceTests(unittest.TestCase):
         self.assertEqual(self.oscar_path.read_bytes(), self.oscar_bytes)
 
         if shutil.which("node"):
-            rendered = self._render_with_node(summary_response.content)
-            rendered_history = self._render_history_with_node(history_response.content)
+            rendered = self._render_with_node(
+                analysis_overview_response.content,
+                analysis_nights_response.content,
+                analysis_trends_response.content,
+            )
             for heading in (
-                "Comparison periods",
-                "Objective metrics",
-                "Subjective outcomes",
-                "Evidence reports",
-                "Representative intervals",
-                "Evaluation",
+                "Recent nights",
+                "Longitudinal patterns",
+                "Data quality",
+                "Available analysis paths",
                 "Evidence boundaries",
-                "Missing inputs",
-                "Limitations",
             ):
                 self.assertIn(heading, rendered)
-            self.assertEqual(rendered.count('<svg class="waveform-chart'), 4)
-            self.assertEqual(rendered.count("This signal excerpt was not supplied and no trace was inferred."), 2)
-            self.assertIn("The evaluated record retains the user-confirmed application boundary", rendered)
-            self.assertIn("No required report inputs are missing.", rendered)
-            self.assertIn("Clear Improvement", rendered)
-            self.assertIn("Keep", rendered)
-            for label in (
-                "Mean Mask Pressure above EPAP",
-                "Minute ventilation upper-tail ratio",
-                "Remembered awakenings",
-                "Sleep quality",
-                "Morning energy",
-                "Daytime tiredness",
-                "Quality reports",
-                "Confounder reports",
-                "Adverse-effect reports",
-            ):
+            self.assertEqual(rendered.count('<svg class="trend-chart'), 2)
+            self.assertEqual(rendered.count('class="night-card"'), 6)
+            self.assertIn("Experiments are optional", rendered)
+            self.assertIn("PS Min 2 to 1 retrospective compatibility experiment", rendered)
+            self.assertIn("Open compatibility report", rendered)
+            for label in ("Mean Mask Pressure above EPAP", "Minute ventilation upper-tail ratio", "Structural data quality", "Signal data quality"):
                 self.assertIn(label, rendered)
-            self.assertIn('id="boundary-correction-form"', rendered_history)
-            self.assertEqual(
-                rendered_history.count('<li class="history-event '),
-                len(history_response.json()["history"]),
-            )
+            self.assertNotIn('id="boundary-correction-form"', rendered)
             self.assertNotIn("undefined", rendered)
             self.assertNotIn("NaN", rendered)
 
@@ -358,24 +342,12 @@ class RetrospectiveLocalWorkspaceTests(unittest.TestCase):
         self.configuration_path.write_text(json.dumps(value), encoding="utf-8")
 
     @staticmethod
-    def _render_with_node(payload: bytes) -> str:
+    def _render_with_node(overview_payload: bytes, nights_payload: bytes, trends_payload: bytes) -> str:
         module_uri = files("pap_pilot.ui").joinpath("overview.mjs").as_uri()
-        program = f'import {{renderOverview}} from {json.dumps(module_uri)}; let source = ""; for await (const chunk of process.stdin) source += chunk; process.stdout.write(renderOverview(JSON.parse(source)));'
+        program = f'import {{renderOverview}} from {json.dumps(module_uri)}; let source = ""; for await (const chunk of process.stdin) source += chunk; const payload = JSON.parse(source); process.stdout.write(renderOverview(payload.overview, payload.nights, payload.trends));'
         result = subprocess.run(
             ("node", "--input-type=module", "--eval", program),
-            input=payload,
-            capture_output=True,
-            check=True,
-        )
-        return result.stdout.decode("utf-8")
-
-    @staticmethod
-    def _render_history_with_node(payload: bytes) -> str:
-        module_uri = files("pap_pilot.ui").joinpath("overview.mjs").as_uri()
-        program = f'import {{renderExperimentHistory}} from {json.dumps(module_uri)}; let source = ""; for await (const chunk of process.stdin) source += chunk; process.stdout.write(renderExperimentHistory(JSON.parse(source)));'
-        result = subprocess.run(
-            ("node", "--input-type=module", "--eval", program),
-            input=payload,
+            input=json.dumps({"overview": json.loads(overview_payload), "nights": json.loads(nights_payload), "trends": json.loads(trends_payload)}).encode("utf-8"),
             capture_output=True,
             check=True,
         )

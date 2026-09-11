@@ -29,9 +29,11 @@ curl http://127.0.0.1:8765/api/v1/health
 
 ## What the default run shows
 
-Without a workspace configuration, PAP Pilot loads a retained synthetic retrospective fixture. It is useful for checking the interface and report states, but it is not your OSCAR data and it does not automatically import anything. The local experiment history is stored in `pap_pilot.sqlite3` in the directory from which the command is started.
+Without a workspace configuration, the browser shows an explicit unavailable analysis workspace with the reason `analysis_workspace_not_configured`. PAP Pilot does not automatically locate or import OSCAR data, so an unconfigured dashboard must not be mistaken for an empty therapy history.
 
-The currently implemented browser overview can show experiment findings, evidence coverage, monitoring state, journal history, provenance, and explicit missing or not-evaluable states. The generic read-only API now exposes recent-night, trend, night-detail, evidence, quality, and optional experiment resources; the next UI sprint will replace the experiment-first landing view with those general views. Missing evidence is reported rather than silently inferred.
+With a configured workspace, the landing page shows recent therapy nights, deterministic longitudinal trends, retained data-quality records, workspace limitations, and links to available local analysis resources. Missing and not-evaluable values remain visible and are never plotted as zero. Experiments appear only as optional linked workflows.
+
+The legacy synthetic PS Min report and its local append-only history remain available through the compatibility API under `/api/v1/experiments/ps-min-2-to-1/*`. That fixture is useful for regression checks, but it is not your OSCAR data. If its history routes are used, the local ledger is stored in `pap_pilot.sqlite3` in the directory from which the command is started.
 
 ## Generic read-only API
 

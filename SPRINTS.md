@@ -394,7 +394,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: New waveform algorithms, automatic cohort discovery, AI, and prospective settings actions.
 - Done when: Focused API tests prove generic responses, explicit missing states, provenance, and unchanged PS Min compatibility behavior.
 
-### S51 — Build the general analysis overview — queued
+### S51 — Build the general analysis overview — done
 
 - Objective: Replace the experiment-first landing view with a local overview of recent nights, longitudinal patterns, data quality, and available analysis paths.
 - Excludes: New metric definitions, remote access, device control, and AI-generated interpretation.

@@ -1,9 +1,8 @@
-"""Focused browser-asset and rendering tests for the experiment overview."""
+"""Focused browser-asset and rendering tests for the general analysis overview."""
 
 from html import unescape
 from importlib.resources import files
 import json
-import re
 import shutil
 import subprocess
 import unittest
@@ -12,17 +11,19 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from pap_pilot.api import (
+    ANALYSIS_NIGHTS_PATH,
+    ANALYSIS_OVERVIEW_PATH,
+    ANALYSIS_TRENDS_PATH,
     LOCAL_OVERVIEW_PATH,
     LOCAL_OVERVIEW_SCRIPT_PATH,
     LOCAL_OVERVIEW_STYLES_PATH,
-    PS_MIN_EXPERIMENT_SUMMARY_PATH,
     create_app,
 )
 from pap_pilot.ui import OVERVIEW_ASSET_NAMES, load_overview_asset
 
 
-class ExperimentOverviewTests(unittest.TestCase):
-    """Verify the overview is local and exposes only the bounded correction form."""
+class GeneralAnalysisOverviewTests(unittest.TestCase):
+    """Verify that the landing page is generic, local, and honest about missing data."""
 
     def test_overview_shell_and_assets_are_served_locally(self) -> None:
         with TestClient(create_app()) as client:
@@ -45,7 +46,7 @@ class ExperimentOverviewTests(unittest.TestCase):
             self.assertEqual(response.headers["referrer-policy"], "no-referrer")
             self.assertIn("connect-src 'self'", response.headers["content-security-policy"])
 
-    def test_shell_loads_only_local_assets_and_contains_only_the_bounded_correction_surface(self) -> None:
+    def test_shell_loads_only_local_assets_and_generic_analysis_feeds(self) -> None:
         shell = load_overview_asset("overview.html")
         script = load_overview_asset("overview.mjs")
         combined = f"{shell}\n{script}".lower()
@@ -53,15 +54,15 @@ class ExperimentOverviewTests(unittest.TestCase):
         self.assertIn('id="overview"', shell)
         self.assertIn('href="/assets/overview.css"', shell)
         self.assertIn('src="/assets/overview.mjs"', shell)
-        self.assertIn("/api/v1/experiments/ps-min-2-to-1/summary", script)
+        for endpoint in (ANALYSIS_OVERVIEW_PATH, ANALYSIS_NIGHTS_PATH, ANALYSIS_TRENDS_PATH):
+            self.assertIn(endpoint, script)
+        self.assertIn("Promise.all", script)
+        self.assertIn("general pap analysis", combined)
+        self.assertIn("missing values shown as gaps", script)
         self.assertNotIn("http://", combined)
         self.assertNotIn("https://", combined)
-        self.assertIn("display_contract_version", script)
-        self.assertIn("<svg", script)
-        self.assertIn("boundary-corrections", script)
-        self.assertIn("<form", script)
-        self.assertIn("<textarea", script)
-        self.assertNotIn("<select", combined)
+        self.assertNotIn("boundary-corrections", script)
+        self.assertNotIn("<form", combined)
         self.assertNotIn("<canvas", combined)
 
     def test_ui_surface_is_exactly_three_get_routes(self) -> None:
@@ -78,167 +79,83 @@ class ExperimentOverviewTests(unittest.TestCase):
         )
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is required for the focused browser-renderer check.")
-    def test_api_report_renders_every_required_overview_section_and_missing_state(self) -> None:
-        with TestClient(create_app()) as client:
-            response = client.get(PS_MIN_EXPERIMENT_SUMMARY_PATH)
-        report = response.json()["report"]
-        rendered = unescape(self._render_with_node(response.content))
+    def test_generic_responses_render_recent_nights_trends_quality_and_paths(self) -> None:
+        payload = self._populated_payload()
+        rendered = unescape(self._render_with_node(payload))
 
-        self.assertIn(report["title"], rendered)
-        self.assertIn(report["record_id"], rendered)
-        self.assertIn("Not evaluable without fabrication", rendered)
-        self.assertIn("Known setting change", rendered)
-        self.assertIn("2<span>cm H₂O", rendered)
-        self.assertIn("1<span>cm H₂O", rendered)
-        for heading in ("Comparison periods", "Objective metrics", "Subjective outcomes", "Evidence reports", "Representative intervals", "Evaluation", "Evidence boundaries", "Missing inputs", "Limitations"):
+        self.assertIn("PAP analysis", rendered)
+        self.assertIn("Experiments are optional", rendered)
+        for heading in ("Recent nights", "Longitudinal patterns", "Data quality", "Available analysis paths", "Evidence boundaries"):
             with self.subTest(heading=heading):
                 self.assertIn(heading, rendered)
-        for label in ("Mean Mask Pressure above EPAP", "Minute ventilation upper-tail ratio", "Remembered awakenings", "Sleep quality", "Morning energy", "Daytime tiredness", "Quality reports", "Confounder reports", "Adverse-effect reports"):
-            with self.subTest(label=label):
-                self.assertIn(label, rendered)
-        for period in report["periods"]:
-            self.assertIn(f"{period['night_count']}</div><p class=\"count-label\">retained nights", rendered)
-            self.assertIn(period["reason_codes"][0], rendered)
-        for statement in (*report["uncertainty"], *report["limitations"]):
-            self.assertIn(statement, rendered)
-        for missing_input in report["missing_inputs"]:
-            self.assertIn(missing_input["description"], rendered)
-        self.assertGreaterEqual(rendered.count("Not available"), 10)
-        self.assertGreaterEqual(rendered.count("Not issued"), 3)
+        for date in ("2026-09-09", "2026-09-08", "2026-09-07", "2026-09-06"):
+            self.assertIn(date, rendered)
+        self.assertIn("Mean Mask Pressure above EPAP", rendered)
+        self.assertIn("Minute ventilation upper-tail ratio", rendered)
+        self.assertIn("Structural data quality", rendered)
+        self.assertIn("Signal data quality", rendered)
+        self.assertIn("Optional comparison", rendered)
+        self.assertIn("Open compatibility report", rendered)
+        self.assertIn("analysis_workspace_not_complete", rendered)
+        self.assertIn("wake_prerequisite_missing", rendered)
+        self.assertIn("metric_input_missing", rendered)
+        self.assertIn("Not evaluable", rendered)
+        self.assertIn("Unavailable", rendered)
+        self.assertEqual(rendered.count('<svg class="trend-chart"'), 1)
+        self.assertEqual(rendered.count("<circle "), 3)
+        self.assertEqual(rendered.count('<path class="trend-line"'), 1)
         self.assertNotIn("undefined", rendered)
-        self.assertNotIn("NaN", rendered)
-        self.assertNotIn("<canvas", rendered.lower())
-        self.assertNotIn("<svg", rendered.lower())
-
-    @unittest.skipUnless(shutil.which("node"), "Node.js is required for the focused browser-renderer check.")
-    def test_preselected_waveforms_render_both_periods_with_units_and_evidence_links(self) -> None:
-        with TestClient(create_app()) as client:
-            payload = client.get(PS_MIN_EXPERIMENT_SUMMARY_PATH).json()
-        self._populate_waveforms(payload)
-
-        rendered = self._render_with_node(json.dumps(payload).encode("utf-8"))
-
-        self.assertEqual(rendered.count('class="interval-card interval-card-available"'), 2)
-        self.assertIn('data-period="baseline"', rendered)
-        self.assertIn('data-period="intervention"', rendered)
-        self.assertEqual(rendered.count('<svg class="waveform-chart'), 6)
-        self.assertEqual(rendered.count('class="waveform-trace"'), 6)
-        self.assertIn('data-signal-kind="flow_rate" data-unit="L/min"', rendered)
-        self.assertIn('data-signal-kind="mask_pressure" data-unit="cm H₂O"', rendered)
-        self.assertIn('data-signal-kind="leak" data-unit="L/min"', rendered)
-        self.assertIn("Supplied samples connected without smoothing", rendered)
-        self.assertIn("Stored updates shown as steps", rendered)
-        self.assertIn("raw-relative milliseconds", rendered)
-        self.assertNotIn("unresolved", rendered)
-        self.assertNotIn("Signal unavailable", rendered)
-        evidence_targets = re.findall(r'href="#([^"]+)"', rendered)
-        self.assertTrue(evidence_targets)
-        for target in evidence_targets:
-            self.assertIn(f'id="{target}"', rendered)
-        for element in ("<form", "<input", "<button", "<canvas"):
-            self.assertNotIn(element, rendered.lower())
-
-    @unittest.skipUnless(shutil.which("node"), "Node.js is required for the focused browser-renderer check.")
-    def test_missing_signal_inside_a_selected_interval_fails_visibly_without_a_trace(self) -> None:
-        with TestClient(create_app()) as client:
-            payload = client.get(PS_MIN_EXPERIMENT_SUMMARY_PATH).json()
-        self._populate_waveforms(payload, missing_baseline_leak=True)
-
-        rendered = self._render_with_node(json.dumps(payload).encode("utf-8"))
-
-        self.assertEqual(rendered.count('<svg class="waveform-chart'), 5)
-        self.assertIn('class="waveform-panel waveform-panel-missing" data-signal-kind="leak"', rendered)
-        self.assertIn("This signal excerpt was not supplied and no trace was inferred.", rendered)
-        self.assertIn("signal_excerpt_missing", rendered)
-        self.assertNotIn("undefined", rendered)
-        self.assertNotIn("NaN", rendered)
-
-    @unittest.skipUnless(shutil.which("node"), "Node.js is required for the focused browser-renderer check.")
-    def test_unplottable_signal_range_fails_locally_without_invalid_svg_coordinates(self) -> None:
-        with TestClient(create_app()) as client:
-            payload = client.get(PS_MIN_EXPERIMENT_SUMMARY_PATH).json()
-        self._populate_waveforms(payload)
-        report = payload["report"]
-        assert isinstance(report, dict)
-        intervals = report["representative_intervals"]
-        assert isinstance(intervals, list)
-        baseline = intervals[0]
-        assert isinstance(baseline, dict)
-        signals = baseline["signals"]
-        assert isinstance(signals, list)
-        flow = signals[0]
-        assert isinstance(flow, dict)
-        flow["values"] = [1e308, -1e308, 1e308, -1e308, 1e308]
-
-        rendered = self._render_with_node(json.dumps(payload).encode("utf-8"))
-
-        self.assertEqual(rendered.count('<svg class="waveform-chart'), 5)
-        self.assertIn("Signal unavailable", rendered)
-        self.assertIn("cannot be plotted safely", rendered)
         self.assertNotIn("NaN", rendered)
         self.assertNotIn("Infinity", rendered)
+        self.assertNotIn("<canvas", rendered.lower())
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is required for the focused browser-renderer check.")
-    def test_waveform_contract_rejects_wrong_units_and_oversized_excerpts(self) -> None:
+    def test_unconfigured_api_responses_render_explicit_unavailable_state(self) -> None:
         with TestClient(create_app()) as client:
-            wrong_unit_payload = client.get(PS_MIN_EXPERIMENT_SUMMARY_PATH).json()
-            oversized_payload = client.get(PS_MIN_EXPERIMENT_SUMMARY_PATH).json()
-        self._populate_waveforms(wrong_unit_payload)
-        self._populate_waveforms(oversized_payload)
+            payload = {
+                "overview": client.get(ANALYSIS_OVERVIEW_PATH).json(),
+                "nights": client.get(ANALYSIS_NIGHTS_PATH).json(),
+                "trends": client.get(ANALYSIS_TRENDS_PATH).json(),
+            }
 
-        wrong_unit_signal = wrong_unit_payload["report"]["representative_intervals"][0]["signals"][0]
-        wrong_unit_signal["unit"] = "mL/s"
-        oversized_signal = oversized_payload["report"]["representative_intervals"][0]["signals"][0]
-        oversized_signal["sample_times_ms"] = [1_000 + index for index in range(2_001)]
-        oversized_signal["values"] = [float(index % 10) for index in range(2_001)]
+        rendered = unescape(self._render_with_node(payload))
 
-        wrong_unit_rendered = self._render_with_node(json.dumps(wrong_unit_payload).encode("utf-8"))
-        oversized_rendered = self._render_with_node(json.dumps(oversized_payload).encode("utf-8"))
-
-        self.assertEqual(wrong_unit_rendered.count('<svg class="waveform-chart'), 5)
-        self.assertIn("Flow Rate must retain its L/min unit.", wrong_unit_rendered)
-        self.assertNotIn('data-unit="mL/s"', wrong_unit_rendered)
-        self.assertEqual(oversized_rendered.count('<svg class="waveform-chart'), 5)
-        self.assertIn("two to 2000 paired samples", oversized_rendered)
+        self.assertIn("analysis_workspace_not_configured", rendered)
+        self.assertIn("No recent nights are available", rendered)
+        self.assertIn("No trend series are available", rendered)
+        self.assertIn("Quality evidence is unavailable", rendered)
+        self.assertIn("No experiment is linked, and none is required", rendered)
+        self.assertGreaterEqual(rendered.count("Unavailable"), 7)
+        self.assertNotIn('<svg class="trend-chart"', rendered)
+        self.assertNotIn("undefined", rendered)
+        self.assertNotIn("NaN", rendered)
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is required for the focused browser-renderer check.")
-    def test_renderer_escapes_report_text_and_has_a_visible_failure_state(self) -> None:
-        with TestClient(create_app()) as client:
-            payload = client.get(PS_MIN_EXPERIMENT_SUMMARY_PATH).json()
-        payload["report"]["title"] = '<script data-test="unsafe">bad</script>'
-        rendered = self._render_with_node(json.dumps(payload).encode("utf-8"))
+    def test_missing_trend_points_are_listed_and_never_connected_as_zero(self) -> None:
+        payload = self._populated_payload()
+        rendered = unescape(self._render_with_node(payload))
+
+        self.assertIn("2026-09-08</time><span class=\"point-value empty-value\">Not evaluable", rendered)
+        self.assertIn("2026-09-06</time><span class=\"point-value empty-value\">Unavailable", rendered)
+        self.assertIn("gaps are not joined", rendered)
+        self.assertNotIn(">0 <span>cm H₂O", rendered)
+
+    @unittest.skipUnless(shutil.which("node"), "Node.js is required for the focused browser-renderer check.")
+    def test_renderer_escapes_api_text_and_has_a_visible_failure_state(self) -> None:
+        payload = self._populated_payload()
+        payload["overview"]["workspace"]["title"] = '<script data-test="unsafe">bad</script>'
+        payload["overview"]["workspace"]["limitations"] = ["Local <evidence> only."]
+        rendered = self._render_with_node(payload)
         error = self._render_error_with_node("<b>offline</b>")
 
         self.assertNotIn('<script data-test="unsafe">', rendered)
         self.assertIn("&lt;script data-test=&quot;unsafe&quot;&gt;bad&lt;/script&gt;", rendered)
+        self.assertIn("Local &lt;evidence&gt; only.", rendered)
+        self.assertNotIn("Local <evidence> only.", rendered)
         self.assertIn('role="alert"', error)
-        self.assertIn("The experiment overview could not be loaded.", error)
+        self.assertIn("The PAP analysis overview could not be loaded.", error)
         self.assertIn("&lt;b&gt;offline&lt;/b&gt;", error)
         self.assertNotIn("<b>offline</b>", error)
-
-    @unittest.skipUnless(shutil.which("node"), "Node.js is required for the focused history-renderer check.")
-    def test_history_renderer_shows_corrected_and_effective_events_with_the_bounded_form(self) -> None:
-        payload = {
-            "format": "pap-pilot.experiment-history-json",
-            "format_version": 1,
-            "experiment_record_id": "experiment:test",
-            "can_correct_boundary": True,
-            "effective_boundary": {"record_id": "event:boundary-new", "applied_at_ms": 2_000, "setting_name": "ps_min", "previous_value": 2, "corrected_value": 1, "unit": "cm H₂O"},
-            "history": [
-                {"record_id": "event:boundary-old", "sequence_number": 1, "event_type": "setting_change_confirmed_applied", "recorded_at_ms": 1_000, "recorded_by": "user:local", "correction_of_event_id": None, "effective": False, "applied_at_ms": 1_500},
-                {"record_id": "event:boundary-new", "sequence_number": 2, "event_type": "setting_change_confirmed_applied", "recorded_at_ms": 2_500, "recorded_by": "user:local", "correction_of_event_id": "event:boundary-old", "effective": True, "applied_at_ms": 2_000},
-                {"record_id": "event:note", "sequence_number": 3, "event_type": "note_recorded", "recorded_at_ms": 2_500, "recorded_by": "user:local", "correction_of_event_id": None, "effective": True, "note": "From <paper> log", "related_event_id": "event:boundary-new"},
-            ],
-        }
-
-        rendered = self._render_history_with_node(json.dumps(payload).encode("utf-8"))
-
-        self.assertIn('id="boundary-correction-form"', rendered)
-        self.assertIn('data-corrected-event-id="event:boundary-new"', rendered)
-        self.assertIn("corrected history", rendered)
-        self.assertIn("Append correction and note", rendered)
-        self.assertIn("From &lt;paper&gt; log", rendered)
-        self.assertNotIn("From <paper> log", rendered)
 
     def test_asset_loader_is_allowlisted(self) -> None:
         self.assertEqual(OVERVIEW_ASSET_NAMES, frozenset({"overview.css", "overview.html", "overview.mjs"}))
@@ -246,10 +163,10 @@ class ExperimentOverviewTests(unittest.TestCase):
             load_overview_asset("../server.py")
 
     @staticmethod
-    def _render_with_node(payload: bytes) -> str:
+    def _render_with_node(payload: dict[str, object]) -> str:
         module_uri = files("pap_pilot.ui").joinpath("overview.mjs").as_uri()
-        program = f'import {{renderOverview}} from {json.dumps(module_uri)}; let source = ""; for await (const chunk of process.stdin) source += chunk; process.stdout.write(renderOverview(JSON.parse(source)));'
-        result = subprocess.run(("node", "--input-type=module", "--eval", program), input=payload, capture_output=True, check=True)
+        program = f'import {{renderOverview}} from {json.dumps(module_uri)}; let source = ""; for await (const chunk of process.stdin) source += chunk; const payload = JSON.parse(source); process.stdout.write(renderOverview(payload.overview, payload.nights, payload.trends));'
+        result = subprocess.run(("node", "--input-type=module", "--eval", program), input=json.dumps(payload).encode("utf-8"), capture_output=True, check=True)
         return result.stdout.decode("utf-8")
 
     @staticmethod
@@ -260,76 +177,110 @@ class ExperimentOverviewTests(unittest.TestCase):
         return result.stdout.decode("utf-8")
 
     @staticmethod
-    def _render_history_with_node(payload: bytes) -> str:
-        module_uri = files("pap_pilot.ui").joinpath("overview.mjs").as_uri()
-        program = f'import {{renderExperimentHistory}} from {json.dumps(module_uri)}; let source = ""; for await (const chunk of process.stdin) source += chunk; process.stdout.write(renderExperimentHistory(JSON.parse(source)));'
-        result = subprocess.run(("node", "--input-type=module", "--eval", program), input=payload, capture_output=True, check=True)
-        return result.stdout.decode("utf-8")
-
-    @staticmethod
-    def _populate_waveforms(payload: dict[str, object], *, missing_baseline_leak: bool = False) -> None:
-        report = payload["report"]
-        assert isinstance(report, dict)
-        provenance = report["provenance"]
-        assert isinstance(provenance, dict)
-        provenance_ids = set(provenance["source_record_ids"])
-        intervals = []
-        for period_index, period in enumerate(("baseline", "intervention")):
-            start_ms = 1_000 + period_index * 5_000
-            end_ms = start_ms + 4_000
-            interval_id = f"interval:{period}"
-            night_id = f"night:{period}"
-            session_id = f"session:{period}"
-            signals = []
-            signal_values = {
-                "flow_rate": ("L/min", "uniform_waveform", (0.0, 18.0, -12.0, 22.0, -8.0)),
-                "mask_pressure": ("cm H₂O", "uniform_waveform", (8.0, 12.0, 9.0, 13.0, 8.0)),
-                "leak": ("L/min", "timed_updates", (2.0, 4.0, 3.0, 5.0)),
-            }
-            for signal_kind, (unit, representation, values) in signal_values.items():
-                signal_id = f"signal:{period}:{signal_kind}"
-                source_ids = [night_id, session_id, signal_id]
-                if missing_baseline_leak and period == "baseline" and signal_kind == "leak":
-                    signals.append({
-                        "availability": "missing",
-                        "reason_codes": ["signal_excerpt_missing"],
-                        "representation": None,
-                        "sample_times_ms": [],
-                        "signal_kind": signal_kind,
-                        "signal_record_id": None,
-                        "source_record_ids": [night_id, session_id],
-                        "unit": unit,
-                        "values": [],
-                    })
-                    continue
-                sample_times = [start_ms + offset for offset in ((0, 800, 1_600, 2_400, 3_200) if signal_kind != "leak" else (0, 1_200, 2_600, 3_800))]
-                signals.append({
-                    "availability": "available",
-                    "reason_codes": [],
-                    "representation": representation,
-                    "sample_times_ms": sample_times,
-                    "signal_kind": signal_kind,
-                    "signal_record_id": signal_id,
-                    "source_record_ids": source_ids,
-                    "unit": unit,
-                    "values": list(values),
-                })
-                provenance_ids.update(source_ids)
-            interval_sources = [interval_id, night_id, session_id]
-            provenance_ids.update(interval_sources)
-            intervals.append({
+    def _populated_payload() -> dict[str, object]:
+        nights = [
+            {
+                "record_id": "analysis-night:night:new",
+                "night_record_id": "night:new",
+                "local_date": "2026-09-09",
+                "availability": "partial",
+                "session_record_ids": ["session:new"],
+                "setting_record_ids": ["setting:new"],
+                "event_record_ids": [],
+                "signal_record_ids": ["signal:new"],
+                "quality_report_ids": ["quality:new:structural", "quality:new:signal"],
+                "metric_result_ids": ["metric:new:pressure"],
+                "journal_entry_ids": [],
+                "evidence_record_ids": ["evidence:quality:new:structural", "evidence:quality:new:signal"],
+                "source_record_ids": ["night:new", "session:new"],
+                "source_provenance_ids": ["provenance:new"],
+                "reason_codes": ["one_or_more_evidence_items_unavailable"],
+                "limitations": ["Evidence coverage is not a clinical judgment."],
+                "record_version": 1,
+            },
+            {
+                "record_id": "analysis-night:night:old",
+                "night_record_id": "night:old",
+                "local_date": "2026-09-08",
                 "availability": "available",
-                "display_contract_version": 1,
-                "end_ms": end_ms,
-                "interval_record_id": interval_id,
-                "period": period,
+                "session_record_ids": ["session:old"],
+                "setting_record_ids": ["setting:old"],
+                "event_record_ids": ["event:old"],
+                "signal_record_ids": ["signal:old"],
+                "quality_report_ids": ["quality:old:structural"],
+                "metric_result_ids": ["metric:old:pressure"],
+                "journal_entry_ids": ["journal:old"],
+                "evidence_record_ids": ["evidence:quality:old:structural"],
+                "source_record_ids": ["night:old", "session:old"],
+                "source_provenance_ids": ["provenance:old"],
                 "reason_codes": [],
-                "signals": signals,
-                "source_record_ids": interval_sources,
-                "start_ms": start_ms,
-            })
-        provenance["source_record_ids"] = sorted(provenance_ids)
-        report["representative_intervals"] = intervals
+                "limitations": ["Evidence coverage is not a clinical judgment."],
+                "record_version": 1,
+            },
+        ]
+        trends = [
+            {
+                "record_id": "trend:pressure",
+                "metric_id": "mean_mask_pressure_above_epap",
+                "label": "Mean Mask Pressure above EPAP",
+                "unit": "cm H₂O",
+                "availability": "partial",
+                "points": [
+                    {"night_record_id": "night:four", "local_date": "2026-09-06", "value": 2.0, "availability": "available", "source_record_ids": ["metric:four"], "source_provenance_ids": ["p:four"], "reason_codes": []},
+                    {"night_record_id": "night:three", "local_date": "2026-09-07", "value": 2.4, "availability": "available", "source_record_ids": ["metric:three"], "source_provenance_ids": ["p:three"], "reason_codes": []},
+                    {"night_record_id": "night:old", "local_date": "2026-09-08", "value": None, "availability": "not_evaluable", "source_record_ids": [], "source_provenance_ids": [], "reason_codes": ["metric_input_missing"]},
+                    {"night_record_id": "night:new", "local_date": "2026-09-09", "value": 1.8, "availability": "available", "source_record_ids": ["metric:new"], "source_provenance_ids": ["p:new"], "reason_codes": []},
+                ],
+                "source_record_ids": ["metric:four", "metric:three", "metric:new"],
+                "source_provenance_ids": ["p:four", "p:three", "p:new"],
+                "reason_codes": ["one_or_more_points_unavailable"],
+                "limitations": [],
+                "record_version": 1,
+            },
+            {
+                "record_id": "trend:ventilation",
+                "metric_id": "minute_ventilation_upper_tail_ratio",
+                "label": "Minute ventilation upper-tail ratio",
+                "unit": "1",
+                "availability": "partial",
+                "points": [
+                    {"night_record_id": "night:four", "local_date": "2026-09-06", "value": None, "availability": "unavailable", "source_record_ids": [], "source_provenance_ids": [], "reason_codes": ["metric_input_missing"]},
+                    {"night_record_id": "night:new", "local_date": "2026-09-09", "value": None, "availability": "not_evaluable", "source_record_ids": [], "source_provenance_ids": [], "reason_codes": ["metric_input_missing"]},
+                ],
+                "source_record_ids": [],
+                "source_provenance_ids": [],
+                "reason_codes": ["metric_input_missing"],
+                "limitations": [],
+                "record_version": 1,
+            },
+        ]
+        evidence = [
+            {"record_id": "evidence:quality:new:structural", "kind": "quality", "label": "Structural data quality", "availability": "available", "night_record_ids": ["night:new"], "session_record_ids": ["session:new"], "source_record_ids": ["quality:new:structural"], "source_provenance_ids": ["provenance:new"], "reason_codes": ["clock_correction_integrity:pass:condition_not_observed"], "limitations": [], "record_version": 1},
+            {"record_id": "evidence:quality:new:signal", "kind": "quality", "label": "Signal data quality", "availability": "not_evaluable", "night_record_ids": ["night:new"], "session_record_ids": ["session:new"], "source_record_ids": ["quality:new:signal"], "source_provenance_ids": ["provenance:new"], "reason_codes": ["likely_wake_breathing:insufficient_evidence:wake_prerequisite_missing"], "limitations": [], "record_version": 1},
+        ]
+        workspace = {
+            "record_id": "analysis-workspace:test",
+            "title": "PAP analysis",
+            "availability": "partial",
+            "nights": list(reversed(nights)),
+            "trends": trends,
+            "evidence": evidence,
+            "resources": [],
+            "experiments": [{"experiment_record_id": "experiment:optional", "label": "Optional comparison", "resource_id": "analysis:experiment:experiment:optional", "summary_record_id": "report:optional", "availability": "available", "source_record_ids": ["experiment:optional", "report:optional"], "source_provenance_ids": ["provenance:experiment"], "compatibility_fixture_id": "pap-pilot.ps-min-retrospective", "reason_codes": [], "limitations": ["Optional compatibility fixture."], "record_version": 1}],
+            "source_record_ids": ["night:new", "night:old"],
+            "source_provenance_ids": ["provenance:new", "provenance:old"],
+            "reason_codes": ["analysis_workspace_not_complete"],
+            "limitations": ["Analysis is advisory and does not change PAP-device settings.", "Missing data remains unavailable and is never converted to zero or imputed."],
+            "schema_id": "pap-pilot.analysis-workspace",
+            "schema_version": 1,
+            "record_version": 1,
+            "engine_version": "0.1.0",
+        }
+        return {
+            "overview": {"format": "pap-pilot.analysis-workspace-json", "format_version": 1, "workspace": workspace},
+            "nights": {"format": "pap-pilot.analysis-resource-json", "format_version": 1, "resource": {"resource_id": "analysis:nights", "kind": "night_collection", "target_record_id": workspace["record_id"], "availability": "partial", "reason_codes": ["one_or_more_nights_partial"], "record_version": 1}, "nights": nights},
+            "trends": {"format": "pap-pilot.analysis-resource-json", "format_version": 1, "resource": {"resource_id": "analysis:trends", "kind": "trend_collection", "target_record_id": workspace["record_id"], "availability": "partial", "reason_codes": ["one_or_more_trends_incomplete"], "record_version": 1}, "trends": trends},
+        }
 
 
 if __name__ == "__main__":

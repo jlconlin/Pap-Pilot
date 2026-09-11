@@ -1,532 +1,385 @@
-const SUMMARY_ENDPOINT = "/api/v1/experiments/ps-min-2-to-1/summary";
-const HISTORY_ENDPOINT = "/api/v1/experiments/ps-min-2-to-1/history";
-const BOUNDARY_CORRECTION_ENDPOINT = "/api/v1/experiments/ps-min-2-to-1/boundary-corrections";
-const REPORT_FORMAT = "pap-pilot.retrospective-evidence-report-json";
-const REPORT_FORMAT_VERSION = 1;
-const WAVEFORM_DISPLAY_CONTRACT_VERSION = 1;
-const MAX_WAVEFORM_SIGNALS = 3;
-const MAX_WAVEFORM_POINTS = 2000;
-const WAVEFORM_WIDTH = 800;
-const WAVEFORM_HEIGHT = 190;
-const WAVEFORM_PADDING = Object.freeze({top: 18, right: 18, bottom: 30, left: 62});
-
-const SIGNAL_SPECS = Object.freeze({
-  flow_rate: Object.freeze({label: "Flow Rate", unit: "L/min", representation: "uniform_waveform", colorClass: "waveform-flow"}),
-  mask_pressure: Object.freeze({label: "Mask Pressure", unit: "cm H₂O", representation: "uniform_waveform", colorClass: "waveform-pressure"}),
-  leak: Object.freeze({label: "Leak", unit: "L/min", representation: "timed_updates", colorClass: "waveform-leak"}),
-});
+const OVERVIEW_ENDPOINT = "/api/v1/analysis/overview";
+const NIGHTS_ENDPOINT = "/api/v1/analysis/nights";
+const TRENDS_ENDPOINT = "/api/v1/analysis/trends";
+const WORKSPACE_FORMAT = "pap-pilot.analysis-workspace-json";
+const RESOURCE_FORMAT = "pap-pilot.analysis-resource-json";
+const FORMAT_VERSION = 1;
+const RECENT_NIGHT_LIMIT = 8;
+const RECENT_QUALITY_LIMIT = 8;
+const TREND_WIDTH = 620;
+const TREND_HEIGHT = 170;
+const TREND_PADDING = Object.freeze({top: 20, right: 20, bottom: 30, left: 58});
 
 const LABELS = Object.freeze({
-  ps_min: "PS Min",
-  baseline: "Baseline",
-  intervention: "Intervention",
-  mean_mask_pressure_above_epap: "Mean Mask Pressure above EPAP",
-  minute_ventilation_upper_tail_ratio: "Minute ventilation upper-tail ratio",
-  awakenings_count: "Remembered awakenings",
-  sleep_quality: "Sleep quality",
-  morning_energy: "Morning energy",
-  daytime_tiredness: "Daytime tiredness",
-  quality_evidence: "Quality reports",
-  confounder_evidence: "Confounder reports",
-  adverse_effect_evidence: "Adverse-effect reports",
-  not_evaluable_without_fabrication: "Not evaluable without fabrication",
+  analysis_workspace_not_configured: "Analysis workspace not configured",
+  available: "Available",
+  partial: "Partial",
+  unavailable: "Unavailable",
+  not_evaluable: "Not evaluable",
+  setting: "Settings",
+  event: "Events",
+  signal: "Signals",
+  quality: "Data quality",
+  metric: "Metrics",
+  journal: "Morning journal",
+  experiment_report: "Experiment report",
 });
 
-export function renderOverview(envelope) {
-  const report = readReport(envelope);
-  const title = text(report.title, "report title");
-  const status = text(report.evaluation_status, "evaluation status");
-  const knownChange = object(report.known_change, "known change");
-  const periods = array(report.periods, "periods");
-  const objectiveMetrics = array(report.objective_metrics, "objective metrics");
-  const subjectiveOutcomes = array(report.subjective_outcomes, "subjective outcomes");
-  const representativeIntervals = array(report.representative_intervals, "representative intervals");
-  const missingInputs = array(report.missing_inputs, "missing inputs");
-  const uncertainty = array(report.uncertainty, "uncertainty statements");
-  const limitations = array(report.limitations, "limitations");
-  const classification = object(report.classification, "classification");
-  const provenance = object(report.provenance, "provenance");
-  const evidence = evidenceIndex(provenance.source_record_ids);
-  const evaluated = status === "evaluated";
+export function renderOverview(overviewEnvelope, nightsEnvelope, trendsEnvelope) {
+  const workspace = readWorkspace(overviewEnvelope);
+  const nights = readCollection(nightsEnvelope, "night_collection", "nights");
+  const trends = readCollection(trendsEnvelope, "trend_collection", "trends");
+  const evidence = array(workspace.evidence, "workspace evidence").map((value) => object(value, "evidence record"));
+  const experiments = array(workspace.experiments, "workspace experiments").map((value) => object(value, "experiment reference"));
+  const limitations = textArray(workspace.limitations, "workspace limitations");
+  const qualityEvidence = evidence.filter((value) => text(value.kind, "evidence kind") === "quality");
+  const availableTrendPoints = trends.flatMap((trend) => array(object(trend, "trend").points, "trend points")).filter((point) => object(point, "trend point").availability === "available").length;
+  const title = text(workspace.title, "workspace title");
+  const state = text(workspace.availability, "workspace availability");
 
   return `
-    <article class="overview-report" data-report-id="${escapeHtml(text(report.record_id, "report identifier"))}">
+    <article class="analysis-overview" data-workspace-id="${escapeHtml(text(workspace.record_id, "workspace identifier"))}">
       <section class="hero" aria-labelledby="overview-title">
         <div>
-          <p class="eyebrow">Experiment evidence · Retrospective review</p>
+          <p class="eyebrow">General PAP analysis · Local only</p>
           <h1 id="overview-title">${escapeHtml(title)}</h1>
-          <p class="hero-copy">This view presents the deterministic report exactly as supplied by the local API. Missing evidence stays visible and no unavailable value is estimated.</p>
+          <p class="hero-copy">Review recent therapy nights, follow deterministic metrics over time, and see where source quality limits the evidence. Experiments are optional; this workspace does not require a settings change.</p>
         </div>
-        <aside class="status-panel" aria-label="Evaluation status">
-          <div class="status-label">Current status</div>
-          <p class="status-value">${escapeHtml(label(status))}</p>
-          <p class="status-detail"><code>${escapeHtml(status)}</code><br>Classification: ${escapeHtml(availability(classification.availability))}</p>
+        <aside class="status-panel status-panel-${escapeHtml(stateClass(state))}" aria-label="Workspace availability">
+          <div class="status-label">Workspace status</div>
+          <p class="status-value">${escapeHtml(availabilityLabel(state))}</p>
+          <p class="status-detail">${nights.length} retained ${plural(nights.length, "night")} · ${trends.length} trend ${plural(trends.length, "series", "series")}</p>
+          ${reasonLine(workspace.reason_codes)}
         </aside>
       </section>
 
-      <section class="section" aria-labelledby="setting-heading">
-        ${sectionHeading("setting-heading", "Known setting change", evaluated ? "The evaluated record retains the user-confirmed application boundary and the nights assigned to each comparison period." : "The retained record identifies the intended comparison, but it does not establish when the setting was applied or which nights belong to either period.")}
-        <div class="change-grid">
-          ${settingCard("Baseline", knownChange.baseline_value, knownChange.unit)}
-          <div class="change-arrow" aria-label="changed to"><strong>${escapeHtml(label(knownChange.setting_name))}</strong></div>
-          ${settingCard("Intervention", knownChange.intervention_value, knownChange.unit)}
-        </div>
+      <section class="summary-grid" aria-label="Analysis inventory">
+        ${summaryCard("Recent nights", nights.length, "retained across the local workspace", text(object(nightsEnvelope.resource, "night collection resource").availability, "night collection availability"))}
+        ${summaryCard("Trend points", availableTrendPoints, "available values; missing values stay gaps", text(object(trendsEnvelope.resource, "trend collection resource").availability, "trend collection availability"))}
+        ${summaryCard("Quality records", qualityEvidence.length, "retained findings, without a synthetic score", collectionAvailability(qualityEvidence, text(workspace.availability, "workspace availability")))}
+        ${summaryCard("Experiments", experiments.length, experiments.length ? "optional linked workflows" : "none required for general analysis", collectionAvailability(experiments, "unavailable"))}
       </section>
 
-      <section class="section" aria-labelledby="periods-heading">
-        ${sectionHeading("periods-heading", "Comparison periods", "Period counts come from the report inventory. Zero retained nights means the cohort is unavailable, not that therapy did not occur.")}
-        <div class="period-grid">${periods.map(renderPeriod).join("")}</div>
+      <section class="section" aria-labelledby="nights-heading">
+        ${sectionHeading("nights-heading", "Recent nights", "The local API orders nights most recent first. Counts describe retained evidence only; they are not therapy or clinical judgments.")}
+        ${renderNights(nights, object(nightsEnvelope.resource, "night collection resource"))}
       </section>
 
-      <section class="section" aria-labelledby="objective-heading">
-        ${sectionHeading("objective-heading", "Objective metrics", "These are PAP Pilot’s prespecified independent outcomes. Thresholds describe the accepted analysis contract; they are not observed results or clinical cutoffs.")}
-        ${outcomeTable(objectiveMetrics, "objective")}
+      <section class="section" aria-labelledby="trends-heading">
+        ${sectionHeading("trends-heading", "Longitudinal patterns", "Each series uses an existing deterministic metric. Supplied values are connected in date order; unavailable and not-evaluable points are shown as gaps and never plotted as zero.")}
+        ${renderTrends(trends, object(trendsEnvelope.resource, "trend collection resource"))}
       </section>
 
-      <section class="section" aria-labelledby="subjective-heading">
-        ${sectionHeading("subjective-heading", "Subjective outcomes", "Structured journal outcomes remain separate from free text. No response is inferred from the earlier informal impression.")}
-        ${outcomeTable(subjectiveOutcomes, "subjective")}
+      <section class="section" aria-labelledby="quality-heading">
+        ${sectionHeading("quality-heading", "Data quality", "This is an inventory of retained quality records, not a combined score. Exact availability states and source reason codes remain visible for every record shown.")}
+        ${renderQuality(qualityEvidence, nights)}
       </section>
 
-      <section class="section" aria-labelledby="evidence-heading">
-        ${sectionHeading("evidence-heading", "Evidence reports", "Quality, confounder, and adverse-effect evidence are separate inputs. An empty inventory means unknown, not clear or absent.")}
-        <div class="evidence-grid">
-          ${renderEvidenceCard("quality_evidence", report.quality_evidence)}
-          ${renderEvidenceCard("confounder_evidence", report.confounder_evidence)}
-          ${renderEvidenceCard("adverse_effect_evidence", report.adverse_effect_evidence)}
-        </div>
+      <section class="section" aria-labelledby="paths-heading">
+        ${sectionHeading("paths-heading", "Available analysis paths", "These links open versioned local records. PAP Pilot does not send data to a remote service or change device settings.")}
+        ${renderAnalysisPaths(nights, trends, qualityEvidence, experiments)}
       </section>
 
-      <section class="section" aria-labelledby="intervals-heading">
-        ${sectionHeading("intervals-heading", "Representative intervals", "Only preselected report excerpts are displayed. Samples are plotted without smoothing or interval selection, and unavailable signal evidence stays visibly missing.")}
-        <div class="interval-grid">${representativeIntervals.map((interval) => renderInterval(interval, evidence.targets)).join("")}</div>
-      </section>
-
-      <section class="section" aria-labelledby="evaluation-heading">
-        ${sectionHeading("evaluation-heading", "Evaluation", "A classification and next action are shown only when the deterministic evidence requirements have been met.")}
-        ${renderClassification(classification)}
-      </section>
-
-      <section class="section" aria-labelledby="boundaries-heading">
-        ${sectionHeading("boundaries-heading", "Evidence boundaries", evaluated ? "The report records what is known and the uncertainty that remains after evaluation. These statements are evidence inventory, not generated interpretation." : "The report records both what is known and what prevents evaluation. These statements are evidence inventory, not generated interpretation.")}
-        <div class="two-column">
-          <div class="content-card">
-            <h3>Known facts</h3>
-            ${renderList(array(report.known_facts, "known facts").map((fact) => object(fact, "known fact").statement))}
-          </div>
-          <div class="content-card">
-            <h3>Uncertainty</h3>
-            ${renderList(uncertainty)}
-          </div>
-          <div class="content-card evidence-inventory" id="report-evidence">
-            <h3>Linked evidence</h3>
-            <p>Waveform references resolve to the report’s retained source-record inventory.</p>
-            ${renderEvidenceInventory(evidence.records)}
-          </div>
-        </div>
-      </section>
-
-      <section class="section" aria-labelledby="missing-heading">
-        ${sectionHeading("missing-heading", "Missing inputs", "Each item names source evidence that must exist before the retrospective result can be evaluated without fabrication.")}
-        <div class="missing-list">${missingInputs.length ? missingInputs.map(renderMissingInput).join("") : '<article class="content-card"><p>No required report inputs are missing.</p></article>'}</div>
-      </section>
-
-      <section class="section limitations" aria-labelledby="limitations-heading">
-        ${sectionHeading("limitations-heading", "Limitations", "These constraints travel with the report and apply to every interpretation of this experiment.")}
-        <div class="content-card">${renderList(limitations)}</div>
-      </section>
-
-      <section class="section" aria-labelledby="history-heading">
-        ${sectionHeading("history-heading", "Corrections and notes", "Corrections are appended to the local ledger. Earlier events remain visible; replay marks the corrected boundary as historical and uses the newer boundary as effective state.")}
-        <div id="experiment-history" aria-live="polite"><p class="empty-value">Loading local history…</p></div>
+      <section class="section" aria-labelledby="limits-heading">
+        ${sectionHeading("limits-heading", "Evidence boundaries", "These limitations apply to the whole workspace and travel with the deterministic analysis record.")}
+        <div class="content-card">${renderList(limitations, "No workspace limitations were supplied.")}</div>
       </section>
 
       <footer class="report-footer">
-        <span>Companion-derived report · Engine ${escapeHtml(text(report.engine_version, "engine version"))} · Schema ${integer(report.schema_version, "schema version")}</span>
-        <code>${escapeHtml(text(report.record_id, "report identifier"))}</code>
-        <span>${array(provenance.source_record_ids, "source records").length} linked source records</span>
+        <span>Local deterministic workspace · Engine ${escapeHtml(text(workspace.engine_version, "engine version"))} · Schema ${integer(workspace.schema_version, "schema version")}</span>
+        <code>${escapeHtml(text(workspace.record_id, "workspace identifier"))}</code>
+        <span>${array(workspace.source_record_ids, "workspace source records").length} linked source records</span>
       </footer>
     </article>`;
-}
-
-export function renderExperimentHistory(envelope) {
-  const value = object(envelope, "experiment history envelope");
-  if (value.format !== "pap-pilot.experiment-history-json" || value.format_version !== 1) {
-    throw new Error("The local API returned an unsupported experiment history format.");
-  }
-  const history = array(value.history, "experiment history");
-  const monitoring = value.monitoring === undefined ? {lifecycle_status: "empty", safety_status: "policy_gate_required", required_nights_per_arm: 3, reported_night_count: 0, required_signal_duration_ms: 300000, outcome_status: "not_issued", available_actions: [], automatic_device_actions: false} : object(value.monitoring, "monitoring state");
-  const boundary = value.effective_boundary === null ? null : object(value.effective_boundary, "effective boundary");
-  const correctionSurface = boundary === null
-    ? `<div class="history-unavailable"><h3>No confirmed boundary to correct</h3><p>The retained retrospective record does not contain a user-confirmed application timestamp. PAP Pilot will not invent one.</p></div>`
-    : `<form id="boundary-correction-form" class="correction-form" data-corrected-event-id="${escapeHtml(text(boundary.record_id, "boundary event identifier"))}">
-        <div><label for="applied-at">Corrected application time</label><input id="applied-at" name="applied-at" type="datetime-local" required></div>
-        <div><label for="correction-note">Reason or note</label><textarea id="correction-note" name="correction-note" maxlength="4000" required></textarea></div>
-        <button type="submit">Append correction and note</button><p class="form-status" role="status"></p>
-      </form>`;
-  return `<div class="history-layout"><section class="monitoring-card" aria-labelledby="monitoring-heading"><h3 id="monitoring-heading">Prospective monitoring</h3><p><strong>${escapeHtml(label(text(monitoring.lifecycle_status, "lifecycle status")))}</strong> · Safety: ${escapeHtml(label(text(monitoring.safety_status, "safety status")))}</p><p>Reported nights: ${integer(monitoring.reported_night_count, "reported night count")} / ${integer(monitoring.required_nights_per_arm, "required night count")} per arm · Required signal duration: ${formatTimestamp(integer(monitoring.required_signal_duration_ms, "required duration"))}</p><p>Outcome: ${escapeHtml(label(text(monitoring.outcome_status, "outcome status")))}</p><p>Available actions: ${array(monitoring.available_actions, "available actions").map((action) => escapeHtml(label(text(action, "action")))).join(", ") || "None"}. Device actions are never automatic.</p></section>${correctionSurface}<div class="history-ledger"><h3>Complete event history</h3><ol>${history.map(renderHistoryEvent).join("")}</ol></div></div>`;
-}
-
-function renderHistoryEvent(value) {
-  const event = object(value, "history event");
-  const eventType = text(event.event_type, "history event type");
-  const effective = event.effective === true;
-  const details = [];
-  if (Number.isInteger(event.applied_at_ms)) details.push(`Boundary: ${new Date(event.applied_at_ms).toLocaleString()}`);
-  if (typeof event.note === "string" && event.note.trim()) details.push(event.note);
-  if (typeof event.correction_of_event_id === "string") details.push(`Corrects ${event.correction_of_event_id}`);
-  return `<li class="history-event ${effective ? "history-event-effective" : "history-event-corrected"}"><div><strong>${escapeHtml(label(eventType))}</strong><span>Event ${integer(event.sequence_number, "event sequence number")} · ${effective ? "effective" : "corrected history"}</span></div>${details.map((detail) => `<p>${escapeHtml(detail)}</p>`).join("")}<code>${escapeHtml(text(event.record_id, "history event identifier"))}</code></li>`;
 }
 
 export function renderOverviewError(message) {
   return `
     <section class="error-panel" role="alert">
-      <p class="eyebrow">Local report unavailable</p>
-      <h1>The experiment overview could not be loaded.</h1>
-      <p>${escapeHtml(typeof message === "string" && message.trim() ? message : "The local API did not return a usable evidence report.")}</p>
-      <p>No missing value has been estimated. Restart PAP Pilot and reload this page.</p>
+      <p class="eyebrow">Local analysis unavailable</p>
+      <h1>The PAP analysis overview could not be loaded.</h1>
+      <p>${escapeHtml(typeof message === "string" && message.trim() ? message : "The local API did not return a usable analysis workspace.")}</p>
+      <p>No missing value has been estimated. Check the local workspace configuration, restart PAP Pilot, and reload this page.</p>
     </section>`;
 }
 
-function readReport(envelope) {
-  const value = object(envelope, "report envelope");
-  if (value.format !== REPORT_FORMAT || value.format_version !== REPORT_FORMAT_VERSION) {
-    throw new Error("The local API returned an unsupported report format.");
+function readWorkspace(envelope) {
+  const value = object(envelope, "workspace envelope");
+  if (value.format !== WORKSPACE_FORMAT || value.format_version !== FORMAT_VERSION) {
+    throw new Error("The local API returned an unsupported analysis-workspace format.");
   }
-  return object(value.report, "report");
+  return object(value.workspace, "analysis workspace");
+}
+
+function readCollection(envelope, expectedKind, field) {
+  const value = object(envelope, `${field} envelope`);
+  if (value.format !== RESOURCE_FORMAT || value.format_version !== FORMAT_VERSION) {
+    throw new Error(`The local API returned an unsupported ${field} format.`);
+  }
+  const resource = object(value.resource, `${field} resource`);
+  if (resource.kind !== expectedKind) {
+    throw new Error(`The local API returned an unexpected ${field} resource.`);
+  }
+  return array(value[field], field).map((entry) => object(entry, field.slice(0, -1)));
+}
+
+function summaryCard(labelText, count, detail, state) {
+  return `<article class="summary-card"><div class="summary-top"><span class="summary-number">${integer(count, "summary count")}</span>${badge(state)}</div><h2>${escapeHtml(labelText)}</h2><p>${escapeHtml(detail)}</p></article>`;
+}
+
+function collectionAvailability(values, emptyState) {
+  if (!values.length) return emptyState;
+  const states = new Set(values.map((value) => text(object(value, "analysis item").availability, "availability")));
+  if (states.size === 1) return [...states][0];
+  return "partial";
+}
+
+function renderNights(nights, resource) {
+  if (!nights.length) {
+    return emptyCard("No recent nights are available", "The configured analysis source supplied no therapy-night records. PAP Pilot has not searched for, inferred, or fabricated nights.", resource.availability, resource.reason_codes);
+  }
+  const shown = nights.slice(0, RECENT_NIGHT_LIMIT);
+  return `<div class="night-list">${shown.map(renderNight).join("")}</div>${nights.length > shown.length ? `<p class="section-note">Showing the ${shown.length} most recent of ${nights.length} retained nights.</p>` : ""}`;
+}
+
+function renderNight(value) {
+  const night = object(value, "analysis night");
+  const nightId = text(night.night_record_id, "night identifier");
+  const sessions = array(night.session_record_ids, "night sessions").length;
+  const metrics = array(night.metric_result_ids, "night metrics").length;
+  const quality = array(night.quality_report_ids, "night quality reports").length;
+  const journals = array(night.journal_entry_ids, "night journal entries").length;
+  const state = text(night.availability, "night availability");
+  return `
+    <article class="night-card">
+      <div class="night-primary">
+        <p class="card-kicker">Therapy night</p>
+        <h3><time datetime="${escapeHtml(text(night.local_date, "night local date"))}">${escapeHtml(night.local_date)}</time></h3>
+        <p>${sessions} ${plural(sessions, "session")} · ${array(night.evidence_record_ids, "night evidence records").length} evidence ${plural(array(night.evidence_record_ids, "night evidence records").length, "record")}</p>
+      </div>
+      <div class="night-coverage" aria-label="Retained night evidence counts">
+        ${coverageItem("Metrics", metrics)}
+        ${coverageItem("Quality", quality)}
+        ${coverageItem("Journal", journals)}
+      </div>
+      <div class="night-action">${badge(state)}<a class="text-link" href="${nightUrl(nightId)}">Open local record <span aria-hidden="true">→</span></a></div>
+      ${reasonLine(night.reason_codes)}
+    </article>`;
+}
+
+function coverageItem(labelText, count) {
+  return `<span><strong>${integer(count, "evidence count")}</strong>${escapeHtml(labelText)}</span>`;
+}
+
+function renderTrends(trends, resource) {
+  if (!trends.length) {
+    return emptyCard("No trend series are available", "No deterministic metric series was supplied. The overview does not infer a longitudinal pattern from absent results.", resource.availability, resource.reason_codes);
+  }
+  return `<div class="trend-grid">${trends.map(renderTrend).join("")}</div>`;
+}
+
+function renderTrend(value) {
+  const trend = object(value, "analysis trend");
+  const points = array(trend.points, "trend points").map((point) => object(point, "trend point"));
+  const state = text(trend.availability, "trend availability");
+  const unit = trend.unit === null ? null : text(trend.unit, "trend unit");
+  const available = points.filter((point) => point.availability === "available");
+  const latest = [...available].reverse().find((point) => point.value !== null);
+  const unavailableCount = points.length - available.length;
+  return `
+    <article class="trend-card">
+      <div class="trend-heading"><div><p class="card-kicker">Deterministic metric</p><h3>${escapeHtml(text(trend.label, "trend label"))}</h3><p>${escapeHtml(text(trend.metric_id, "trend metric identifier"))}</p></div>${badge(state)}</div>
+      <div class="trend-current"><span>Latest available</span><strong>${latest ? formatScalar(latest.value, unit) : "Not available"}</strong>${latest ? `<time datetime="${escapeHtml(text(latest.local_date, "trend-point date"))}">${escapeHtml(latest.local_date)}</time>` : ""}</div>
+      ${renderTrendPlot(points, unit, text(trend.label, "trend label"))}
+      <div class="trend-foot"><span>${available.length} available · ${unavailableCount} unavailable or not evaluable</span><a class="text-link" href="${trendUrl(text(trend.record_id, "trend identifier"))}">Open series <span aria-hidden="true">→</span></a></div>
+      ${renderPointStates(points, unit)}
+      ${reasonLine(trend.reason_codes)}
+    </article>`;
+}
+
+function renderTrendPlot(points, unit, trendLabel) {
+  const numeric = points.map((point, index) => point.availability === "available" && typeof point.value === "number" && Number.isFinite(point.value) ? {index, value: point.value} : null);
+  const supplied = numeric.filter(Boolean);
+  if (!supplied.length) {
+    return `<div class="plot-unavailable"><strong>No numeric plot available</strong><span>Exact point states remain listed below.</span></div>`;
+  }
+  const values = supplied.map((point) => point.value);
+  const rawMinimum = Math.min(...values);
+  const rawMaximum = Math.max(...values);
+  const padding = rawMinimum === rawMaximum ? Math.max(Math.abs(rawMinimum) * 0.05, 1) : (rawMaximum - rawMinimum) * 0.08;
+  const minimum = rawMinimum - padding;
+  const maximum = rawMaximum + padding;
+  const left = TREND_PADDING.left;
+  const right = TREND_WIDTH - TREND_PADDING.right;
+  const top = TREND_PADDING.top;
+  const bottom = TREND_HEIGHT - TREND_PADDING.bottom;
+  const x = (index) => points.length === 1 ? (left + right) / 2 : left + (index / (points.length - 1)) * (right - left);
+  const y = (numberValue) => top + ((maximum - numberValue) / (maximum - minimum)) * (bottom - top);
+  const segments = [];
+  let segment = [];
+  for (const point of numeric) {
+    if (point) {
+      segment.push(point);
+    } else if (segment.length) {
+      segments.push(segment);
+      segment = [];
+    }
+  }
+  if (segment.length) segments.push(segment);
+  const paths = segments.filter((valuesInSegment) => valuesInSegment.length > 1).map((valuesInSegment) => `M ${rounded(x(valuesInSegment[0].index))} ${rounded(y(valuesInSegment[0].value))}${valuesInSegment.slice(1).map((point) => ` L ${rounded(x(point.index))} ${rounded(y(point.value))}`).join("")}`).join(" ");
+  const circles = supplied.map((point) => `<circle cx="${rounded(x(point.index))}" cy="${rounded(y(point.value))}" r="3.5"></circle>`).join("");
+  const firstDate = text(points[0].local_date, "first trend-point date");
+  const lastDate = text(points[points.length - 1].local_date, "last trend-point date");
+  return `
+    <svg class="trend-chart" viewBox="0 0 ${TREND_WIDTH} ${TREND_HEIGHT}" role="img" aria-label="${escapeHtml(`${trendLabel}: ${supplied.length} supplied numeric points; missing values shown as gaps`)}">
+      <line class="trend-gridline" x1="${left}" y1="${top}" x2="${right}" y2="${top}"></line>
+      <line class="trend-gridline" x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}"></line>
+      ${paths ? `<path class="trend-line" d="${paths}"></path>` : ""}
+      <g class="trend-points">${circles}</g>
+      <text class="trend-axis-label" x="${left - 8}" y="${top + 4}" text-anchor="end">${escapeHtml(formatNumber(rawMaximum))}</text>
+      <text class="trend-axis-label" x="${left - 8}" y="${bottom + 4}" text-anchor="end">${escapeHtml(formatNumber(rawMinimum))}</text>
+      <text class="trend-axis-label" x="${left}" y="${TREND_HEIGHT - 8}">${escapeHtml(firstDate)}</text>
+      <text class="trend-axis-label" x="${right}" y="${TREND_HEIGHT - 8}" text-anchor="end">${escapeHtml(lastDate)}</text>
+    </svg>
+    <p class="plot-note">Supplied numeric values${unit ? ` · ${escapeHtml(unit)}` : ""}; gaps are not joined.</p>`;
+}
+
+function renderPointStates(points, unit) {
+  return `<details class="point-details"><summary>Point-by-point evidence</summary><ol>${points.map((point) => {
+    const state = text(point.availability, "trend-point availability");
+    const value = state === "available" ? formatScalar(point.value, unit) : availabilityLabel(state);
+    return `<li><time datetime="${escapeHtml(text(point.local_date, "trend-point date"))}">${escapeHtml(point.local_date)}</time><span class="point-value ${state === "available" ? "" : "empty-value"}">${value}</span>${badge(state)}${reasonLine(point.reason_codes)}</li>`;
+  }).join("")}</ol></details>`;
+}
+
+function renderQuality(qualityEvidence, nights) {
+  if (!qualityEvidence.length) {
+    return emptyCard("Quality evidence is unavailable", "No quality records were supplied. Their absence is not interpreted as clean data.", "unavailable", ["quality_not_evaluated"]);
+  }
+  const dateByNight = new Map(nights.map((night) => [night.night_record_id, night.local_date]));
+  const ordered = [...qualityEvidence].sort((left, right) => qualitySortKey(right, dateByNight).localeCompare(qualitySortKey(left, dateByNight)) || text(left.record_id, "quality identifier").localeCompare(text(right.record_id, "quality identifier")));
+  const shown = ordered.slice(0, RECENT_QUALITY_LIMIT);
+  const states = new Map();
+  for (const item of qualityEvidence) {
+    const state = text(item.availability, "quality availability");
+    states.set(state, (states.get(state) || 0) + 1);
+  }
+  return `
+    <div class="quality-summary" aria-label="Quality availability counts">${[...states].map(([state, count]) => `<span>${badge(state)}<strong>${count}</strong></span>`).join("")}</div>
+    <div class="quality-list">${shown.map((item) => renderQualityItem(item, dateByNight)).join("")}</div>
+    ${qualityEvidence.length > shown.length ? `<p class="section-note">Showing ${shown.length} of ${qualityEvidence.length} retained quality records. Open a night record to inspect its complete evidence links.</p>` : ""}`;
+}
+
+function qualitySortKey(item, dateByNight) {
+  return array(item.night_record_ids, "quality night identifiers").map((identifier) => dateByNight.get(identifier) || "").sort().at(-1) || "";
+}
+
+function renderQualityItem(value, dateByNight) {
+  const item = object(value, "quality evidence");
+  const nights = textArray(item.night_record_ids, "quality night identifiers");
+  const dates = nights.map((identifier) => dateByNight.get(identifier)).filter(Boolean);
+  return `
+    <article class="quality-item">
+      <div><p class="card-kicker">${dates.length ? escapeHtml(dates.join(", ")) : "Workspace evidence"}</p><h3>${escapeHtml(text(item.label, "quality label"))}</h3><p>${array(item.source_record_ids, "quality source records").length} linked source ${plural(array(item.source_record_ids, "quality source records").length, "record")}</p></div>
+      <div class="quality-state">${badge(text(item.availability, "quality availability"))}<a class="text-link" href="${evidenceUrl(text(item.record_id, "quality identifier"))}">Open evidence <span aria-hidden="true">→</span></a></div>
+      ${reasonLine(item.reason_codes)}
+    </article>`;
+}
+
+function renderAnalysisPaths(nights, trends, qualityEvidence, experiments) {
+  const cards = [
+    pathCard("Night records", "Inspect the versioned summary and evidence links for the most recent retained night.", nights.length ? nightUrl(text(nights[0].night_record_id, "night identifier")) : null, nights.length ? text(nights[0].availability, "night availability") : "unavailable", nights.length ? [] : ["no_therapy_nights"]),
+    pathCard("Trend records", "Open a deterministic series with every supplied and unavailable point preserved.", trends.length ? trendUrl(text(trends[0].record_id, "trend identifier")) : null, trends.length ? text(trends[0].availability, "trend availability") : "unavailable", trends.length ? trends[0].reason_codes : ["no_trend_series"]),
+    pathCard("Quality evidence", "Trace one retained quality result back to its exact source and provenance identifiers.", qualityEvidence.length ? evidenceUrl(text(qualityEvidence[0].record_id, "quality identifier")) : null, qualityEvidence.length ? text(qualityEvidence[0].availability, "quality availability") : "unavailable", qualityEvidence.length ? qualityEvidence[0].reason_codes : ["quality_not_evaluated"]),
+  ];
+  const experimentCards = experiments.length ? experiments.map(renderExperimentPath) : [pathCard("Optional experiments", "No experiment is linked, and none is required to review general PAP analysis.", null, "unavailable", ["no_optional_experiment"] )];
+  return `<div class="path-grid">${[...cards, ...experimentCards].join("")}</div>`;
+}
+
+function pathCard(title, description, href, state, reasons, secondaryLink = "") {
+  return `<article class="path-card"><div>${badge(state)}<h3>${escapeHtml(title)}</h3><p>${escapeHtml(description)}</p></div><div>${href ? `<a class="path-link" href="${href}">Open local data <span aria-hidden="true">→</span></a>` : `<span class="path-link path-link-disabled">Not available</span>`}${secondaryLink}</div>${reasonLine(reasons)}</article>`;
+}
+
+function renderExperimentPath(value) {
+  const experiment = object(value, "experiment reference");
+  const compatibilityLink = experiment.compatibility_fixture_id === "pap-pilot.ps-min-retrospective" ? '<a class="text-link secondary-link" href="/api/v1/experiments/ps-min-2-to-1/summary">Open compatibility report</a>' : "";
+  return pathCard(text(experiment.label, "experiment label"), "Optional experiment evidence linked from this general workspace.", experimentUrl(text(experiment.experiment_record_id, "experiment identifier")), text(experiment.availability, "experiment availability"), experiment.reason_codes, compatibilityLink);
+}
+
+function emptyCard(title, description, state, reasons) {
+  return `<article class="empty-card"><div>${badge(text(state, "empty-state availability"))}<h3>${escapeHtml(title)}</h3><p>${escapeHtml(description)}</p></div>${reasonLine(reasons)}</article>`;
 }
 
 function sectionHeading(identifier, title, description) {
   return `<div class="section-heading"><h2 id="${escapeHtml(identifier)}">${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p></div>`;
 }
 
-function settingCard(period, value, unit) {
-  return `<div class="setting-card"><small>${escapeHtml(period)}</small><div class="setting-number">${escapeHtml(number(value))}<span>${escapeHtml(text(unit, "setting unit"))}</span></div></div>`;
-}
-
-function renderPeriod(value) {
-  const period = object(value, "period");
-  const count = integer(period.night_count, "period night count");
-  const state = text(period.availability, "period availability");
-  return `
-    <article class="period-card">
-      <small>${escapeHtml(label(period.period))} period</small>
-      <div class="card-row">
-        <div><div class="count">${count}</div><p class="count-label">retained ${count === 1 ? "night" : "nights"}</p></div>
-        ${badge(state)}
-      </div>
-      ${reasonLine(period.reason_codes)}
-    </article>`;
-}
-
-function outcomeTable(outcomes, kind) {
-  return `
-    <div class="data-table-wrap">
-      <table class="data-table">
-        <thead><tr><th scope="col">${kind === "objective" ? "Metric" : "Outcome"}</th><th scope="col">Baseline</th><th scope="col">Intervention</th><th scope="col">Change</th><th scope="col">Prespecified threshold</th></tr></thead>
-        <tbody>${outcomes.map(renderOutcomeRow).join("")}</tbody>
-      </table>
-    </div>`;
-}
-
-function renderOutcomeRow(value) {
-  const outcome = object(value, "outcome");
-  const unit = text(outcome.unit, "outcome unit");
-  return `
-    <tr>
-      <td><span class="metric-name">${escapeHtml(label(outcome.outcome_id))}</span><span class="metric-unit">${escapeHtml(unit)}</span></td>
-      ${armCell(outcome.baseline, unit)}
-      ${armCell(outcome.intervention, unit)}
-      <td>${emptyOrValue(outcome.intervention_minus_baseline, unit)}</td>
-      <td><span class="metric-name">${escapeHtml(number(outcome.prespecified_threshold))} ${escapeHtml(unit)}</span><span class="metric-unit">${escapeHtml(label(outcome.favorable_direction))} is favorable</span></td>
-    </tr>`;
-}
-
-function armCell(value, unit) {
-  const arm = object(value, "outcome arm");
-  const count = integer(arm.count, "outcome arm count");
-  return `<td>${emptyOrValue(arm.median, unit)}<span class="cell-detail">${count} retained ${count === 1 ? "observation" : "observations"}</span></td>`;
-}
-
-function emptyOrValue(value, unit) {
-  if (value === null || value === undefined) {
-    return `<span class="empty-value">Not available</span>`;
-  }
-  return `<span class="metric-name">${escapeHtml(number(value))} ${escapeHtml(unit)}</span>`;
-}
-
-function renderEvidenceCard(key, value) {
-  const evidence = object(value, key);
-  const count = integer(evidence.record_count, `${key} count`);
-  const state = text(evidence.availability, `${key} availability`);
-  return `
-    <article class="evidence-card">
-      <small>Evidence inventory</small>
-      <h3>${escapeHtml(label(key))}</h3>
-      <span class="count">${count}</span>
-      <p class="count-label">retained ${count === 1 ? "record" : "records"}</p>
-      ${badge(state)}
-      ${reasonLine(evidence.reason_codes)}
-    </article>`;
-}
-
-function renderInterval(value, evidenceTargets) {
-  const interval = object(value, "representative interval");
-  const state = text(interval.availability, "interval availability");
-  const period = text(interval.period, "interval period");
-  if (!(period === "baseline" || period === "intervention")) {
-    throw new Error("A representative interval has an unsupported period.");
-  }
-  const sourceRecordIds = textArray(interval.source_record_ids, "interval source identifiers");
-  if (state === "missing") {
-    if (interval.interval_record_id !== null || interval.start_ms !== null || interval.end_ms !== null) {
-      throw new Error("A missing representative interval cannot contain bounds or an identifier.");
-    }
-    return `
-      <article class="interval-card interval-card-missing" data-period="${escapeHtml(period)}">
-        <small>${escapeHtml(label(period))}</small>
-        <div class="card-row"><h3>Waveform interval</h3>${badge(state)}</div>
-        <p class="empty-value">Not available</p>
-        <p class="waveform-missing-copy">No attributable interval or signal excerpt was supplied, so no waveform is drawn.</p>
-        ${reasonLine(interval.reason_codes)}
-        ${renderEvidenceLinks(sourceRecordIds, evidenceTargets)}
-      </article>`;
-  }
-  if (state !== "available") {
-    throw new Error("A representative interval has an unsupported availability state.");
-  }
-
-  const intervalRecordId = text(interval.interval_record_id, "interval identifier");
-  const startMs = finiteNumber(interval.start_ms, "interval start");
-  const endMs = finiteNumber(interval.end_ms, "interval end");
-  const durationMs = endMs - startMs;
-  if (startMs >= endMs || !Number.isFinite(durationMs)) {
-    throw new Error("A representative interval must have positive half-open bounds.");
-  }
-  if (interval.display_contract_version !== WAVEFORM_DISPLAY_CONTRACT_VERSION) {
-    throw new Error("A representative interval has an unsupported waveform display contract.");
-  }
-  const signals = array(interval.signals, "representative interval signals");
-  if (!signals.length || signals.length > MAX_WAVEFORM_SIGNALS) {
-    throw new Error("A representative interval requires one to three bounded signal excerpts.");
-  }
-  const signalKinds = signals.map((signal) => text(object(signal, "waveform signal").signal_kind, "signal kind"));
-  if (new Set(signalKinds).size !== signalKinds.length) {
-    throw new Error("A representative interval cannot repeat a signal kind.");
-  }
-  const allEvidenceIds = [...new Set([intervalRecordId, ...sourceRecordIds, ...signals.flatMap((signal) => textArray(object(signal, "waveform signal").source_record_ids, "signal source identifiers"))])];
-  return `
-    <article class="interval-card interval-card-available" data-period="${escapeHtml(period)}">
-      <small>${escapeHtml(label(period))}</small>
-      <div class="card-row"><h3>Waveform interval</h3>${badge(state)}</div>
-      <p class="interval-window"><span>${escapeHtml(formatTimestamp(startMs))}</span><span aria-hidden="true">→</span><span>${escapeHtml(formatTimestamp(endMs))}</span></p>
-      <p class="interval-duration">${escapeHtml(formatDuration(endMs - startMs))} preselected window · raw-relative milliseconds</p>
-      ${reasonLine(interval.reason_codes)}
-      <div class="waveform-stack">${signals.map((signal, index) => renderSignalSafely(signal, period, index, startMs, endMs, evidenceTargets)).join("")}</div>
-      ${renderEvidenceLinks(allEvidenceIds, evidenceTargets)}
-    </article>`;
-}
-
-function renderSignalSafely(value, period, index, intervalStartMs, intervalEndMs, evidenceTargets) {
-  try {
-    return renderSignal(value, period, index, intervalStartMs, intervalEndMs, evidenceTargets);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The signal excerpt is invalid.";
-    return `<section class="waveform-failure" role="alert"><h4>Signal unavailable</h4><p>${escapeHtml(message)} No values were estimated or drawn.</p></section>`;
-  }
-}
-
-function renderSignal(value, period, index, intervalStartMs, intervalEndMs, evidenceTargets) {
-  const signal = object(value, "waveform signal");
-  const signalKind = text(signal.signal_kind, "signal kind");
-  const spec = SIGNAL_SPECS[signalKind];
-  if (!spec) {
-    throw new Error("The signal kind is unsupported.");
-  }
-  const state = text(signal.availability, "signal availability");
-  const unit = text(signal.unit, "signal unit");
-  if (unit !== spec.unit) {
-    throw new Error(`${spec.label} must retain its ${spec.unit} unit.`);
-  }
-  const sourceRecordIds = textArray(signal.source_record_ids, "signal source identifiers");
-  const reasonCodes = array(signal.reason_codes, "signal reason codes");
-  if (state === "missing") {
-    if (signal.signal_record_id !== null || signal.representation !== null || array(signal.sample_times_ms, "signal sample times").length || array(signal.values, "signal values").length) {
-      throw new Error("A missing signal cannot contain an identifier, representation, or samples.");
-    }
-    return `
-      <section class="waveform-panel waveform-panel-missing" data-signal-kind="${escapeHtml(signalKind)}">
-        <div class="waveform-heading"><div><h4>${escapeHtml(spec.label)}</h4><p>${escapeHtml(unit)}</p></div>${badge(state)}</div>
-        <p class="empty-value">Not available</p>
-        <p class="waveform-missing-copy">This signal excerpt was not supplied and no trace was inferred.</p>
-        ${reasonLine(reasonCodes)}
-        ${renderEvidenceLinks(sourceRecordIds, evidenceTargets)}
-      </section>`;
-  }
-  if (state !== "available") {
-    throw new Error(`${spec.label} has an unsupported availability state.`);
-  }
-
-  const signalRecordId = text(signal.signal_record_id, "signal identifier");
-  const representation = text(signal.representation, "signal representation");
-  if (representation !== spec.representation) {
-    throw new Error(`${spec.label} has an unsupported sample representation.`);
-  }
-  const times = numericArray(signal.sample_times_ms, "signal sample times");
-  const values = numericArray(signal.values, "signal values");
-  if (times.length < 2 || times.length > MAX_WAVEFORM_POINTS || times.length !== values.length) {
-    throw new Error(`The ${spec.label} excerpt must contain two to ${MAX_WAVEFORM_POINTS} paired samples.`);
-  }
-  if (times.some((time, sampleIndex) => time < intervalStartMs || time >= intervalEndMs || (sampleIndex > 0 && time <= times[sampleIndex - 1]))) {
-    throw new Error(`The ${spec.label} sample times must be strictly increasing inside the selected interval.`);
-  }
-
-  const plot = waveformPlot(times, values, intervalStartMs, intervalEndMs, representation);
-  const titleId = `waveform-title-${period}-${signalKind}-${index}`;
-  const signalEvidenceIds = [...new Set([signalRecordId, ...sourceRecordIds])];
-  return `
-    <section class="waveform-panel" data-signal-kind="${escapeHtml(signalKind)}" data-unit="${escapeHtml(unit)}">
-      <div class="waveform-heading"><div><h4>${escapeHtml(spec.label)}</h4><p>${escapeHtml(unit)} · ${times.length} supplied samples</p></div>${badge(state)}</div>
-      <svg class="waveform-chart ${escapeHtml(spec.colorClass)}" viewBox="0 0 ${WAVEFORM_WIDTH} ${WAVEFORM_HEIGHT}" role="img" aria-labelledby="${titleId}">
-        <title id="${titleId}">${escapeHtml(`${label(period)} ${spec.label}, ${unit}, ${times.length} supplied samples`)}</title>
-        <line class="waveform-axis" x1="${WAVEFORM_PADDING.left}" y1="${WAVEFORM_PADDING.top}" x2="${WAVEFORM_PADDING.left}" y2="${WAVEFORM_HEIGHT - WAVEFORM_PADDING.bottom}"></line>
-        <line class="waveform-axis" x1="${WAVEFORM_PADDING.left}" y1="${WAVEFORM_HEIGHT - WAVEFORM_PADDING.bottom}" x2="${WAVEFORM_WIDTH - WAVEFORM_PADDING.right}" y2="${WAVEFORM_HEIGHT - WAVEFORM_PADDING.bottom}"></line>
-        ${plot.zeroY === null ? "" : `<line class="waveform-zero" x1="${WAVEFORM_PADDING.left}" y1="${plot.zeroY}" x2="${WAVEFORM_WIDTH - WAVEFORM_PADDING.right}" y2="${plot.zeroY}"></line>`}
-        <path class="waveform-trace" d="${plot.path}"></path>
-        <text class="waveform-axis-label" x="${WAVEFORM_PADDING.left - 8}" y="${WAVEFORM_PADDING.top + 4}" text-anchor="end">${escapeHtml(formatValue(plot.maximum))}</text>
-        <text class="waveform-axis-label" x="${WAVEFORM_PADDING.left - 8}" y="${WAVEFORM_HEIGHT - WAVEFORM_PADDING.bottom + 4}" text-anchor="end">${escapeHtml(formatValue(plot.minimum))}</text>
-        <text class="waveform-axis-label" x="${WAVEFORM_PADDING.left}" y="${WAVEFORM_HEIGHT - 8}">0 s</text>
-        <text class="waveform-axis-label" x="${WAVEFORM_WIDTH - WAVEFORM_PADDING.right}" y="${WAVEFORM_HEIGHT - 8}" text-anchor="end">${escapeHtml(formatDuration(intervalEndMs - intervalStartMs))}</text>
-      </svg>
-      <p class="waveform-contract">${representation === "timed_updates" ? "Stored updates shown as steps" : "Supplied samples connected without smoothing"} · display range ${escapeHtml(formatValue(plot.minimum))}–${escapeHtml(formatValue(plot.maximum))} ${escapeHtml(unit)}</p>
-      ${reasonLine(reasonCodes)}
-      ${renderEvidenceLinks(signalEvidenceIds, evidenceTargets)}
-    </section>`;
-}
-
-function waveformPlot(times, values, intervalStartMs, intervalEndMs, representation) {
-  const left = WAVEFORM_PADDING.left;
-  const right = WAVEFORM_WIDTH - WAVEFORM_PADDING.right;
-  const top = WAVEFORM_PADDING.top;
-  const bottom = WAVEFORM_HEIGHT - WAVEFORM_PADDING.bottom;
-  const rawMinimum = Math.min(...values);
-  const rawMaximum = Math.max(...values);
-  const rawRange = rawMaximum - rawMinimum;
-  if (!Number.isFinite(rawRange)) {
-    throw new Error("The signal value range cannot be plotted safely.");
-  }
-  const padding = rawMaximum === rawMinimum ? Math.max(Math.abs(rawMaximum) * 0.05, 1) : rawRange * 0.08;
-  const minimum = rawMinimum - padding;
-  const maximum = rawMaximum + padding;
-  if (!Number.isFinite(minimum) || !Number.isFinite(maximum) || minimum >= maximum) {
-    throw new Error("The signal display range cannot be plotted safely.");
-  }
-  const x = (time) => left + ((time - intervalStartMs) / (intervalEndMs - intervalStartMs)) * (right - left);
-  const y = (value) => top + ((maximum - value) / (maximum - minimum)) * (bottom - top);
-  const coordinates = times.map((time, index) => [rounded(x(time)), rounded(y(values[index]))]);
-  if (coordinates.some(([horizontal, vertical]) => !Number.isFinite(horizontal) || !Number.isFinite(vertical))) {
-    throw new Error("The signal coordinates cannot be plotted safely.");
-  }
-  let path = `M ${coordinates[0][0]} ${coordinates[0][1]}`;
-  for (let index = 1; index < coordinates.length; index += 1) {
-    const [nextX, nextY] = coordinates[index];
-    path += representation === "timed_updates" ? ` H ${nextX} V ${nextY}` : ` L ${nextX} ${nextY}`;
-  }
-  const zeroY = minimum <= 0 && maximum >= 0 ? rounded(y(0)) : null;
-  return {path, zeroY, minimum: rawMinimum, maximum: rawMaximum};
-}
-
-function renderClassification(value) {
-  const classification = object(value, "classification");
-  const state = text(classification.availability, "classification availability");
-  return `
-    <article class="classification-card">
-      <div>
-        <p class="eyebrow">Deterministic result</p>
-        <p class="status-value">${escapeHtml(availability(state))}</p>
-        ${badge(state)}
-      </div>
-      <div>
-        <div class="classification-values">
-          <div class="classification-value"><small>Classification</small><strong>${escapeHtml(classification.classification === null ? "Not issued" : label(classification.classification))}</strong></div>
-          <div class="classification-value"><small>Next action</small><strong>${escapeHtml(classification.action === null ? "Not issued" : label(classification.action))}</strong></div>
-        </div>
-        ${reasonLine(classification.reason_codes)}
-      </div>
-    </article>`;
-}
-
-function renderMissingInput(value) {
-  const item = object(value, "missing input");
-  return `<article class="missing-card"><h3>${escapeHtml(label(item.input_id))}</h3><p>${escapeHtml(text(item.description, "missing-input description"))}</p></article>`;
-}
-
-function renderList(values) {
-  const entries = array(values, "list entries");
-  return `<ul class="evidence-list">${entries.map((value) => `<li>${escapeHtml(text(value, "list entry"))}</li>`).join("")}</ul>`;
-}
-
-function evidenceIndex(values) {
-  const records = textArray(values, "source records");
-  if (new Set(records).size !== records.length) {
-    throw new Error("The report source-record inventory contains duplicates.");
-  }
-  return {records, targets: new Map(records.map((recordId, index) => [recordId, `evidence-source-${index + 1}`]))};
-}
-
-function renderEvidenceInventory(records) {
-  return `<ol class="evidence-source-list">${records.map((recordId, index) => `<li id="evidence-source-${index + 1}"><code>${escapeHtml(recordId)}</code></li>`).join("")}</ol>`;
-}
-
-function renderEvidenceLinks(sourceRecordIds, evidenceTargets) {
-  if (!sourceRecordIds.length) {
-    return `<p class="evidence-links evidence-links-missing"><strong>Evidence links</strong><span>Not available</span></p>`;
-  }
-  return `
-    <div class="evidence-links">
-      <strong>Evidence links</strong>
-      <ul>${sourceRecordIds.map((recordId) => {
-        const target = evidenceTargets.get(recordId);
-        return target
-          ? `<li><a href="#${target}"><code>${escapeHtml(recordId)}</code></a></li>`
-          : `<li><span class="evidence-link-unresolved" title="This identifier is absent from the report provenance inventory"><code>${escapeHtml(recordId)}</code> · unresolved</span></li>`;
-      }).join("")}</ul>
-    </div>`;
+function renderList(values, emptyText) {
+  return values.length ? `<ul class="evidence-list">${values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>` : `<p class="empty-value">${escapeHtml(emptyText)}</p>`;
 }
 
 function reasonLine(values) {
-  const reasons = array(values, "reason codes").map((value) => text(value, "reason code"));
+  const reasons = textArray(values === undefined ? [] : values, "reason codes");
   return reasons.length ? `<p class="reason-line">${reasons.map(escapeHtml).join(" · ")}</p>` : "";
 }
 
 function badge(value) {
   const state = text(value, "availability");
-  return `<span class="badge badge-${escapeHtml(state.replaceAll("_", "-"))}">${escapeHtml(availability(state))}</span>`;
+  return `<span class="badge badge-${escapeHtml(stateClass(state))}">${escapeHtml(availabilityLabel(state))}</span>`;
 }
 
-function availability(value) {
-  if (value === "not_issued") return "Not issued";
-  if (value === "missing") return "Missing";
-  return label(value);
+function availabilityLabel(value) {
+  return LABELS[value] || label(value);
+}
+
+function stateClass(value) {
+  return text(value, "availability").replaceAll("_", "-");
 }
 
 function label(value) {
-  const raw = text(value, "label value");
-  if (LABELS[raw]) return LABELS[raw];
-  return raw.replaceAll("_", " ").replace(/\b\w/g, (character) => character.toUpperCase());
+  return text(value, "label value").replaceAll("_", " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatScalar(value, unit) {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("A trend value is not finite.");
+    return `${escapeHtml(formatNumber(value))}${unit ? ` <span>${escapeHtml(unit)}</span>` : ""}`;
+  }
+  if (typeof value === "string" || typeof value === "boolean") return escapeHtml(String(value));
+  throw new Error("An available trend point has no displayable value.");
+}
+
+function formatNumber(value) {
+  return Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000);
+}
+
+function plural(count, singular, pluralForm = `${singular}s`) {
+  return count === 1 ? singular : pluralForm;
+}
+
+function nightUrl(identifier) {
+  return `/api/v1/analysis/nights/${encodeURIComponent(identifier)}`;
+}
+
+function trendUrl(identifier) {
+  return `/api/v1/analysis/trends/${encodeURIComponent(identifier)}`;
+}
+
+function evidenceUrl(identifier) {
+  return `/api/v1/analysis/evidence/${encodeURIComponent(identifier)}`;
+}
+
+function experimentUrl(identifier) {
+  return `/api/v1/analysis/experiments/${encodeURIComponent(identifier)}`;
 }
 
 function object(value, labelName) {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`The ${labelName} is missing or invalid.`);
-  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error(`The ${labelName} is missing or invalid.`);
   return value;
 }
 
 function array(value, labelName) {
-  if (!Array.isArray(value)) {
-    throw new Error(`The ${labelName} are missing or invalid.`);
-  }
+  if (!Array.isArray(value)) throw new Error(`The ${labelName} are missing or invalid.`);
   return value;
 }
 
@@ -534,35 +387,13 @@ function textArray(value, labelName) {
   return array(value, labelName).map((entry) => text(entry, labelName));
 }
 
-function numericArray(value, labelName) {
-  return array(value, labelName).map((entry) => finiteNumber(entry, labelName));
-}
-
 function text(value, labelName) {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`The ${labelName} is missing or invalid.`);
-  }
+  if (typeof value !== "string" || !value.trim()) throw new Error(`The ${labelName} is missing or invalid.`);
   return value;
 }
 
 function integer(value, labelName) {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`The ${labelName} is missing or invalid.`);
-  }
-  return value;
-}
-
-function number(value) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error("A numeric report value is missing or invalid.");
-  }
-  return String(value);
-}
-
-function finiteNumber(value, labelName) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`The ${labelName} is missing or invalid.`);
-  }
+  if (!Number.isInteger(value) || value < 0) throw new Error(`The ${labelName} is missing or invalid.`);
   return value;
 }
 
@@ -571,84 +402,29 @@ function rounded(value) {
   return Object.is(result, -0) ? 0 : result;
 }
 
-function formatTimestamp(value) {
-  return `${String(value)} ms`;
-}
-
-function formatDuration(milliseconds) {
-  return `${formatValue(milliseconds / 1000)} s`;
-}
-
-function formatValue(value) {
-  return Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000);
-}
-
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"})[character]);
+}
+
+async function fetchJson(endpoint) {
+  const response = await fetch(endpoint, {cache: "no-store", headers: {Accept: "application/json"}});
+  if (!response.ok) throw new Error(`${endpoint} returned HTTP ${response.status}.`);
+  return response.json();
 }
 
 async function loadOverview() {
   const root = document.querySelector("#overview");
   if (!root) return;
   try {
-    const response = await fetch(SUMMARY_ENDPOINT, {cache: "no-store", headers: {Accept: "application/json"}});
-    if (!response.ok) throw new Error(`The local API returned HTTP ${response.status}.`);
-    root.innerHTML = renderOverview(await response.json());
-    await loadExperimentHistory();
+    const [overview, nights, trends] = await Promise.all([fetchJson(OVERVIEW_ENDPOINT), fetchJson(NIGHTS_ENDPOINT), fetchJson(TRENDS_ENDPOINT)]);
+    root.innerHTML = renderOverview(overview, nights, trends);
   } catch (error) {
-    root.innerHTML = renderOverviewError(error instanceof Error ? error.message : "The local report could not be loaded.");
+    root.innerHTML = renderOverviewError(error instanceof Error ? error.message : "The local analysis workspace could not be loaded.");
   } finally {
     root.setAttribute("aria-busy", "false");
   }
 }
 
-async function loadExperimentHistory() {
-  const target = document.querySelector("#experiment-history");
-  if (!target) return;
-  try {
-    const response = await fetch(HISTORY_ENDPOINT, {cache: "no-store", headers: {Accept: "application/json"}});
-    if (!response.ok) throw new Error(`History returned HTTP ${response.status}.`);
-    target.innerHTML = renderExperimentHistory(await response.json());
-    bindCorrectionForm(target);
-  } catch (error) {
-    target.innerHTML = `<div class="history-unavailable" role="alert"><h3>Local history unavailable</h3><p>${escapeHtml(error instanceof Error ? error.message : "The history could not be loaded.")}</p></div>`;
-  }
-}
+if (typeof document !== "undefined") loadOverview();
 
-function bindCorrectionForm(target) {
-  const form = target.querySelector("#boundary-correction-form");
-  if (!form) return;
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const status = form.querySelector(".form-status");
-    const appliedAt = form.querySelector("#applied-at");
-    const note = form.querySelector("#correction-note");
-    const appliedAtMs = new Date(appliedAt.value).getTime();
-    if (!Number.isInteger(appliedAtMs)) {
-      status.textContent = "Enter a valid local date and time.";
-      return;
-    }
-    status.textContent = "Saving append-only events…";
-    try {
-      const response = await fetch(BOUNDARY_CORRECTION_ENDPOINT, {
-        method: "POST",
-        headers: {Accept: "application/json", "Content-Type": "application/json"},
-        body: JSON.stringify({corrected_event_id: form.dataset.correctedEventId, applied_at_ms: appliedAtMs, note: note.value}),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : `Save returned HTTP ${response.status}.`);
-      target.innerHTML = renderExperimentHistory(payload);
-      bindCorrectionForm(target);
-      const updatedStatus = target.querySelector(".form-status");
-      if (updatedStatus) updatedStatus.textContent = "Correction and note appended. Earlier history remains below.";
-    } catch (error) {
-      status.textContent = error instanceof Error ? error.message : "The correction could not be saved.";
-    }
-  });
-}
-
-if (typeof document !== "undefined") {
-  loadOverview();
-}
-
-export {BOUNDARY_CORRECTION_ENDPOINT, HISTORY_ENDPOINT, SUMMARY_ENDPOINT};
+export {NIGHTS_ENDPOINT, OVERVIEW_ENDPOINT, TRENDS_ENDPOINT};

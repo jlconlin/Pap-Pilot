@@ -406,7 +406,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: Automatic diagnosis, arbitrary unbounded waveform export, new clinical claims, and settings changes.
 - Done when: Synthetic and disposable-workspace tests cover populated, missing, and poor-quality night evidence through the UI.
 
-### S53 — Generalize experiment workflows — queued
+### S53 — Generalize experiment workflows — done
 
 - Objective: Make experiment records, metric selection, comparison periods, and safety-policy dispatch generic while retaining PS Min as one supported example.
 - Excludes: Expanding the prospective safety allowlist, automatic recommendations, AI activation, and device control.

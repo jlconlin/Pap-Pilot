@@ -2,10 +2,18 @@
 
 **Updated:** September 10, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S52 completed
-**Next sprint:** S53 — Generalize experiment workflows
+**Current sprint:** None — S53 completed
+**Next sprint:** None queued
 
 ## Current state
+
+- S53 establishes the source-independent `pap-pilot.generic-experiment` version-1 contract. A definition can compare one explicitly named device-setting, equipment, behavior, environment, or other variable; uses caller-defined reference/comparison periods with exact night membership; prespecifies arbitrary metric identifiers, units, methodology sources, and evidence minima; and retains problem, hypothesis, competing explanations, representative intervals, expected effects, invalid-night criteria, adverse effects, stop/reversion rules, complete sources, provenance, and limitations.
+
+- `pap_pilot.engine.experiments.analyze_generic_experiment` consumes a complete calculated-or-insufficient metric/night ledger and deterministically produces per-period minimum/median/maximum summaries plus each comparison-period median minus its named reference. Missing observations and failed evidence minima remain explicit as partial or not-evaluable results. The generic layer does not calculate an underlying metric, assign favorable direction or meaningful-change thresholds, issue a classification or recommendation, infer causation, or take device action.
+
+- Prospective definitions name a versioned safety policy and route through `dispatch_generic_experiment_safety`. The dispatcher has a closed supported set: only the existing decision-0009 policy is registered, its generic change must exactly match the typed PS Min proposal, and the unchanged `evaluate_prospective_safety` result remains authoritative. Missing input, mismatched changes, and unknown policies fail closed. Retrospective safety is explicitly `not_applicable`, not approved.
+
+- `docs/decisions/0012-generic-experiment-contracts.md` records the contract and compatibility boundary. The legacy PS Min proposal/events, store, allocation, classifier, reports, routes, AI gate, and safety evaluator remain unchanged regression surfaces. Generic persistence, API/UI composition, metric algorithms, automatic period selection, outcome methodology, AI activation, recommendations, allowlist expansion, and device control were not added.
 
 - S52 adds a rendered `/nights/{night_record_id}` page reached from the general overview. It displays exact normalized session bounds, observed settings, machine-labeled event intervals, generic signal records, existing deterministic quality findings, source-record links, and normalized provenance without requiring or centering an experiment.
 
@@ -27,7 +35,7 @@
 
 - S49 establishes `pap_pilot.engine.analysis` as the source-independent product-level contract. Immutable version-1 workspace, night, trend, trend-point, evidence, logical-resource, and optional experiment-reference records preserve explicit availability, stable identities, complete nested provenance, resolvable links, deterministic JSON, and the ability to represent useful PAP analysis with no experiment. `docs/decisions/0011-generic-analysis-workspace.md` defines the reserved generic routes and keeps PS Min only as an optional compatibility fixture; no API route, UI behavior, metric, selection, AI, persistence, device action, or OSCAR access was added.
 
-- Product scope is now broader general PAP analysis, inspired by the AirwayLab-style workflow of recent-night review, longitudinal trends, night drill-down, waveform/event evidence, and signal-quality explanations. The completed PS Min 2-to-1 path remains a regression fixture and example experiment, not the product definition. S49–S52 are complete; S53 remains queued.
+- Product scope is now broader general PAP analysis, inspired by the AirwayLab-style workflow of recent-night review, longitudinal trends, night drill-down, waveform/event evidence, and signal-quality explanations. The completed PS Min 2-to-1 path remains a regression fixture and example experiment, not the product definition. S49–S53 are complete; no later sprint is queued.
 
 - S48 records `docs/validation/ai-usefulness-s48.md`: synthetic comparison with the deterministic retrospective fixture found possible bounded explanatory value but no incremental evidence or decision value, so hosted AI remains disabled and recommendation scope is unchanged. Fail-closed authorization, unavailable-provider, malformed-response, and S46 safety-gate behavior remain reproducible.
 
@@ -173,9 +181,14 @@
 
 ## Last completed sprint
 
-S52 — Add night detail and waveform evidence views.
+S53 — Generalize experiment workflows.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_generic_experiment tests.test_prospective_safety_gate tests.test_outcome_classification -v`; all twenty-eight focused generic-contract and legacy PS Min safety/classification tests passed. The synthetic non-PS-Min case compares mask interfaces across arbitrary named periods and selected metrics, covers complete, partial, not-evaluable, multi-comparison, invalid-ledger, immutability, and dependency-isolation behavior, and proves unsupported or mismatched prospective policies fail closed.
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -v`; all three hundred twenty-three tests passed without resource warnings, including the unchanged PS Min report/API, safety-gate, classifier, store, prospective lifecycle, and AI-gate regressions.
+- Built and installed the project wheel locally with `.venv/bin/python -m pip install --no-deps --no-build-isolation .`; all twenty-nine focused installed-package generic experiment, PS Min safety/classification, and package-boundary tests passed.
+- Python compilation and `git diff --check` passed. Source inspection confirms the generic contract imports no OSCAR adapter, API, UI, AI, SQLite, or device-control dependency; no OSCAR database or therapy-data file was accessed.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_night_detail_ui tests.test_overview_ui tests.test_analysis_api tests.test_local_api tests.test_retrospective_local_workspace tests.test_package_imports -v`; all thirty-nine focused S52/composition/API/UI/configuration/package tests passed. Synthetic browser coverage includes populated settings/events/signals, a missing signal, exact 2,000-sample truncation with omitted counts, a flagged large-leak interval, insufficient evidence, impact/measurement/limitation display, source/provenance anchors, escaped text, visible load failure, known/unknown rendered routes, GET-only behavior, an explicit unavailable detail when normalized inputs were not supplied, and rejection of detail/workspace mismatches or an oversized preview.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover --start-directory tests --verbose`; all 312 tests passed, preserving adapter, normalized-model, quality, metric, experiment, report, API, safety, AI, overview, and PS Min compatibility regressions.
@@ -410,6 +423,12 @@ S52 — Add night detail and waveform evidence views.
 
 ## Decisions and assumptions
 
+- Generic experiment definition is a new versioned source-independent contract rather than a mutation of the frozen version-1 PS Min event/persistence schema. The definition links a stable experiment identity and retains explicit evidence/provenance while legacy persistence remains byte-compatible; a later sprint must separately scope generic store/API/UI integration if wanted.
+- Period membership is explicit and generic: exactly one caller-named reference and one or more caller-named comparisons, with each normalized night assigned at most once. The generic engine does not infer periods from timestamps, settings, labels, or sequence.
+- Metric selection accepts an externally defined metric identifier and unit but does not confer algorithm validity. Every selected metric and assigned night must have a calculated or explicitly insufficient observation; descriptive summaries require the prespecified per-period minimum, and missing evidence is never omitted or imputed.
+- Generic comparisons report only distribution summaries and raw median differences. The PS Min version-1 classifier remains restricted to its two accepted objective metrics and subjective rules; no generic favorable direction, threshold, classification, recommendation, or next action was invented.
+- Safety dispatch is generic in routing identity but closed in authorization. Only policy 0009 version 1 is implemented, and it still permits only the exact fixed-EPAP ASV PS Min 2.0-to-1.0 change after all existing evidence and reversion checks pass. Retrospective `not_applicable` and prospective `policy_unavailable`/`ineligible` cannot be interpreted as safety approval.
+
 - Workspace configuration is a versioned local composition contract, not a new evidence store. The existing `pap_pilot.sqlite3` remains authoritative for append-only experiment/user history, while OSCAR remains the canonical PAP-data store and is accessed only through the guarded adapter on a caller-asserted fixed disposable copy.
 - Configured startup requires every OSCAR session identifier and both representative interval choices explicitly. Resolving those source session identifiers to deterministic normalized night/session record identifiers is composition, not cohort detection or interval selection.
 - An evaluated report is rebuilt once at process startup and then served as frozen canonical bytes. A boundary correction updates the effective history immediately; restarting the app replays that history and rebuilds the report. S37F does not introduce request-time recomputation or silently change an already displayed evaluation.
@@ -620,7 +639,7 @@ S52 — Add night detail and waveform evidence views.
 
 ## Blockers
 
-- S52 is complete and S53 is queued. Hosted transmission remains intentionally blocked; the generic overview and night-detail view do not authorize AI transmission or weaken decision 0010.
+- S53 is complete and no later sprint is queued. Generic append-only persistence, API/UI experiment composition, automatic period selection, and new metric or outcome methodology remain unimplemented and require explicit future sprint scope. Hosted transmission remains intentionally blocked; the generic contracts do not authorize AI transmission or weaken decision 0010.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S37E's explicitly selected experiment-report excerpts remain available through the PS Min compatibility API. S52 separately adds generic per-night previews chosen by a fixed display-only rule; neither path fills a source gap or infers a missing signal, and arbitrary waveform exploration/export remains outside the prototype.
@@ -637,5 +656,5 @@ S52 — Add night detail and waveform evidence views.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. S52 is complete; begin only S53, generalize experiment records, metric selection, comparison periods, and safety-policy dispatch while retaining PS Min as one supported example, without expanding the prospective safety allowlist, enabling automatic recommendations or AI, or adding device control.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. S53 is complete and no later sprint is queued. Define exactly one new sprint in `SPRINTS.md` before changing implementation, preserve the generic PAP-analysis direction and PS Min compatibility fixture, and do not expand the prospective safety allowlist, enable recommendations or hosted AI, write OSCAR, or add device control without an explicit plan change.
 ```

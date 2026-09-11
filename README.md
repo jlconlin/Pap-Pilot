@@ -1,6 +1,6 @@
 # PAP Pilot
 
-PAP Pilot is a local, single-user tool for understanding PAP therapy data over time. It is being developed as a general analysis workspace for recent-night review, longitudinal trends, night-by-night evidence, signal quality, waveform and event inspection, subjective outcomes, and optional controlled settings experiments.
+PAP Pilot is a local, single-user tool for understanding PAP therapy data over time. It is being developed as a general analysis workspace for recent-night review, longitudinal trends, night-by-night evidence, signal quality, waveform and event inspection, subjective outcomes, and optional controlled experiments.
 
 PAP Pilot is an analysis and decision-support prototype. It does not change PAP device settings, write to OSCAR, diagnose medical conditions, or send health data to a hosted AI service. OSCAR remains the canonical data store, and any settings change remains a manual decision for the user and their clinician.
 

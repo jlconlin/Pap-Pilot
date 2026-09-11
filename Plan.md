@@ -172,13 +172,15 @@ For the PS Min retrospective experiment, metric-set version 1 contains exactly t
 
 ## 7. Experiment and safety model
 
-Each experiment record must include:
+The product-level experiment contract is generic. It must represent retrospective or prospective comparison of one explicitly named device-setting, equipment, behavior, environment, or other variable without assuming PS Min. Each definition must name exactly one reference period and one or more comparison periods, assign nights explicitly rather than infer membership, prespecify its metric identifiers, units, methodology sources, and per-period evidence minima, and preserve a complete calculated-or-insufficient metric/night ledger. Generic comparison output is descriptive only: per-period minimum, median, and maximum plus comparison-period median minus reference-period median. It does not infer a favorable direction, meaningful-change threshold, causal conclusion, classification, recommendation, or device action.
+
+Each generic experiment record must include:
 
 - Problem being investigated.
 - Hypothesis and competing explanations.
-- Baseline dates and settings.
-- Proposed single-variable change.
-- Settings held fixed.
+- Explicit named reference/comparison periods and their assigned nights.
+- One controlled variable, its kind, and exact reference/comparison values.
+- Selected metrics, units, evidence minima, and methodology/source links.
 - Evidence and representative waveform intervals.
 - Expected objective and subjective effects.
 - Minimum valid nights and invalid-night criteria.
@@ -186,9 +188,11 @@ Each experiment record must include:
 - Stop and revert conditions.
 - What was actually applied and when.
 - Structured daily sleep-journal responses, optional free-text notes, and confounders.
-- Final classification and next action.
+- Any final classification and next action when an approved ruleset exists; otherwise the result remains descriptive or explicitly not evaluable.
 
-Initial classifications are:
+For a PAP setting-change experiment, the existing version-1 proposal additionally retains baseline dates and settings, the exact proposed single-variable setting change, and every setting held fixed. The completed PS Min 2-to-1 allocation, outcome classifier, append-only persistence, evidence reports, API/UI paths, and regression fixtures remain compatibility contracts rather than defaults for other experiments. `docs/decisions/0012-generic-experiment-contracts.md` governs the generic version-1 definition, period, metric-observation, descriptive-analysis, and safety-dispatch behavior.
+
+The retained PS Min ruleset's initial classifications are:
 
 - Clear improvement.
 - Probable improvement.
@@ -205,6 +209,8 @@ The deterministic safety gate must, at minimum:
 - Reject proposals that alter more than one primary variable.
 - Require explicit stop and reversion rules.
 - Prevent AI text from overriding a failed eligibility or safety check.
+
+Prospective definitions dispatch by an explicit versioned safety-policy identity and fail closed when that policy is unsupported, its typed evidence is missing, or its proposal does not match the generic change. The only registered prospective policy remains decision 0009's exact fixed-EPAP ASV PS Min 2.0-to-1.0 change; generic experiment support does not expand that allowlist. Retrospective analysis reports safety as not applicable, never as prospective approval.
 
 The initial supported recommendation scope must be defined before the app drafts a new prospective experiment.
 

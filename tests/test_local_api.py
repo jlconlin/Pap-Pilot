@@ -9,6 +9,13 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from pap_pilot.api import (
+    ANALYSIS_EVIDENCE_DETAIL_PATH,
+    ANALYSIS_EXPERIMENT_DETAIL_PATH,
+    ANALYSIS_NIGHT_DETAIL_PATH,
+    ANALYSIS_NIGHTS_PATH,
+    ANALYSIS_OVERVIEW_PATH,
+    ANALYSIS_TREND_DETAIL_PATH,
+    ANALYSIS_TRENDS_PATH,
     LOCAL_API_DEFAULT_HOST,
     LOCAL_API_DEFAULT_PORT,
     LOCAL_API_HEALTH_PATH,
@@ -68,6 +75,13 @@ class LocalApiTests(unittest.TestCase):
             routes,
             {
                 (LOCAL_API_HEALTH_PATH, frozenset({"GET"})),
+                (ANALYSIS_OVERVIEW_PATH, frozenset({"GET"})),
+                (ANALYSIS_NIGHTS_PATH, frozenset({"GET"})),
+                (ANALYSIS_NIGHT_DETAIL_PATH, frozenset({"GET"})),
+                (ANALYSIS_TRENDS_PATH, frozenset({"GET"})),
+                (ANALYSIS_TREND_DETAIL_PATH, frozenset({"GET"})),
+                (ANALYSIS_EVIDENCE_DETAIL_PATH, frozenset({"GET"})),
+                (ANALYSIS_EXPERIMENT_DETAIL_PATH, frozenset({"GET"})),
                 (PS_MIN_EXPERIMENT_SUMMARY_PATH, frozenset({"GET"})),
                 (PS_MIN_EXPERIMENT_HISTORY_PATH, frozenset({"GET"})),
                 (PS_MIN_BOUNDARY_CORRECTION_PATH, frozenset({"POST"})),

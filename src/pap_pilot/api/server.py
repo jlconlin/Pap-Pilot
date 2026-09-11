@@ -1,11 +1,14 @@
-"""Local HTTP boundary for reports and tightly scoped append-only experiment events."""
+"""Local HTTP boundary for generic analysis and compatibility experiment resources."""
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from enum import StrEnum
 from ipaddress import ip_address
+import json
 from pathlib import Path
-from typing import Final, Literal, Sequence
+from types import MappingProxyType
+from typing import Final, Literal, Mapping, Sequence
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Response
@@ -13,6 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 import uvicorn
 
+from pap_pilot.engine.analysis import AnalysisResource, AnalysisResourceKind, AnalysisWorkspace, serialize_analysis_workspace
 from pap_pilot.engine.experiments import ConfounderKind, ConfounderReportStatus, ExperimentEvent, ExperimentEventType, ExperimentModelError, ExperimentNotFoundError, ExperimentStore, ExperimentStoreError, NoteRecordedPayload, SettingChangeConfirmedPayload, SleepJournalConfounder, SleepJournalEntry, SleepJournalEntryRecordedPayload, build_boundary_correction_events, reconstruct_ps_min_experiment_fixture, replay_prospective_lifecycle
 from pap_pilot.engine.model import SourceClass
 from pap_pilot.engine.reports import (
@@ -21,13 +25,22 @@ from pap_pilot.engine.reports import (
     serialize_retrospective_evidence_report,
 )
 from pap_pilot.ui import load_overview_asset
-from pap_pilot.workflow import load_retrospective_workspace
+from pap_pilot.workflow import load_retrospective_workspace, unavailable_analysis_workspace
 
 
 LOCAL_API_VERSION: Final = 1
 LOCAL_API_DEFAULT_HOST: Final = "127.0.0.1"
 LOCAL_API_DEFAULT_PORT: Final = 8765
 LOCAL_API_HEALTH_PATH: Final = "/api/v1/health"
+ANALYSIS_OVERVIEW_PATH: Final = "/api/v1/analysis/overview"
+ANALYSIS_NIGHTS_PATH: Final = "/api/v1/analysis/nights"
+ANALYSIS_NIGHT_DETAIL_PATH: Final = "/api/v1/analysis/nights/{night_record_id}"
+ANALYSIS_TRENDS_PATH: Final = "/api/v1/analysis/trends"
+ANALYSIS_TREND_DETAIL_PATH: Final = "/api/v1/analysis/trends/{trend_record_id}"
+ANALYSIS_EVIDENCE_DETAIL_PATH: Final = "/api/v1/analysis/evidence/{evidence_record_id}"
+ANALYSIS_EXPERIMENT_DETAIL_PATH: Final = "/api/v1/analysis/experiments/{experiment_record_id}"
+ANALYSIS_RESOURCE_FORMAT: Final = "pap-pilot.analysis-resource-json"
+ANALYSIS_RESOURCE_FORMAT_VERSION: Final = 1
 PS_MIN_EXPERIMENT_SUMMARY_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/summary"
 PS_MIN_EXPERIMENT_HISTORY_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/history"
 PS_MIN_BOUNDARY_CORRECTION_PATH: Final = "/api/v1/experiments/ps-min-2-to-1/boundary-corrections"
@@ -112,13 +125,33 @@ class MorningJournalRequest(BaseModel):
     original_note: StrictStr | None = Field(default=None, max_length=4000)
 
 
-def create_app(report: RetrospectiveEvidenceReport | None = None, *, database_path: str | Path | None = None) -> FastAPI:
+@dataclass(frozen=True, slots=True)
+class _AnalysisApiSnapshot:
+    overview_json: str
+    nights_json: str
+    night_json_by_id: Mapping[str, str]
+    trends_json: str
+    trend_json_by_id: Mapping[str, str]
+    evidence_json_by_id: Mapping[str, str]
+    experiment_json_by_id: Mapping[str, str]
+
+
+def create_app(
+    report: RetrospectiveEvidenceReport | None = None,
+    *,
+    database_path: str | Path | None = None,
+    analysis_workspace: AnalysisWorkspace | None = None,
+) -> FastAPI:
     """Create the local API and freeze its deterministic report response bytes."""
 
     selected_report = build_ps_min_retrospective_evidence_report() if report is None else report
     if not isinstance(selected_report, RetrospectiveEvidenceReport):
         raise LocalApiConfigurationError("The experiment-summary endpoint requires a retrospective evidence report.")
     summary_json = serialize_retrospective_evidence_report(selected_report)
+    selected_analysis = unavailable_analysis_workspace() if analysis_workspace is None else analysis_workspace
+    if not isinstance(selected_analysis, AnalysisWorkspace):
+        raise LocalApiConfigurationError("The generic analysis endpoints require an analysis workspace.")
+    analysis_snapshot = _build_analysis_api_snapshot(selected_analysis)
     overview_html = load_overview_asset("overview.html")
     overview_styles = load_overview_asset("overview.css")
     overview_script = load_overview_asset("overview.mjs")
@@ -134,6 +167,34 @@ def create_app(report: RetrospectiveEvidenceReport | None = None, *, database_pa
     def health(response: Response) -> HealthResponse:
         response.headers.update(_JSON_RESPONSE_HEADERS)
         return HealthResponse()
+
+    @application.get(ANALYSIS_OVERVIEW_PATH, response_class=Response)
+    def analysis_overview() -> Response:
+        return _frozen_json_response(analysis_snapshot.overview_json)
+
+    @application.get(ANALYSIS_NIGHTS_PATH, response_class=Response)
+    def analysis_nights() -> Response:
+        return _frozen_json_response(analysis_snapshot.nights_json)
+
+    @application.get(ANALYSIS_NIGHT_DETAIL_PATH, response_class=Response)
+    def analysis_night_detail(night_record_id: str) -> Response:
+        return _analysis_detail_response(analysis_snapshot.night_json_by_id, night_record_id, "night")
+
+    @application.get(ANALYSIS_TRENDS_PATH, response_class=Response)
+    def analysis_trends() -> Response:
+        return _frozen_json_response(analysis_snapshot.trends_json)
+
+    @application.get(ANALYSIS_TREND_DETAIL_PATH, response_class=Response)
+    def analysis_trend_detail(trend_record_id: str) -> Response:
+        return _analysis_detail_response(analysis_snapshot.trend_json_by_id, trend_record_id, "trend")
+
+    @application.get(ANALYSIS_EVIDENCE_DETAIL_PATH, response_class=Response)
+    def analysis_evidence_detail(evidence_record_id: str) -> Response:
+        return _analysis_detail_response(analysis_snapshot.evidence_json_by_id, evidence_record_id, "evidence")
+
+    @application.get(ANALYSIS_EXPERIMENT_DETAIL_PATH, response_class=Response)
+    def analysis_experiment_detail(experiment_record_id: str) -> Response:
+        return _analysis_detail_response(analysis_snapshot.experiment_json_by_id, experiment_record_id, "experiment")
 
     @application.get(PS_MIN_EXPERIMENT_SUMMARY_PATH, response_class=Response)
     def ps_min_experiment_summary() -> Response:
@@ -222,7 +283,98 @@ def create_configured_app(configuration_path: str | Path) -> FastAPI:
     return create_app(
         workspace.report,
         database_path=workspace.configuration.experiment_database_path,
+        analysis_workspace=workspace.analysis_workspace,
     )
+
+
+def _build_analysis_api_snapshot(workspace: AnalysisWorkspace) -> _AnalysisApiSnapshot:
+    resources = {(value.kind, value.target_record_id): value for value in workspace.resources}
+
+    def required(kind: AnalysisResourceKind, target_record_id: str) -> AnalysisResource:
+        resource = resources.get((kind, target_record_id))
+        if resource is None:
+            raise LocalApiConfigurationError(f"The analysis workspace is missing its {kind.value} resource.")
+        return resource
+
+    required(AnalysisResourceKind.OVERVIEW, workspace.record_id)
+    nights = required(AnalysisResourceKind.NIGHT_COLLECTION, workspace.record_id)
+    trends = required(AnalysisResourceKind.TREND_COLLECTION, workspace.record_id)
+    night_json = {
+        value.night_record_id: _serialize_analysis_resource(
+            required(AnalysisResourceKind.NIGHT_DETAIL, value.night_record_id),
+            "night",
+            value,
+        )
+        for value in workspace.nights
+    }
+    trend_json = {
+        value.record_id: _serialize_analysis_resource(
+            required(AnalysisResourceKind.TREND_DETAIL, value.record_id),
+            "trend",
+            value,
+        )
+        for value in workspace.trends
+    }
+    evidence_json = {
+        value.record_id: _serialize_analysis_resource(
+            required(AnalysisResourceKind.EVIDENCE, value.record_id),
+            "evidence",
+            value,
+        )
+        for value in workspace.evidence
+    }
+    experiment_json = {
+        value.experiment_record_id: _serialize_analysis_resource(
+            required(AnalysisResourceKind.EXPERIMENT, value.experiment_record_id),
+            "experiment",
+            value,
+        )
+        for value in workspace.experiments
+    }
+    return _AnalysisApiSnapshot(
+        overview_json=serialize_analysis_workspace(workspace),
+        nights_json=_serialize_analysis_resource(nights, "nights", tuple(reversed(workspace.nights))),
+        night_json_by_id=MappingProxyType(night_json),
+        trends_json=_serialize_analysis_resource(trends, "trends", workspace.trends),
+        trend_json_by_id=MappingProxyType(trend_json),
+        evidence_json_by_id=MappingProxyType(evidence_json),
+        experiment_json_by_id=MappingProxyType(experiment_json),
+    )
+
+
+def _serialize_analysis_resource(resource: AnalysisResource, field_name: str, value: object) -> str:
+    envelope = {
+        "format": ANALYSIS_RESOURCE_FORMAT,
+        "format_version": ANALYSIS_RESOURCE_FORMAT_VERSION,
+        "resource": _analysis_json_value(asdict(resource)),
+        field_name: _analysis_json_value(asdict(value) if hasattr(value, "__dataclass_fields__") else value),
+    }
+    return json.dumps(envelope, ensure_ascii=False, allow_nan=False, sort_keys=True, separators=(",", ":"))
+
+
+def _analysis_json_value(value: object) -> object:
+    if isinstance(value, StrEnum):
+        return value.value
+    if isinstance(value, dict):
+        return {key: _analysis_json_value(item) for key, item in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [_analysis_json_value(asdict(item) if hasattr(item, "__dataclass_fields__") else item) for item in value]
+    return value
+
+
+def _frozen_json_response(content: str) -> Response:
+    return Response(content=content, media_type="application/json", headers=_JSON_RESPONSE_HEADERS)
+
+
+def _analysis_detail_response(values: Mapping[str, str], record_id: str, label: str) -> Response:
+    content = values.get(record_id)
+    if content is None:
+        return JSONResponse(
+            content={"detail": f"The requested analysis {label} is not available."},
+            status_code=404,
+            headers=_JSON_RESPONSE_HEADERS,
+        )
+    return _frozen_json_response(content)
 
 
 def _replay_workspace(database_path: str | Path | None):

@@ -31,7 +31,21 @@ curl http://127.0.0.1:8765/api/v1/health
 
 Without a workspace configuration, PAP Pilot loads a retained synthetic retrospective fixture. It is useful for checking the interface and report states, but it is not your OSCAR data and it does not automatically import anything. The local experiment history is stored in `pap_pilot.sqlite3` in the directory from which the command is started.
 
-The currently implemented overview can show experiment findings, evidence coverage, monitoring state, journal history, provenance, and explicit missing or not-evaluable states. The queued general-analysis work will replace this experiment-first landing view with recent-night, trend, and night-detail views. Missing evidence is reported rather than silently inferred.
+The currently implemented browser overview can show experiment findings, evidence coverage, monitoring state, journal history, provenance, and explicit missing or not-evaluable states. The generic read-only API now exposes recent-night, trend, night-detail, evidence, quality, and optional experiment resources; the next UI sprint will replace the experiment-first landing view with those general views. Missing evidence is reported rather than silently inferred.
+
+## Generic read-only API
+
+The configured application composes normalized nights, existing deterministic quality and metric results, replayed local journal entries, and optional experiment references into the generic analysis workspace. The current version exposes these GET-only resources:
+
+- `/api/v1/analysis/overview`
+- `/api/v1/analysis/nights`
+- `/api/v1/analysis/nights/{night_record_id}`
+- `/api/v1/analysis/trends`
+- `/api/v1/analysis/trends/{trend_record_id}`
+- `/api/v1/analysis/evidence/{evidence_record_id}`
+- `/api/v1/analysis/experiments/{experiment_record_id}`
+
+Night collections are ordered most recent first. With no workspace configuration, overview, night, and trend collections remain available as explicit `unavailable` responses with the reason `analysis_workspace_not_configured`; PAP Pilot does not search OSCAR or fabricate an empty result. The existing `/api/v1/experiments/ps-min-2-to-1/*` routes remain compatibility endpoints.
 
 ## Use a disposable OSCAR copy
 

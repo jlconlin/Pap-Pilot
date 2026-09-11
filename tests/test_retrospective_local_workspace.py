@@ -16,6 +16,11 @@ from fastapi.testclient import TestClient
 from pap_pilot.adapter import OscarCohortSelection, extract_normalized_oscar_cohort
 from pap_pilot.adapter._uniform_waveform import _qt_iso3309_checksum
 from pap_pilot.api import (
+    ANALYSIS_EVIDENCE_DETAIL_PATH,
+    ANALYSIS_NIGHT_DETAIL_PATH,
+    ANALYSIS_NIGHTS_PATH,
+    ANALYSIS_OVERVIEW_PATH,
+    ANALYSIS_TRENDS_PATH,
     PS_MIN_BOUNDARY_CORRECTION_PATH,
     PS_MIN_EXPERIMENT_HISTORY_PATH,
     PS_MIN_EXPERIMENT_SUMMARY_PATH,
@@ -94,6 +99,13 @@ class RetrospectiveLocalWorkspaceTests(unittest.TestCase):
         with TestClient(create_configured_app(self.configuration_path)) as client:
             summary_response = client.get(PS_MIN_EXPERIMENT_SUMMARY_PATH)
             history_response = client.get(PS_MIN_EXPERIMENT_HISTORY_PATH)
+            analysis_overview_response = client.get(ANALYSIS_OVERVIEW_PATH)
+            analysis_nights_response = client.get(ANALYSIS_NIGHTS_PATH)
+            analysis_trends_response = client.get(ANALYSIS_TRENDS_PATH)
+            recent_night = workspace.analysis_workspace.nights[-1]
+            analysis_night_response = client.get(ANALYSIS_NIGHT_DETAIL_PATH.format(night_record_id=recent_night.night_record_id))
+            quality_id = next(identifier for identifier in recent_night.evidence_record_ids if identifier.startswith("analysis-evidence:quality:"))
+            quality_evidence_response = client.get(ANALYSIS_EVIDENCE_DETAIL_PATH.format(evidence_record_id=quality_id))
 
         report = summary_response.json()["report"]
         self.assertEqual(summary_response.status_code, 200)
@@ -130,6 +142,19 @@ class RetrospectiveLocalWorkspaceTests(unittest.TestCase):
         source_ids = set(report["provenance"]["source_record_ids"])
         self.assertTrue({f"sessions.id:{value}" for value in self.session_ids}.issubset(source_ids))
         self.assertGreater(len(history_response.json()["history"]), 2)
+        analysis_overview = analysis_overview_response.json()["workspace"]
+        analysis_nights = analysis_nights_response.json()["nights"]
+        analysis_trends = analysis_trends_response.json()["trends"]
+        self.assertEqual(analysis_overview["record_id"], workspace.analysis_workspace.record_id)
+        self.assertEqual(len(analysis_nights), 6)
+        self.assertEqual(len(analysis_trends), 2)
+        self.assertTrue(all(len(value["metric_result_ids"]) == 2 for value in analysis_nights))
+        self.assertTrue(all(len(value["journal_entry_ids"]) == 1 for value in analysis_nights))
+        analysis_night = analysis_night_response.json()["night"]
+        quality_evidence = quality_evidence_response.json()["evidence"]
+        self.assertEqual(analysis_nights[0]["night_record_id"], analysis_night["night_record_id"])
+        self.assertEqual(quality_evidence["kind"], "quality")
+        self.assertTrue(quality_evidence["source_provenance_ids"])
         self.assertEqual(self.oscar_path.read_bytes(), self.oscar_bytes)
 
         if shutil.which("node"):

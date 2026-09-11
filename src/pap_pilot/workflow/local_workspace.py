@@ -7,13 +7,15 @@ from pathlib import Path
 from typing import Final
 
 from pap_pilot.adapter import OscarCohortSelection, extract_normalized_oscar_cohort
-from pap_pilot.engine.experiments import ExperimentPeriod, ExperimentStore, reconstruct_ps_min_experiment_fixture
+from pap_pilot.engine.analysis import AnalysisAvailability, AnalysisExperimentReference, AnalysisResourceKind, AnalysisWorkspace, analysis_resource_id
+from pap_pilot.engine.experiments import PS_MIN_RETROSPECTIVE_FIXTURE_ID, ExperimentPeriod, ExperimentStore, reconstruct_ps_min_experiment_fixture
 from pap_pilot.engine.reports import (
     EvaluatedRetrospectiveEvidenceReport,
     RetrospectiveRepresentativeIntervalSelection,
     build_evaluated_retrospective_evidence_report,
 )
 from pap_pilot.workflow.retrospective import evaluate_selected_oscar_retrospective_experiment
+from pap_pilot.workflow.analysis import compose_analysis_workspace
 
 
 RETROSPECTIVE_WORKSPACE_CONFIGURATION_FORMAT: Final = "pap-pilot.retrospective-workspace"
@@ -69,10 +71,11 @@ class RetrospectiveWorkspaceConfiguration:
 
 @dataclass(frozen=True, slots=True)
 class ConfiguredRetrospectiveWorkspace:
-    """Evaluated report plus the append-only store backing its history route."""
+    """Generic analysis and compatibility report rebuilt from protected inputs."""
 
     configuration: RetrospectiveWorkspaceConfiguration
     report: EvaluatedRetrospectiveEvidenceReport
+    analysis_workspace: AnalysisWorkspace
 
 
 def load_retrospective_workspace(
@@ -120,7 +123,29 @@ def load_retrospective_workspace(
             )
         )
     report = build_evaluated_retrospective_evidence_report(evaluation, tuple(selections))
-    return ConfiguredRetrospectiveWorkspace(configuration, report)
+    experiment_reference = AnalysisExperimentReference(
+        experiment_record_id=evaluation.experiment_record_id,
+        label="PS Min 2 to 1 retrospective compatibility experiment",
+        resource_id=analysis_resource_id(AnalysisResourceKind.EXPERIMENT, evaluation.experiment_record_id),
+        summary_record_id=report.record_id,
+        availability=AnalysisAvailability.AVAILABLE,
+        source_record_ids=(evaluation.experiment_record_id, report.record_id),
+        source_provenance_ids=report.provenance.source_provenance_ids,
+        compatibility_fixture_id=PS_MIN_RETROSPECTIVE_FIXTURE_ID,
+        limitations=("Compatibility fixture; it is not the generic workspace identity.",),
+    )
+    analysis_workspace = compose_analysis_workspace(
+        evaluation.selected_nights,
+        structural_quality_reports=(
+            *evaluation.allocation_structural_quality_reports,
+            *evaluation.metric_structural_quality_reports,
+        ),
+        signal_quality_reports=evaluation.signal_quality_reports,
+        metric_results=evaluation.metric_results,
+        journal_entries=evaluation.effective_journal_entries,
+        experiments=(experiment_reference,),
+    )
+    return ConfiguredRetrospectiveWorkspace(configuration, report, analysis_workspace)
 
 
 def load_retrospective_workspace_configuration(

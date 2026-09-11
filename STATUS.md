@@ -1,15 +1,19 @@
 # PAP Pilot — session handoff
 
-**Updated:** September 8, 2026
+**Updated:** September 10, 2026
 **Governing plan:** `Plan.md`
-**Current sprint:** None — S49 completed
-**Next sprint:** S50 — Add generic analysis API composition
+**Current sprint:** None — S50 completed
+**Next sprint:** S51 — Build the general analysis overview
 
 ## Current state
 
+- S50 adds deterministic `pap_pilot.workflow.compose_analysis_workspace` composition from explicitly selected normalized nights, existing structural/signal quality reports, existing metric results, replayed local journal entries, and optional experiment references. It produces stable generic nights, longitudinal trends, evidence and quality resources, explicit unavailable/not-evaluable states, complete nested provenance, and the same workspace identity regardless of input order; it performs no OSCAR access, cohort discovery, new calculation, AI work, UI work, prospective action, or device interaction.
+
+- The localhost API now freezes versioned generic analysis snapshots at application creation and exposes GET-only overview, recent-night collection, night detail, trend collection/detail, evidence/quality detail, and optional experiment-detail resources under `/api/v1/analysis/*`. Configured startup composes those resources from the already extracted/evaluated workspace and local journal replay, while unconfigured startup returns `analysis_workspace_not_configured` rather than querying OSCAR or representing unknown data as empty. Existing PS Min summary/history/mutation routes and their canonical responses remain compatibility surfaces.
+
 - S49 establishes `pap_pilot.engine.analysis` as the source-independent product-level contract. Immutable version-1 workspace, night, trend, trend-point, evidence, logical-resource, and optional experiment-reference records preserve explicit availability, stable identities, complete nested provenance, resolvable links, deterministic JSON, and the ability to represent useful PAP analysis with no experiment. `docs/decisions/0011-generic-analysis-workspace.md` defines the reserved generic routes and keeps PS Min only as an optional compatibility fixture; no API route, UI behavior, metric, selection, AI, persistence, device action, or OSCAR access was added.
 
-- Product scope is now broader general PAP analysis, inspired by the AirwayLab-style workflow of recent-night review, longitudinal trends, night drill-down, waveform/event evidence, and signal-quality explanations. The completed PS Min 2-to-1 path remains a regression fixture and example experiment, not the product definition. S49 is complete; S50–S53 remain queued.
+- Product scope is now broader general PAP analysis, inspired by the AirwayLab-style workflow of recent-night review, longitudinal trends, night drill-down, waveform/event evidence, and signal-quality explanations. The completed PS Min 2-to-1 path remains a regression fixture and example experiment, not the product definition. S49 and S50 are complete; S51–S53 remain queued.
 
 - S48 records `docs/validation/ai-usefulness-s48.md`: synthetic comparison with the deterministic retrospective fixture found possible bounded explanatory value but no incremental evidence or decision value, so hosted AI remains disabled and recommendation scope is unchanged. Fail-closed authorization, unavailable-provider, malformed-response, and S46 safety-gate behavior remain reproducible.
 
@@ -160,9 +164,13 @@
 
 ## Last completed sprint
 
-S49 — Define the generic analysis workspace.
+S50 — Add generic analysis API composition.
 
 ## Validation performed
+
+- Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_analysis_api tests.test_analysis_workspace tests.test_local_api tests.test_retrospective_local_workspace tests.test_package_imports -v`; all thirty-one focused composition, API, configured-workspace, contract, compatibility, and package tests passed. They cover experiment-free generic analysis, deterministic order-independent composition, recent-first nights, trend/night/evidence/quality/optional-experiment resource resolution, known and unconfigured missing states, complete provenance, frozen response snapshots, GET-only generic routes, configured normalized-data/local-journal composition, and byte-for-byte unchanged PS Min summary behavior.
+- Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 307 tests passed, preserving every existing adapter, normalized-model, quality, metric, experiment, report, API, UI, safety, AI, and PS Min regression.
+- Rebuilt and installed the package with `.venv/bin/python -m pip install --force-reinstall --no-deps --no-build-isolation .`; all thirty-one focused tests passed against the installed package. Python compilation, `git diff --check`, public-export inspection, application/workflow dependency inspection, route-method inspection, and documentation-style review passed. Validation used only wholly synthetic fixtures and temporary PAP Pilot/OSCAR databases; no live/private OSCAR database, therapy data, credential, hosted service, or device interface was accessed, and `Plan.md` remains unchanged because S50 implements its already accepted route/composition architecture without changing product scope.
 
 - Ran `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest tests.test_analysis_workspace tests.test_package_imports -v`; all nine focused contract/package tests passed, covering experiment-free workspaces, stable logical resource identities, optional PS Min compatibility, explicit missing and partial trends, empty unavailable trends, resolvable evidence/resources, complete nested provenance, deterministic serialization, immutability, and the source-independent dependency boundary.
 - Ran the complete source-tree suite with `PYTHONPATH=src .venv/bin/python -B -W error::ResourceWarning -m unittest discover -s tests -q`; all 299 tests passed, preserving every existing PS Min, adapter, quality, metric, experiment, API, UI, safety, and AI regression.
@@ -594,7 +602,7 @@ S49 — Define the generic analysis workspace.
 
 ## Blockers
 
-- S49 is complete and S50 is queued. Hosted transmission remains intentionally blocked; the general-analysis pivot does not authorize AI transmission or weaken decision 0010.
+- S50 is complete and S51 is queued. Hosted transmission remains intentionally blocked; the generic API does not authorize AI transmission or weaken decision 0010.
 - Milestones 3 and 4 are accepted. `docs/validation/retrospective-vertical-slice-s37f.md` records the complete protected evidence and explicit decisions; the synthetic classification demonstrates the product path but makes no claim about the user's therapy.
 - The retained S31/S32 fixture remains an immutable honest-missing fixture and therefore still lacks real supplied proposal, boundary, cohort, journal/confounder/adverse-effect, quality, metric, interval, and classification records. The default no-configuration UI correctly continues to show that state; a genuine local result requires exact user-supplied inputs and a protected OSCAR copy through the S37A–S37F path.
 - S35's waveform renderer and S37E's report excerpts are now connected by S37F for a configured workspace. Available Flow Rate and Mask Pressure excerpts render, while an insufficient sparse Leak excerpt remains explicitly missing; no source gap is filled and no signal is inferred.
@@ -611,5 +619,5 @@ S49 — Define the generic analysis workspace.
 ## Resume instruction
 
 ```text
-Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. S49 is complete; begin only S50, add generic read-only analysis API composition without starting S51 UI work, and preserve the existing PS Min compatibility behavior and decision 0010 consent boundary.
+Read AGENTS.md, Plan.md, SPRINTS.md, and STATUS.md. S50 is complete; begin only S51, build the general analysis overview without starting S52 night-detail/waveform UI work, and preserve explicit missing states, the PS Min compatibility behavior, and decision 0010 consent boundary.
 ```

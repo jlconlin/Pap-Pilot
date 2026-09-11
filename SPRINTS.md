@@ -388,7 +388,7 @@ If a sprint uncovers substantial extra work, add a new queued sprint rather than
 - Excludes: New metrics, broad UI implementation, AI, device interaction, and OSCAR writes.
 - Done when: `Plan.md` and source-independent contracts define the generic analysis unit, route/resource identity, provenance, and compatibility treatment for the existing PS Min fixture.
 
-### S50 — Add generic analysis API composition — queued
+### S50 — Add generic analysis API composition — done
 
 - Objective: Expose read-only recent-night, trend, night-detail, evidence, and quality resources from the existing normalized data and local store without PS Min-specific route assumptions.
 - Excludes: New waveform algorithms, automatic cohort discovery, AI, and prospective settings actions.
